@@ -1,0 +1,8 @@
+{
+  "threshold": 0,
+  "minTokens": 30,
+  "reporters": ["consoleFull"],
+  "absolute": true,
+  "gitignore": true,
+  "ignore": ["**/*.test.*", "**/*.e2e.*", "**/__fixtures__/**", "**/dist/**", "**/coverage/**"]
+}
