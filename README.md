@@ -42,7 +42,25 @@ Every run produces a repo with these guarantees baked in:
 
 ## Install
 
-The skill lives under your Claude Code skills directory:
+Two ways — pick one.
+
+### A. Plugin store (recommended)
+
+proto-forge is published in the [agentic-os](https://github.com/JirakJ/agentic-os)
+plugin marketplace. From inside Claude Code:
+
+```
+/plugin marketplace add JirakJ/agentic-os
+/plugin install proto-forge@agentic-os
+```
+
+`marketplace add` registers the marketplace (once); `install` pulls the
+sha-pinned plugin and enables it. Update later with `/plugin marketplace update
+agentic-os` then re-install. Manage everything under `/plugin`.
+
+### B. Skill directory (manual)
+
+Drop the skill straight into your Claude Code skills directory:
 
 ```bash
 git clone https://github.com/JirakJ/proto-forge.git
@@ -51,6 +69,9 @@ cp -R proto-forge ~/.claude/skills/proto-forge
 
 Restart Claude Code (or start a new session). The skill self-registers from its
 `SKILL.md` frontmatter.
+
+> Use **A or B**, not both — installing the plugin *and* the standalone skill
+> registers `proto-forge` twice.
 
 **Requirements for generated prototypes:** Node ≥ 20, [pnpm](https://pnpm.io) ≥ 9.
 The skill itself needs only Claude Code.
