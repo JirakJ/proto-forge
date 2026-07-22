@@ -1,0 +1,9 @@
+node_modules/
+dist/
+coverage/
+playwright-report/
+test-results/
+.proto-forge/sbom.cdx.json
+*.local
+.env
+.DS_Store

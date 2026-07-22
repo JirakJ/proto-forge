@@ -1,0 +1,24 @@
+{
+  "app": {
+    "title": "proto-forge prototype",
+    "skipToContent": "Skip to content"
+  },
+  "nav": {
+    "home": "Home"
+  },
+  "example": {
+    "heading": "Notes",
+    "field": {
+      "label": "New note",
+      "placeholder": "Write a note"
+    },
+    "add": "Add note",
+    "empty": "No notes yet.",
+    "error": {
+      "required": "Please enter a note."
+    },
+    "item": {
+      "delete": "Delete note"
+    }
+  }
+}

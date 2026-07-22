@@ -1,0 +1,151 @@
+{
+  "fileTree": [
+    "docs/adr/001-tech-stack.md",
+    "docs/adr/002-prompt-log.md",
+    "docs/adr/003-test-strategy.md",
+    "docs/adr/004-i18n-strategy.md",
+    "docs/adr/010-note-domain.md",
+    "docs/adr/020-component-library.md",
+    "docs/adr/021-provider-fallback.md",
+    "docs/adr/022-persistence-adapter.md",
+    "docs/adr/030-example-feature.md",
+    "docs/adr/100-sanitized-html.md",
+    "e2e/notes.e2e.ts",
+    "packages/proto-ui/package.json",
+    "packages/proto-ui/providers/index.tsx",
+    "packages/proto-ui/src/Button.test.tsx",
+    "packages/proto-ui/src/Button.tsx",
+    "packages/proto-ui/src/Dialog.test.tsx",
+    "packages/proto-ui/src/Dialog.tsx",
+    "packages/proto-ui/src/Field.test.tsx",
+    "packages/proto-ui/src/Field.tsx",
+    "packages/proto-ui/src/Menu.test.tsx",
+    "packages/proto-ui/src/Menu.tsx",
+    "packages/proto-ui/src/Table.test.tsx",
+    "packages/proto-ui/src/Table.tsx",
+    "packages/proto-ui/src/Tabs.test.tsx",
+    "packages/proto-ui/src/Tabs.tsx",
+    "packages/proto-ui/src/Toast.test.tsx",
+    "packages/proto-ui/src/Toast.tsx",
+    "packages/proto-ui/src/index.ts",
+    "packages/proto-ui/tokens.ts",
+    "scripts/adr-lint.mjs",
+    "scripts/commit-lint.mjs",
+    "scripts/component-dup-scan.mjs",
+    "scripts/consistency.mjs",
+    "scripts/i18n-verify.mjs",
+    "scripts/lib.mjs",
+    "scripts/prompt-log-lint.mjs",
+    "scripts/pseudo-gen.mjs",
+    "scripts/sbom.mjs",
+    "scripts/sec-scan.mjs",
+    "scripts/snapshot-diff.mjs",
+    "scripts/stub-scan.mjs",
+    "src/app/App.test.tsx",
+    "src/app/App.tsx",
+    "src/app/routes.ts",
+    "src/config/env.test.ts",
+    "src/config/env.ts",
+    "src/domain/note/model.ts",
+    "src/domain/note/note.test.ts",
+    "src/domain/note/repository.ts",
+    "src/domain/note/schema.ts",
+    "src/features/_example/NotesFeature.test.tsx",
+    "src/features/_example/hooks/useNotes.ts",
+    "src/features/_example/ui/NotesFeature.tsx",
+    "src/i18n/config.ts",
+    "src/i18n/index.ts",
+    "src/i18n/locales/en.json",
+    "src/i18n/locales/pseudo.json",
+    "src/i18n/resources.d.ts",
+    "src/infra/persistence/db.ts",
+    "src/infra/persistence/noteRepository.test.ts",
+    "src/infra/persistence/noteRepository.ts",
+    "src/infra/persistence/seed.ts",
+    "src/main.tsx",
+    "src/shared/SafeHtml.test.tsx",
+    "src/shared/SafeHtml.tsx",
+    "src/test/setup.ts",
+    "src/vite-env.d.ts"
+  ],
+  "adrSet": [
+    {
+      "id": 1,
+      "title": "Technology stack",
+      "status": "accepted"
+    },
+    {
+      "id": 2,
+      "title": "Append-only prompt log in Markdown",
+      "status": "accepted"
+    },
+    {
+      "id": 3,
+      "title": "Layered coverage + behavior-first testing",
+      "status": "accepted"
+    },
+    {
+      "id": 4,
+      "title": "i18n from day one with a pseudo-locale gate",
+      "status": "accepted"
+    },
+    {
+      "id": 10,
+      "title": "Note domain model derived from zod schema",
+      "status": "accepted"
+    },
+    {
+      "id": 20,
+      "title": "Owned component library (@jj/proto-ui)",
+      "status": "accepted"
+    },
+    {
+      "id": 21,
+      "title": "Provider fallback (own | radix)",
+      "status": "accepted"
+    },
+    {
+      "id": 22,
+      "title": "Real IndexedDB persistence adapter",
+      "status": "accepted"
+    },
+    {
+      "id": 30,
+      "title": "Notes example feature (self-verifying reference slice)",
+      "status": "accepted"
+    },
+    {
+      "id": 100,
+      "title": "Single sanitized-HTML entry point + CSP posture",
+      "status": "accepted"
+    }
+  ],
+  "components": [
+    "Button",
+    "Dialog",
+    "Field",
+    "Menu",
+    "ProtoUIProvider",
+    "Table",
+    "Tabs",
+    "ToastProvider"
+  ],
+  "gates": [
+    "adr:lint",
+    "consistency",
+    "dup:scan",
+    "i18n:extract",
+    "i18n:verify",
+    "lint",
+    "prompt:lint",
+    "sec:scan",
+    "snapshot",
+    "snapshot:diff",
+    "stub:scan",
+    "test:e2e",
+    "test:unit",
+    "typecheck"
+  ],
+  "templateVersion": "0.1.0",
+  "protoUiVersion": "0.1.0"
+}

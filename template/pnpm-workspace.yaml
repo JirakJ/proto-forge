@@ -1,0 +1,8 @@
+packages:
+  - "packages/*"
+
+# handlebars <4.7.9 carries the 2026 JS-injection advisory batch (GHSA-2w6w-674q-4c4q
+# et al.), pulled dev-only via eslint-plugin-boundaries@5 → @boundaries/elements.
+# Drop when eslint-plugin-boundaries is bumped to ≥7 (pins 4.7.9 itself).
+overrides:
+  handlebars: ^4.7.9

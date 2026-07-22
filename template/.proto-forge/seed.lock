@@ -1,0 +1,8 @@
+{
+  "package": "@jj/proto-ui",
+  "version": "0.1.0",
+  "sha": "20c067788c6bd53c073bb3767774f2d693a4bbc5",
+  "sha256": "ca9ae922164261f49755886f627518ce1c7f24ca8f21fbc7afb0f2ed8aa1d906",
+  "vendoredAt": "packages/proto-ui",
+  "note": "sha = agentic-os commit that vendored this seed (plugins/proto-forge). sha256 covers the vendored tree; snapshot:diff re-verifies it."
+}
