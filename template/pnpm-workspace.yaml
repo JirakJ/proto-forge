@@ -8,6 +8,12 @@ packages:
 # dompurify <3.4.12 = LOW (GHSA-c2j3-45gr-mqc4); direct via SafeHtml.
 overrides:
   handlebars: ^4.7.9
-  brace-expansion@1: ^1.1.16
-  brace-expansion@2: ^2.1.2
   dompurify: ^3.4.12
+  # Dev-only transitives flagged by osv-scanner (pnpm audit --prod does not see them):
+  # brace-expansion GHSA-rgw5-rvv9-x895 (ReDoS), postcss GHSA-fxqj-rqcc-2cmp (arbitrary
+  # .map read), undici GHSA-4cwx-7wf7-3272 (cache cross-user disclosure).
+  brace-expansion@1: ^1.1.18
+  brace-expansion@2: ^2.1.4
+  brace-expansion@5: ^5.0.9
+  postcss: ^8.5.23
+  undici: ^7.29.0
