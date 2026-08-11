@@ -1,0 +1,14 @@
+{
+  "source": "003c40d3a67001446890f4c331254a9d378509b95034e94a9d009cb87ac7cdc7",
+  "shots": [
+    {
+      "file": "empty.png",
+      "note": "The empty state, whose label is translated like any other string."
+    },
+    {
+      "file": "populated.png",
+      "note": "Caption, scoped column headers, and one testid per row and cell."
+    }
+  ],
+  "capturedBy": "docs:shots"
+}

@@ -30,4 +30,6 @@ The consistency gate asserts no second definition of any of these exists.
 - **ADRs** in `docs/adr/` with in-code `// @adr NNN` anchors; one accepted ADR = one commit.
 - **Prompt log** in `.prompts/`, append-only.
 - **Structure snapshot** in `.proto-forge/snapshot.json` proves structural determinism (BR-14).
+- **Performance budget** (ADR 007): `pnpm budget` gzips `dist/` and fails over 300 kB JS / 60 kB CSS / 250 kB per chunk. `verify` builds first, so a broken production build cannot pass.
+- **Crash containment** (ADR 006): the routed content sits inside `ErrorBoundary`; a render error degrades to an announced, retryable panel, never a blank page.
 - **Gates** are `pnpm` scripts; `pnpm verify` runs them all. See the root `package.json`.

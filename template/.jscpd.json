@@ -1,8 +1,16 @@
 {
+  "_comment": "src/gallery/** is excluded for the same reason tests and fixtures are: it IS a fixture catalogue. Each case is a deliberately parallel declaration of one component in one state, and the repetition is what makes the list readable at a glance. De-duplicating it into a factory would hide exactly what a reader comes here to see. It never ships — gallery.html is only built when VITE_GALLERY=1.",
   "threshold": 0,
   "minTokens": 30,
   "reporters": ["consoleFull"],
   "absolute": true,
   "gitignore": true,
-  "ignore": ["**/*.test.*", "**/*.e2e.*", "**/__fixtures__/**", "**/dist/**", "**/coverage/**"]
+  "ignore": [
+    "**/*.test.*",
+    "**/*.e2e.*",
+    "**/__fixtures__/**",
+    "**/dist/**",
+    "**/coverage/**",
+    "src/gallery/**"
+  ]
 }

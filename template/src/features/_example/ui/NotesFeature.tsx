@@ -25,11 +25,15 @@ export function NotesFeature() {
   };
 
   return (
-    <section aria-labelledby="notes-heading">
-      <h2 id="notes-heading" style={{ fontSize: tokens.font.sizeLg }}>
+    <section data-testid="notes" aria-labelledby="notes-heading">
+      <h2 id="notes-heading" data-testid="notes-heading" style={{ fontSize: tokens.font.sizeLg }}>
         {t("example.heading")}
       </h2>
-      <form onSubmit={onSubmit} style={{ display: "flex", gap: tokens.space.sm, alignItems: "flex-end" }}>
+      <form
+        data-testid="notes-form"
+        onSubmit={onSubmit}
+        style={{ display: "flex", gap: tokens.space.sm, alignItems: "flex-end" }}
+      >
         <Field
           label={t("example.field.label")}
           placeholder={t("example.field.placeholder")}
@@ -47,14 +51,14 @@ export function NotesFeature() {
           {t("example.empty")}
         </p>
       ) : (
-        <ul style={{ listStyle: "none", padding: 0, marginBlockStart: tokens.space.md }}>
+        <ul data-testid="notes-list" style={{ listStyle: "none", padding: 0, marginBlockStart: tokens.space.md }}>
           {notes.map((note) => (
             <li
               key={note.id}
-              data-testid="note-item"
+              data-testid={`note-item-${note.id}`}
               style={{ display: "flex", justifyContent: "space-between", gap: tokens.space.md, marginBlockEnd: tokens.space.sm }}
             >
-              <span>{note.text}</span>
+              <span data-testid={`note-text-${note.id}`}>{note.text}</span>
               <Button
                 variant="danger"
                 data-testid={`note-delete-${note.id}`}

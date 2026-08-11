@@ -1,0 +1,10 @@
+{
+  "source": "49be198aada6eb4b54fac8cccea4f711030654661dae72265f8f10e99f65325e",
+  "shots": [
+    {
+      "file": "default.png",
+      "note": "Roving tabindex across the tablist; only the selected panel is visible."
+    }
+  ],
+  "capturedBy": "docs:shots"
+}

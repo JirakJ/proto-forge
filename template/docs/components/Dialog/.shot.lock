@@ -1,0 +1,18 @@
+{
+  "source": "6423bfcc25bc68733345c13e6c7276165e5fc235af904374dc105faf15bc4300",
+  "shots": [
+    {
+      "file": "escapes-stacking-trap.png",
+      "note": "The portal proven: the modal escapes an ancestor with transform + overflow:hidden, and draws over a sticky header."
+    },
+    {
+      "file": "menu-over-modal.png",
+      "note": "The layering guarantee, visible: a menu opened inside a modal draws above it."
+    },
+    {
+      "file": "open.png",
+      "note": "Modal over its scrim, both portalled out of the app tree."
+    }
+  ],
+  "capturedBy": "docs:shots"
+}

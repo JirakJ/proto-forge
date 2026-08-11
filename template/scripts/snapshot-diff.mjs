@@ -40,9 +40,13 @@ function buildSnapshot() {
 
   const pkg = JSON.parse(read("package.json"));
   const protoPkg = JSON.parse(read("packages/proto-ui/package.json"));
-  const gates = Object.keys(pkg.scripts)
-    .filter((s) => /^(lint|typecheck|test|i18n|stub|adr|prompt|dup|consistency|sec|snapshot):?/.test(s))
-    .sort();
+  // Read the gate list off `verify` itself rather than pattern-matching script
+  // names. The question the snapshot answers is "which gates guard this run, in
+  // what order" — a name-based filter silently omits every gate added later
+  // (layer:scan, testid:scan, docs:verify all fell outside the old pattern), which
+  // is the one failure mode a provenance record must not have. Order is preserved:
+  // verify is fail-fast, so it is part of the contract.
+  const gates = [...(pkg.scripts.verify ?? "").matchAll(/pnpm run ([\w:-]+)/g)].map((m) => m[1]);
 
   return { fileTree, adrSet, components, gates, templateVersion: pkg.version, protoUiVersion: protoPkg.version };
 }

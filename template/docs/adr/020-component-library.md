@@ -10,7 +10,7 @@ Features must be built from reusable, owned, versioned primitives (BR-10) with p
 
 ## Decision
 
-Vendor `@jj/proto-ui` into `packages/proto-ui/` — Button, Field, Dialog, Menu, Table, Tabs, Toast + a single-source `tokens.ts`. Zero runtime deps except React and optional Radix primitives. Primitives carry a 100% coverage floor and ship accessible (roles, keyboard nav, live regions). Features import only from the package's public surface.
+Vendor `@jj/proto-ui` into `packages/proto-ui/` — Button, Field, Select, Checkbox, Dialog, Menu, Table, Tabs, Toast + a single-source `tokens.ts`. The form trio (Field/Select/Checkbox) shares one wiring contract: label association by id, `aria-describedby` to an announced inline error. Zero runtime deps except React and optional Radix primitives. Primitives carry a 100% coverage floor and ship accessible (roles, keyboard nav, live regions). Features import only from the package's public surface.
 
 ## Consequences
 

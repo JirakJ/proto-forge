@@ -3,6 +3,8 @@ import { tokens } from "../tokens";
 
 export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: "primary" | "secondary" | "danger";
+  /** Required (BR-02): every interactive element is addressable by a stable testid. */
+  "data-testid": string;
 };
 
 function variantStyle(variant: NonNullable<ButtonProps["variant"]>): CSSProperties {
@@ -15,8 +17,8 @@ function variantStyle(variant: NonNullable<ButtonProps["variant"]>): CSSProperti
   return { background: tokens.color.primary, color: tokens.color.primaryFg, border: "none" };
 }
 
-// The consumer supplies data-testid via ...rest; the require-testid lint rule
-// skips elements that spread props.
+// The consumer supplies data-testid via ...rest (required by ButtonProps); the
+// require-testid lint rule skips elements that spread props.
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
   { variant = "primary", type = "button", style, children, ...rest },
   ref,

@@ -33,6 +33,18 @@ export function hashTree(dir) {
   }
   return h.digest("hex");
 }
+// Content hash of an explicit file list, in the order given. Used to decide
+// whether a documentation screenshot still shows today's component.
+export function hashFiles(paths) {
+  const h = createHash("sha256");
+  for (const p of paths) {
+    h.update(p);
+    h.update("\0");
+    h.update(readFileSync(p));
+  }
+  return h.digest("hex");
+}
+
 export const isCode = (p) => /\.(ts|tsx)$/.test(p);
 export const isProd = (p) => isCode(p) && !/\.(test|e2e)\./.test(p);
 

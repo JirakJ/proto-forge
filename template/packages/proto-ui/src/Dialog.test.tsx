@@ -1,7 +1,9 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Dialog, type DialogProps } from "./Dialog";
+import { OVERLAY_ROOT_ID } from "./Portal";
 import { ProtoUIProvider, type ProviderKind } from "../providers/index";
+import { tokens } from "../tokens";
 
 function renderDialog(kind: ProviderKind, props: Partial<DialogProps> = {}) {
   const onClose = props.onClose ?? (() => {});
@@ -19,7 +21,7 @@ describe("Dialog (own provider)", () => {
   it("renders nothing when closed", () => {
     render(
       <ProtoUIProvider provider="own">
-        <Dialog open={false} title="Confirm" onClose={() => {}}>
+        <Dialog open={false} title="Confirm" data-testid="dlg" onClose={() => {}}>
           <p>Body</p>
         </Dialog>
       </ProtoUIProvider>,
@@ -36,6 +38,17 @@ describe("Dialog (own provider)", () => {
     expect(document.activeElement).toBe(dlg);
   });
 
+  it("escapes the app tree: scrim and surface live in the body-level portal, above the app", () => {
+    renderDialog("own");
+    const host = document.getElementById(OVERLAY_ROOT_ID)!;
+    const scrim = screen.getByTestId("dlg-scrim");
+    expect(host).toContainElement(scrim);
+    expect(host).toContainElement(screen.getByTestId("dlg"));
+    expect(scrim).toHaveStyle({ position: "fixed", zIndex: String(tokens.layer.overlay) });
+    expect(screen.getByTestId("dlg")).toHaveStyle({ zIndex: String(tokens.layer.modal) });
+    expect(tokens.layer.overlay).toBeGreaterThan(tokens.layer.sticky);
+  });
+
   it("closes on Escape, ignores other keys, and (no focusables) keeps Tab inside", () => {
     let closed = 0;
     renderDialog("own", { onClose: () => (closed += 1) });
@@ -47,14 +60,13 @@ describe("Dialog (own provider)", () => {
     expect(closed).toBe(1);
   });
 
-  it("closes on overlay click but not on content click", async () => {
+  it("closes on scrim click but not on content click", async () => {
     const user = userEvent.setup();
     let closed = 0;
     renderDialog("own", { onClose: () => (closed += 1) });
-    const dlg = screen.getByRole("dialog");
-    await user.click(dlg);
+    await user.click(screen.getByRole("dialog"));
     expect(closed).toBe(0);
-    await user.click(dlg.parentElement as HTMLElement);
+    await user.click(screen.getByTestId("dlg-scrim"));
     expect(closed).toBe(1);
   });
 
@@ -62,14 +74,14 @@ describe("Dialog (own provider)", () => {
     let closed = 0;
     const { rerender } = render(
       <ProtoUIProvider provider="own">
-        <Dialog open title="Confirm" onClose={() => (closed += 1)}>
+        <Dialog open title="Confirm" data-testid="dlg" onClose={() => (closed += 1)}>
           <p>Body</p>
         </Dialog>
       </ProtoUIProvider>,
     );
     rerender(
       <ProtoUIProvider provider="own">
-        <Dialog open={false} title="Confirm" onClose={() => (closed += 1)}>
+        <Dialog open={false} title="Confirm" data-testid="dlg" onClose={() => (closed += 1)}>
           <p>Body</p>
         </Dialog>
       </ProtoUIProvider>,
@@ -82,7 +94,7 @@ describe("Dialog (own provider)", () => {
     const calls: string[] = [];
     const { rerender } = render(
       <ProtoUIProvider provider="own">
-        <Dialog open title="Confirm" onClose={() => calls.push("a")}>
+        <Dialog open title="Confirm" data-testid="dlg" onClose={() => calls.push("a")}>
           <button data-testid="inner">x</button>
         </Dialog>
       </ProtoUIProvider>,
@@ -92,7 +104,7 @@ describe("Dialog (own provider)", () => {
     expect(document.activeElement).toBe(inner);
     rerender(
       <ProtoUIProvider provider="own">
-        <Dialog open title="Confirm" onClose={() => calls.push("b")}>
+        <Dialog open title="Confirm" data-testid="dlg" onClose={() => calls.push("b")}>
           <button data-testid="inner">x</button>
         </Dialog>
       </ProtoUIProvider>,
@@ -152,5 +164,11 @@ describe("Dialog (radix provider)", () => {
     expect(screen.getByTestId("dlg")).toHaveTextContent("Body");
     await user.keyboard("{Escape}");
     expect(closed).toBeGreaterThan(0);
+  });
+
+  it("carries the same layering contract as the own provider", () => {
+    renderDialog("radix");
+    expect(screen.getByTestId("dlg-scrim")).toHaveStyle({ zIndex: String(tokens.layer.overlay) });
+    expect(screen.getByTestId("dlg")).toHaveStyle({ zIndex: String(tokens.layer.modal) });
   });
 });

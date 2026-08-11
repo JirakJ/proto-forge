@@ -1,44 +1,27 @@
-import { useId, type InputHTMLAttributes } from "react";
-import { tokens } from "../tokens";
+import { type InputHTMLAttributes } from "react";
+import { FieldShell, controlStyle, useFieldIds } from "./fieldParts";
 
 export type FieldProps = Omit<InputHTMLAttributes<HTMLInputElement>, "id"> & {
+  /** Already translated by the caller — never a literal (BR-08). */
   label: string;
   error?: string;
+  /** Required (BR-02): the label and the error node derive their testids from it. */
+  "data-testid": string;
 };
 
 // Label + input + inline error, wired via matching ids and aria-describedby.
-// Errors are announced (role=alert). The consumer supplies data-testid via ...rest.
-export function Field({ label, error, style, ...rest }: FieldProps) {
-  const id = useId();
-  const errorId = `${id}-error`;
-  const invalid = error !== undefined && error !== "";
+// Errors are announced (role=alert).
+export function Field({ label, error, style, "data-testid": testid, ...rest }: FieldProps) {
+  const { id, invalid, aria, shell } = useFieldIds(error);
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: tokens.space.xs }}>
-      <label htmlFor={id} style={{ color: tokens.color.fg, fontSize: tokens.font.sizeSm }}>
-        {label}
-      </label>
+    <FieldShell testid={testid} label={label} {...shell}>
       <input
         id={id}
-        aria-invalid={invalid || undefined}
-        aria-describedby={invalid ? errorId : undefined}
-        style={{
-          padding: tokens.space.sm,
-          borderRadius: tokens.radius.sm,
-          border: `1px solid ${invalid ? tokens.color.danger : tokens.color.border}`,
-          fontSize: tokens.font.sizeMd,
-          ...style,
-        }}
+        {...aria}
+        data-testid={testid}
+        style={{ ...controlStyle(invalid), ...style }}
         {...rest}
       />
-      {invalid ? (
-        <span
-          id={errorId}
-          role="alert"
-          style={{ color: tokens.color.danger, fontSize: tokens.font.sizeSm }}
-        >
-          {error}
-        </span>
-      ) : null}
-    </div>
+    </FieldShell>
   );
 }
