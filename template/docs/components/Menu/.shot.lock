@@ -1,0 +1,10 @@
+{
+  "source": "5a503bace90ba77b4f8d4a74f1726a60c6710139c065bf407fe83f0d73ea4dbd",
+  "shots": [
+    {
+      "file": "open.png",
+      "note": "The surface is portalled to the body and anchored to the trigger in viewport coordinates."
+    }
+  ],
+  "capturedBy": "docs:shots"
+}

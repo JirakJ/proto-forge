@@ -2,7 +2,8 @@
 
 Turn a one-paragraph product brief into a **first shippable product slice** — a
 production-grade React 19 + TypeScript + Vite prototype that compiles, passes its
-own tests, and clears security + accessibility + i18n gates. Not a throwaway.
+own tests, and clears security, accessibility, translation, layering and
+documentation gates. Not a throwaway.
 
 proto-forge is a [Claude Code](https://claude.com/claude-code) **skill**. You give
 Claude a short brief; the skill drives a deterministic, gated pipeline that
@@ -21,22 +22,29 @@ append-only prompt log recording every decision.
 
 Every run produces a repo with these guarantees baked in:
 
-- **Owned component library** (`@jj/proto-ui`) — Button, Field, Dialog, Menu,
-  Table, Tabs, Toast + design tokens, 100% tested. No unowned UI dependency you
-  can't patch.
+- **Owned component library** (`@jj/proto-ui`) — Button, Field, Select, Checkbox,
+  Dialog, Menu, Table, Tabs, ToastProvider, Portal + design tokens, 100% tested.
+  No unowned UI dependency you can't patch.
 - **Zero placeholders** — no `TODO`, no `throw new Error("not implemented")`, no
   mocked first-party modules. Real Dexie/IndexedDB persistence, real typed API
   clients, real seed data.
 - **Full test pyramid** — Vitest unit/component tests with layered coverage
   floors, Playwright E2E covering happy *and* error paths, axe a11y checks.
 - **WCAG 2.2 AA** — keyboard paths verified in E2E, a11y strings are i18n keys.
-- **i18n from day one** — i18next, every user-visible string externalized, a
-  generated pseudo-locale that fails the build on missing keys.
+- **Actually translated i18n** — not "i18n-ready". Every locale must reach full key
+  parity with non-empty values, matching interpolations and the plural forms the
+  language really needs; a value copy-pasted from English **fails the build**.
+- **Popups that are genuinely on top** — one stacking scale in the design tokens,
+  every overlay portalled to a body-level root, proven against real browser paint
+  order rather than by reading back a `z-index`.
+- **A documented, photographed component catalogue** — every component and feature
+  has a page with a screenshot, and a lock file makes a stale screenshot fail.
 - **Security baseline** — strict CSP, zod validation at every boundary, a single
   `SafeHtml` sanitized-HTML entry point, `gitleaks` + `pnpm audit` hard-stop gates.
 - **Decision trail** — one accepted [ADR](https://adr.github.io/) per commit, plus
   an append-only prompt log; a CycloneDX SBOM and a structure snapshot per release.
 - **One gate command** — `pnpm verify` runs every gate; local and CI are identical.
+  `pnpm gates:selftest` proves each gate still rejects what it claims to.
 
 ---
 
@@ -60,10 +68,12 @@ agentic-os` then re-install. Manage everything under `/plugin`.
 
 ### B. Skill directory (manual)
 
-Drop the skill straight into your Claude Code skills directory:
+This repository is **private**, so a direct clone needs access; the plugin store
+above is the distribution path. With access, drop the skill straight into your
+Claude Code skills directory:
 
 ```bash
-git clone https://github.com/JirakJ/proto-forge.git
+git clone git@github.com:JirakJ/proto-forge.git
 cp -R proto-forge ~/.claude/skills/proto-forge
 ```
 
@@ -133,10 +143,10 @@ Phase 1  SCAFFOLD          → fixed repo skeleton (ADR 001-004)
 Phase 2  DOMAIN MODEL      → typed domain + zod schemas (ADR 010-019)
 Phase 3  COMPONENT LIBRARY → seed @jj/proto-ui + provider selector (ADR 020-021)
 Phase 4  FEATURE BUILD     → features from library (ADR 030-099, loop)
-Phase 5  I18N + A11Y PASS  → externalize + pseudo + axe (gate)
+Phase 5  I18N + A11Y PASS  → translate every locale + pseudo + axe (gate)
 Phase 6  TEST BUILD        → unit + component + E2E (gate)
 Phase 7  SECURITY HARDEN   → baseline controls + scans (ADR 100-199)
-Phase 8  CONSISTENCY SWEEP → dedup + contradiction scan (gate)
+Phase 8  DOCS + SWEEP      → catalogue, screenshots, dedup (gate)
 Phase 9  RELEASE           → SemVer tag + changelog + SBOM + snapshot
 ```
 
@@ -148,35 +158,88 @@ Full mechanics — decision table, ADR bands, gate-failure protocol — are in
 ## What the generated project looks like
 
 ```
-packages/proto-ui/     owned component library, 100% tested
+packages/proto-ui/     owned component library, 100% tested, byte-pinned by sha256
 src/
   app/                 shell + single-source route table
   config/              zod-validated env (single source)
   domain/<entity>/     pure model + zod schema + repository port
   infra/               real adapters (persistence/api/auth) implementing ports
-  i18n/                i18next setup, en + generated pseudo catalogues
+  i18n/                i18next setup, catalogues, identical-to-default allowlist
   features/<feature>/  slices composed from proto-ui (ui + hooks + tests + e2e)
+  gallery/             component catalogue for screenshots — never in a prod build
   shared/SafeHtml.tsx  the only sanitized-HTML entry point
 docs/adr/              ADR ledger (one accepted ADR = one commit)
+docs/components/<C>/   per-component page + screenshots + .shot.lock
+docs/features/<f>/     per-feature page + screenshots + .shot.lock
 .prompts/              append-only prompt log
-.proto-forge/          structure snapshot + seed lock + facet schema
-scripts/               the custom gate scripts
-e2e/                   Playwright specs (+ axe)
+.proto-forge/          config + snapshot + seed lock + facet schema + outbox
+.claude/               guardrail hooks (seed, thresholds, gate bypasses, network)
+AGENTS.md              the rules any agent working in the repo must satisfy
+scripts/               the gate scripts (and their self-test)
+e2e/                   Playwright specs (+ axe, + the overlay layering proofs)
 ```
 
 Run it:
 
 ```bash
 pnpm install
-pnpm dev        # http://localhost:5173
-pnpm verify     # every gate: lint, types, unit, e2e, i18n, adr, prompt, dup,
-                # consistency, security, snapshot
+pnpm dev            # http://localhost:5173
+pnpm verify         # every gate, fail-fast
+pnpm config:show    # which gates are in force, and where each setting came from
+pnpm docs:shots     # re-capture the component screenshots
 ```
+
+`verify` runs, in order: `config:check` · `gates:selftest` · `lint` · `typecheck` ·
+`test:unit` · `build` · `budget` · `i18n:verify` · `layer:scan` · `testid:scan` ·
+`docs:verify` · `stub:scan` · `adr:lint` · `prompt:lint` · `dup:scan` ·
+`consistency` · `sec:scan` · `snapshot:diff` · `test:e2e`.
 
 The shipped `template/` includes a self-verifying demo feature (a Notes app). On
 a real run the skill **deletes** the demo and builds your brief's features under
 the same per-feature Definition of Done — so `template/` is both the skeleton and
 a working reference of the output standard.
+
+---
+
+## Configurable, without becoming unenforced
+
+Every gate is configurable through `.proto-forge/config.json` (merged over strict
+defaults and an optional machine-wide `~/.config/proto-forge/config.json`). The
+configuration is deliberately asymmetric:
+
+- **Tightening is free.** Raise a threshold, widen a scan, switch a gate on.
+- **Relaxing a mandatory gate is not.** i18n, testid, layer, docs, security, stub,
+  consistency and snapshot may drop below `error` only with a `waivers[]` entry
+  carrying a reason, an ADR that exists, and an expiry date. Without a live waiver
+  the setting is *ignored* and the gate runs at `error` anyway. With one, the run is
+  stamped `conformance: "waived"`, the relaxation prints on every verify, and it
+  expires by itself.
+
+```json
+{
+  "gates": { "i18n": { "mode": "warn" } },
+  "waivers": [
+    { "gate": "i18n", "reason": "single-locale pilot for the September demo",
+      "adr": 150, "expires": "2026-09-30" }
+  ]
+}
+```
+
+`.claude/settings.json` adds local hooks that block the edits which quietly undo a
+gate: touching the byte-pinned component seed, rewriting an append-only prompt-log
+entry, lowering a coverage threshold or budget ceiling, `--no-verify`, or a network
+call to a host that is not on the allowlist. `AGENTS.md` states the same rules in
+prose for agents whose CLI has no hook mechanism.
+
+## Optional JIRA + Confluence
+
+Both are **off by default**, and enabling them does not make anything happen: no
+pipeline phase ever calls out. `pnpm sync:jira` and `pnpm sync:confluence` stage
+payloads into `.proto-forge/outbox/` for review. A live write needs `dryRun: false`,
+an open network guardrail with the host allowlisted, `--commit --approve`, and
+credentials read from the environment variables the config *names* — never from the
+config itself. Generating a prototype must not, as a side effect, file tickets in a
+project other people work in.
 
 ---
 

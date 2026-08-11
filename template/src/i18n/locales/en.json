@@ -1,10 +1,20 @@
 {
   "app": {
     "title": "proto-forge prototype",
-    "skipToContent": "Skip to content"
+    "skipToContent": "Skip to content",
+    "error": {
+      "title": "Something went wrong",
+      "body": "This part of the page failed to load. The rest of the app is still usable.",
+      "retry": "Try again"
+    }
   },
   "nav": {
     "home": "Home"
+  },
+  "notFound": {
+    "title": "Page not found",
+    "body": "That address does not match any page.",
+    "home": "Back to home"
   },
   "example": {
     "heading": "Notes",

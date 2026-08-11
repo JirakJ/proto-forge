@@ -1,0 +1,14 @@
+{
+  "source": "296fe8aebfa994651f9905e65e1eedd177859e8d866fad1a70107c28dd5bba05",
+  "shots": [
+    {
+      "file": "default.png",
+      "note": "Label, input and placeholder in the resting state."
+    },
+    {
+      "file": "error.png",
+      "note": "Invalid state: red border, aria-invalid, and the message announced via role=alert."
+    }
+  ],
+  "capturedBy": "docs:shots"
+}

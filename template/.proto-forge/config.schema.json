@@ -1,0 +1,189 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "proto-forge configuration",
+  "description": "Merged over the built-in strict defaults and any ~/.config/proto-forge/config.json. Run `pnpm config:show` to see what is actually in force and where each value came from. Anything omitted keeps its strict default — this file only records deviations.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "policy": {
+      "type": "string",
+      "enum": ["strict", "custom"],
+      "description": "Documentation of intent. Enforcement comes from gates[].mode and waivers[], not from this field."
+    },
+    "gates": {
+      "type": "object",
+      "description": "Per-gate settings. Tightening is always allowed. Relaxing a mandatory gate (i18n, testid, layer, docs, security, stub, consistency, snapshot) below \"error\" additionally requires a live waivers[] entry — without one, config:check fails AND the gate runs at \"error\" regardless of what is written here.",
+      "additionalProperties": false,
+      "properties": {
+        "i18n": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "mode": { "$ref": "#/$defs/mode" },
+            "requireTranslated": {
+              "type": "boolean",
+              "description": "Every locale must be actually translated, not merely present."
+            },
+            "allowIdenticalToDefault": {
+              "type": "boolean",
+              "description": "Permit values byte-identical to the default locale. Turning this on re-opens the copy-paste hole; prefer src/i18n/identical-ok.json for the handful of proper nouns that genuinely cannot differ."
+            },
+            "failOnOrphanKeys": {
+              "type": "boolean",
+              "description": "A catalogue key no code uses fails the gate."
+            },
+            "failOnDynamicKeys": {
+              "type": "boolean",
+              "description": "t(`x.${y}`) fails unless the file declares its key set with // i18n-dynamic:."
+            },
+            "requirePluralCompleteness": {
+              "type": "boolean",
+              "description": "Plural families must carry the categories the locale's grammar requires, per Intl.PluralRules."
+            }
+          }
+        },
+        "testid": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "mode": { "$ref": "#/$defs/mode" },
+            "scope": {
+              "type": "string",
+              "enum": ["semantic", "all"],
+              "description": "\"semantic\": interactive elements, headings, landmarks, list items, cells, media, form parts and anything with a role. \"all\" additionally requires layout wrappers."
+            },
+            "requireUnique": { "type": "boolean", "description": "Fail on the same static testid in two files." }
+          }
+        },
+        "layer": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": { "mode": { "$ref": "#/$defs/mode" } }
+        },
+        "docs": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "mode": { "$ref": "#/$defs/mode" },
+            "requireScreenshots": {
+              "type": "boolean",
+              "description": "Each documented subject needs a screenshot or an explicit <!-- no-screenshot: reason -->."
+            },
+            "requireFreshScreenshots": {
+              "type": "boolean",
+              "description": "A screenshot taken from older source than the current code fails. Re-run pnpm docs:shots."
+            }
+          }
+        },
+        "security": { "$ref": "#/$defs/simpleGate" },
+        "stub": { "$ref": "#/$defs/simpleGate" },
+        "consistency": { "$ref": "#/$defs/simpleGate" },
+        "snapshot": { "$ref": "#/$defs/simpleGate" },
+        "budget": { "$ref": "#/$defs/simpleGate" },
+        "dup": { "$ref": "#/$defs/simpleGate" },
+        "adr": { "$ref": "#/$defs/simpleGate" },
+        "prompt": { "$ref": "#/$defs/simpleGate" }
+      }
+    },
+    "integrations": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "jira": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "dryRun": {
+              "type": "boolean",
+              "description": "true (default) writes payloads to .proto-forge/outbox/ and contacts nothing. Live writes happen only via `pnpm sync:jira --commit`, never as a side effect of a pipeline phase."
+            },
+            "baseUrl": { "type": "string", "description": "e.g. https://acme.atlassian.net" },
+            "projectKey": { "type": "string" },
+            "issueType": { "type": "string" },
+            "createFor": {
+              "type": "array",
+              "items": { "type": "string", "enum": ["adr", "blocked-gate", "waiver"] },
+              "description": "Which pipeline events produce a ticket payload."
+            },
+            "tokenEnv": { "type": "string", "description": "Name of the env var holding the API token. Never the token itself." },
+            "userEnv": { "type": "string" }
+          }
+        },
+        "confluence": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "dryRun": { "type": "boolean" },
+            "baseUrl": { "type": "string" },
+            "spaceKey": { "type": "string" },
+            "parentPageId": { "type": "string" },
+            "publish": {
+              "type": "array",
+              "items": { "type": "string", "enum": ["architecture", "adr-index", "component-catalog", "security"] }
+            },
+            "tokenEnv": { "type": "string" },
+            "userEnv": { "type": "string" }
+          }
+        }
+      }
+    },
+    "guardrails": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "network": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "allow": { "type": "boolean" },
+            "allowedHosts": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "requireApproval": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Outward-facing effects an operator must confirm interactively, e.g. \"jira.create\", \"confluence.publish\"."
+        },
+        "protectedPaths": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Glob patterns an agent hook refuses to edit — the byte-pinned seed, the locks, the append-only prompt log."
+        },
+        "freezeThresholds": {
+          "type": "boolean",
+          "description": "Refuse edits that would lower a coverage threshold or a budget ceiling. Overridable for one command with PROTO_FORGE_ALLOW_THRESHOLD_EDIT=1."
+        }
+      }
+    },
+    "waivers": {
+      "type": "array",
+      "description": "The only way to relax a mandatory gate. Each entry expires; after that the gate enforces again on its own.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["gate", "reason", "adr", "expires"],
+        "properties": {
+          "gate": { "type": "string" },
+          "reason": { "type": "string", "minLength": 15, "description": "What the relaxation buys and why the risk is acceptable." },
+          "adr": { "type": ["integer", "string"], "description": "Number of an ADR that exists in docs/adr/." },
+          "expires": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "mode": {
+      "type": "string",
+      "enum": ["error", "warn", "off"],
+      "description": "error = fails the build. warn = prints findings and passes. off = does not enforce."
+    },
+    "simpleGate": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": { "mode": { "$ref": "#/$defs/mode" } }
+    }
+  }
+}

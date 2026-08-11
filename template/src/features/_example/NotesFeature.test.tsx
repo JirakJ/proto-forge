@@ -15,7 +15,7 @@ describe("NotesFeature", () => {
     render(<NotesFeature />);
 
     // Seed loads on mount.
-    await waitFor(() => expect(screen.getAllByTestId("note-item").length).toBeGreaterThan(0));
+    await waitFor(() => expect(screen.getAllByTestId(/^note-item-/).length).toBeGreaterThan(0));
 
     // Empty submit is rejected with an announced error.
     await user.click(screen.getByTestId("note-add"));
@@ -29,10 +29,10 @@ describe("NotesFeature", () => {
 
     // Deleting every note reveals the empty state.
     for (;;) {
-      const remaining = screen.queryAllByTestId("note-item");
+      const remaining = screen.queryAllByTestId(/^note-item-/);
       if (remaining.length === 0) break;
       await user.click(within(remaining[0]!).getByRole("button"));
-      await waitFor(() => expect(screen.queryAllByTestId("note-item").length).toBe(remaining.length - 1));
+      await waitFor(() => expect(screen.queryAllByTestId(/^note-item-/).length).toBe(remaining.length - 1));
     }
     expect(screen.getByTestId("notes-empty")).toBeInTheDocument();
   });

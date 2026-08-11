@@ -1,0 +1,10 @@
+{
+  "source": "cff4207deabccb2b5248621d072d84da72c3ac3a376e9533faf9c1f0ccdce2db",
+  "shots": [
+    {
+      "file": "default.png",
+      "note": "Native select on the same label/error wiring as Field."
+    }
+  ],
+  "capturedBy": "docs:shots"
+}

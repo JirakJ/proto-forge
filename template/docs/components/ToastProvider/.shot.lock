@@ -1,0 +1,14 @@
+{
+  "source": "366a50aaa7dc1bb349ac9b24c44c8977cc981f70561e3eefb22941df32c86ad2",
+  "shots": [
+    {
+      "file": "info.png",
+      "note": "A polite toast in the body-level region at the top of the layer scale."
+    },
+    {
+      "file": "over-modal.png",
+      "note": "A toast raised from inside a modal still draws above it — tokens.layer.toast outranks modal."
+    }
+  ],
+  "capturedBy": "docs:shots"
+}
