@@ -28,7 +28,7 @@ Across files, namespace them: `notes-submit`, not `submit`. The primitives make 
 
 **3. Popups render through `<Portal>` and take their layer from `tokens.layer.*`.** Never a numeric `z-index`. Anything positioned `fixed`/`absolute`/`sticky` declares its layer. In practice: compose `Dialog`, `Menu` and `ToastProvider` rather than building an overlay — they already do this, and `component-dup-scan` rejects a hand-rolled one.
 
-**4. A component is not finished until it is documented and photographed.** Every exported component and every feature has a page under `docs/`, and that page shows a current screenshot. Add a case to `src/gallery/cases.tsx`, run `pnpm docs:shots`. Editing a component invalidates its screenshots until you re-run it. If there is genuinely nothing to photograph, say so explicitly:
+**4. A component is not finished until it is documented and photographed.** Every exported component and every feature has a page under `docs/`, and that page shows a current screenshot. Add a case to `src/harness/cases.ts` and its mount to `src/harness/mounts.tsx`, run `pnpm docs:shots`. Editing a component invalidates its screenshots until you re-run it. If there is genuinely nothing to photograph, say so explicitly:
 
 ```md
 <!-- no-screenshot: a context provider renders no markup of its own -->

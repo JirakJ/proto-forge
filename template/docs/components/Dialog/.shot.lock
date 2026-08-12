@@ -1,9 +1,9 @@
 {
-  "source": "4ea8c91fdd4523d177443382cf4700027d1fd76f78f560773807b7ec1a0c4c0a",
+  "source": "b346aafee0b6a0488fb3a370f59607c6c5f5240f2241ea030585c2b84647faaf",
   "shots": [
     {
       "file": "escapes-stacking-trap.png",
-      "note": "The portal proven: the modal escapes an ancestor with transform + overflow:hidden, and draws over a sticky header."
+      "note": "The top layer proven: the modal escapes an ancestor with transform + overflow:hidden, and draws over a sticky header."
     },
     {
       "file": "menu-over-modal.png",
@@ -11,7 +11,7 @@
     },
     {
       "file": "open.png",
-      "note": "Modal over its scrim, both portalled out of the app tree."
+      "note": "A modal in the top layer, with the browser painting its backdrop."
     }
   ],
   "capturedBy": "docs:shots"

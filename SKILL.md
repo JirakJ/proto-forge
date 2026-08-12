@@ -54,7 +54,7 @@ The template is already copied (Phase 0). Remove the self-verifying demo **in fu
 
 - **Delete (the complete demo set):** `src/features/_example/`, `src/domain/note/`, `src/infra/persistence/` (db, noteRepository, seed + tests), `e2e/notes.e2e.ts`, `docs/features/_example/` (the whole directory, README and any screenshots), ADRs `010-note-domain.md` / `022-persistence-adapter.md` / `030-example-feature.md`, and the `example.*` keys in every `src/i18n/locales/*.json`.
 - **Regenerate** (these are regeneration points, NOT part of the byte-for-byte-immutable set): `src/app/App.tsx` (drop the `_example` import + its `<Route>`; keep the shell, `BrowserRouter`, `<ErrorBoundary>`, the landmark testids and the `*` → `NotFound` route — routed content is empty until Phase 4 adds real features), `src/app/App.test.tsx` (drop the notes/db assumptions — keep the shell-landmark + not-found assertions), `src/app/routes.ts` (as the brief needs).
-- **Keep (immutable):** all of `packages/proto-ui/`, `src/app/ErrorBoundary.tsx`, `src/app/NotFound.tsx`, `src/app/ErrorBoundary.test.tsx`, `e2e/shell.e2e.ts`, `e2e/overlay.e2e.ts`, `src/gallery/` (the proto-ui cases are library fixtures, not demo content), `src/shared/SafeHtml.tsx`, `src/config/`, `src/i18n/` config, `docs/components/**`, `.claude/`, `AGENTS.md`, every config + gate script, and ADRs 001–009 (foundational, pre-written `accepted`).
+- **Keep (immutable):** all of `packages/proto-ui/`, `src/app/ErrorBoundary.tsx`, `src/app/NotFound.tsx`, `src/app/ErrorBoundary.test.tsx`, `e2e/shell.e2e.ts`, `e2e/overlay.e2e.ts`, `src/harness/` (the proto-ui cases are library fixtures, not demo content), `src/shared/SafeHtml.tsx`, `src/config/`, `src/i18n/` config, `docs/components/**`, `.claude/`, `AGENTS.md`, every config + gate script, and ADRs 001–009 (foundational, pre-written `accepted`).
 
 After cleanup, run `pnpm snapshot` to regenerate `.proto-forge/snapshot.json`. Gate: `pnpm install && pnpm typecheck && pnpm build` exits 0.
 
@@ -106,7 +106,7 @@ Apply the BRS §4 baseline (already wired in the template): strict CSP, zod boun
 
 ### Phase 8 — Documentation + consistency sweep (gate)
 
-Add a gallery case to `src/gallery/cases.tsx` for every state worth showing, run `pnpm docs:shots`, then `pnpm docs:verify`: every exported component and every feature has a page, each page shows a screenshot that was taken from the **current** source, and no page is a stub. Editing a component invalidates its screenshots until `docs:shots` runs again.
+Add a case to `src/harness/cases.ts` and its mount to `src/harness/mounts.tsx` for every state worth showing, run `pnpm docs:shots`, then `pnpm docs:verify`: every exported component and every feature has a page, each page shows a screenshot that was taken from the **current** source, and no page is a stub. Editing a component invalidates its screenshots until `docs:shots` runs again.
 
 Then `pnpm dup:scan` + `pnpm consistency`: no code clones >30 tokens (except library primitives), no local re-impl of a proto-ui primitive, no duplicate i18n values, no two `accepted` ADRs with opposing decisions lacking a supersede link, single-source-of-truth registry intact (default locale, tokens, env schema, domain types, route table each defined exactly once).
 
@@ -176,11 +176,11 @@ Supporting commands: `config:show` · `docs:shots` · `i18n:extract` · `snapsho
 
 `gates:selftest` builds a throwaway project per failure mode and asserts every gate's exit code — run it after touching any scan script.
 
-`budget` (ADR 007) gzips the built `dist/` assets and enforces 300 kB JS / 60 kB CSS / 250 kB per chunk, and refuses to measure a gallery build. It is a **remediable** gate — trim or split, never raise the ceiling; a real budget change is an ADR from 100-199 plus the constant in `scripts/budget.mjs`.
+`budget` (ADR 007) gzips the built `dist/` assets and enforces 300 kB JS / 60 kB CSS / 250 kB per chunk, and refuses to measure a harness build. It is a **remediable** gate — trim or split, never raise the ceiling; a real budget change is an ADR from 100-199 plus the constant in `scripts/budget.mjs`.
 
 ## Fixture vs mock — the exact line (BR-12)
 
-Real (allowed): a Dexie store that genuinely persists/queries/enforces schema; a one-time typed **seed dataset** in `src/infra/**/seed.ts`; a zod-validated typed API client; fixtures under `**/__fixtures__/` imported **only** by `*.test.*`/`*.e2e.*`; the component gallery in `src/gallery/**`, which is a screenshot catalogue and never in a production build.
+Real (allowed): a Dexie store that genuinely persists/queries/enforces schema; a one-time typed **seed dataset** in `src/infra/**/seed.ts`; a zod-validated typed API client; fixtures under `**/__fixtures__/` imported **only** by `*.test.*`/`*.e2e.*`; the component harness in `src/harness/**`, which is a screenshot-and-browser-test catalogue and never in a production build.
 Banned: hardcoded literals ignoring arguments; inline `return [{id:1,...}]` in a component/hook; `vi.mock`/`jest.mock` of first-party paths; `__fixtures__` imports in production `src/`; `throw new Error("not implemented")`; lorem/`TODO`/`FIXME`.
 
 ## Reference files

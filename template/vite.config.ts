@@ -38,11 +38,12 @@ const applyHeaders =
     });
   };
 
-// The component gallery is a second HTML entry point, added to the Rollup input
-// only when VITE_GALLERY=1 (`pnpm docs:shots`). A production `pnpm build` never
-// sees gallery.html, so the catalogue cannot leak into the shipped bundle or move
-// the performance budget — and there is no runtime flag to get wrong.
-const withGallery = process.env.VITE_GALLERY === "1";
+// The component harness is a second HTML entry point, added to the Rollup input
+// only when VITE_HARNESS=1 (`pnpm docs:shots`, `pnpm test:e2e`). A production
+// `pnpm build` never sees harness.html, so the catalogue cannot leak into the
+// shipped bundle or move the performance budget — and there is no runtime flag
+// to get wrong.
+const withHarness = process.env.VITE_HARNESS === "1";
 const html = (name: string) => fileURLToPath(new URL(`./${name}`, import.meta.url));
 
 export default defineConfig({
@@ -56,7 +57,7 @@ export default defineConfig({
   ],
   build: {
     rollupOptions: {
-      input: withGallery ? { main: html("index.html"), gallery: html("gallery.html") } : { main: html("index.html") },
+      input: withHarness ? { main: html("index.html"), harness: html("harness.html") } : { main: html("index.html") },
     },
   },
   resolve: {
@@ -80,8 +81,9 @@ export default defineConfig({
         "**/__fixtures__/**",
         "src/test/**",
         "src/main.tsx",
-        // The gallery is a fixture catalogue for screenshots, not shipped UI.
-        "src/gallery/**",
+        // The harness is a fixture catalogue for screenshots and browser tests,
+        // never shipped UI.
+        "src/harness/**",
         "src/i18n/resources.d.ts",
         "**/*.d.ts",
       ],

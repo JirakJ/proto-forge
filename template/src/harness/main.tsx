@@ -1,14 +1,14 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { Gallery } from "./Gallery";
+import { Harness } from "./Harness";
 
-// Separate entry point (gallery.html). It is only added to the Rollup input when
-// VITE_GALLERY=1, so the production bundle — and the budget gate — never see it.
+// The harness entry point. Only built when VITE_HARNESS=1 adds harness.html to the
+// Rollup input; a production `pnpm build` never sees this file.
 const rootEl = document.getElementById("root");
 if (!rootEl) throw new Error("Root element #root not found");
 
 createRoot(rootEl).render(
   <StrictMode>
-    <Gallery />
+    <Harness />
   </StrictMode>,
 );

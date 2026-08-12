@@ -1,9 +1,9 @@
 {
-  "source": "d5035ec5b97491669f5989bf08fd2541d1a73842fbf0520e70eaa85d4b8b99d8",
+  "source": "4853e18055513559ff37c44b950de3959d5a07f08d45b4681a6ae41e1cf1c52e",
   "shots": [
     {
       "file": "open.png",
-      "note": "The surface is portalled to the body and anchored to the trigger in viewport coordinates."
+      "note": "The surface is promoted into the top layer and anchored to the trigger in viewport coordinates."
     }
   ],
   "capturedBy": "docs:shots"

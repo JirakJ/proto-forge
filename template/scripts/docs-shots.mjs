@@ -6,7 +6,7 @@ import { componentSources, documentableComponents, lockFor, sourceHash } from ".
 import { fail, note, ok } from "./lib.mjs";
 
 // @adr 009 - documentation screenshots are generated, never hand-managed
-// Builds gallery.html (a separate Rollup entry, so nothing here reaches the
+// Builds harness.html (a separate Rollup entry, so nothing here reaches the
 // production bundle), serves it, and photographs one case per URL fragment. The
 // per-component .shot.lock records the source hash the image was taken from, so
 // `pnpm docs:verify` can tell a current screenshot from a flattering old one.
@@ -22,13 +22,13 @@ const OUT = "docs/components";
 
 const build = spawnSync("pnpm", ["exec", "vite", "build"], {
   stdio: "inherit",
-  env: { ...process.env, VITE_GALLERY: "1" },
+  env: { ...process.env, VITE_HARNESS: "1" },
 });
-if (build.status !== 0) fail("docs:shots — the gallery build failed");
+if (build.status !== 0) fail("docs:shots — the harness build failed");
 
 const server = spawn("pnpm", ["exec", "vite", "preview", "--port", String(PORT), "--strictPort"], {
   stdio: "ignore",
-  env: { ...process.env, VITE_GALLERY: "1" },
+  env: { ...process.env, VITE_HARNESS: "1" },
 });
 const stop = () => server.kill();
 process.on("exit", stop);
@@ -37,7 +37,7 @@ async function waitForServer(timeoutMs = 60_000) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     try {
-      const res = await fetch(`${BASE}/gallery.html`);
+      const res = await fetch(`${BASE}/harness.html`);
       if (res.ok) return;
     } catch {
       // preview is not listening yet
@@ -52,8 +52,8 @@ await waitForServer();
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 900, height: 600 }, deviceScaleFactor: 2 });
 
-await page.goto(`${BASE}/gallery.html`);
-const manifest = await page.$$eval("[data-testid^='gallery-link-']", (nodes) =>
+await page.goto(`${BASE}/harness.html`);
+const manifest = await page.$$eval("[data-testid^='harness-link-']", (nodes) =>
   nodes.map((n) => ({
     id: n.dataset.case,
     component: n.dataset.component,
@@ -62,12 +62,12 @@ const manifest = await page.$$eval("[data-testid^='gallery-link-']", (nodes) =>
     click: n.dataset.click,
   })),
 );
-if (manifest.length === 0) fail("docs:shots — the gallery listed no cases");
+if (manifest.length === 0) fail("docs:shots — the harness listed no cases");
 
 const byComponent = new Map();
 for (const c of manifest) {
-  await page.goto(`${BASE}/gallery.html#/${c.id}`);
-  const frame = page.getByTestId("gallery-case");
+  await page.goto(`${BASE}/harness.html#/${c.id}`);
+  const frame = page.getByTestId("harness-case");
   await frame.waitFor({ state: "visible" });
   if (c.click !== "") {
     await page.getByTestId(c.click).click();
@@ -91,7 +91,7 @@ stop();
 
 for (const [component, shots] of byComponent) {
   const sources = componentSources(component);
-  if (sources.length === 0) note(`docs:shots — no source file found for ${component}; lock will hash the gallery only`);
+  if (sources.length === 0) note(`docs:shots — no source file found for ${component}; lock will hash the registry only`);
   writeFileSync(
     lockFor("components", component),
     `${JSON.stringify({ source: sourceHash(sources), shots: shots.sort((a, b) => a.file.localeCompare(b.file)), capturedBy: "docs:shots" }, null, 2)}\n`,

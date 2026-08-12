@@ -73,7 +73,7 @@ function checkSubject(kind, name, sources) {
   if (recorded !== sourceHash(sources)) {
     errors.push(
       `${name}: the screenshots were taken from an older ${sources.length === 1 ? "version of " : ""}` +
-        `${sources.join(", ")}${existsSync(CASES_FILE) ? " (or gallery case)" : ""} — re-run pnpm docs:shots`,
+        `${sources.join(", ")}${existsSync(CASES_FILE) ? " (or harness case)" : ""} — re-run pnpm docs:shots`,
     );
   }
 }
@@ -85,7 +85,7 @@ for (const feature of features()) {
   checkSubject("features", feature, featureSources(feature));
 }
 
-// Every gallery case should end up in someone's documentation; a case that
+// Every harness case should end up in someone's documentation; a case that
 // photographs nothing is dead weight in the catalogue.
 if (existsSync(CASES_FILE)) {
   const declared = [...read(CASES_FILE).matchAll(/component:\s*["'](\w+)["']/g)].map((m) => m[1]);

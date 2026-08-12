@@ -6,8 +6,8 @@ import { test, expect, type Page } from "@playwright/test";
 // Chromium and ask the only question that matters: at the centre of this popup,
 // what does the browser say the user would click?
 //
-// The gallery supplies the adversarial page. It is a fixture, not shipped UI —
-// gallery.html is a separate entry point built only when VITE_GALLERY=1.
+// The harness supplies the adversarial page. It is a fixture, not shipped UI —
+// harness.html is a separate entry point built only when VITE_HARNESS=1.
 
 /** True when the element is what a click at its own centre would actually hit. */
 async function isTopmost(page: Page, testid: string) {
@@ -21,28 +21,28 @@ async function isTopmost(page: Page, testid: string) {
 }
 
 test("a modal escapes an ancestor stacking context and is not clipped by it", async ({ page }) => {
-  await page.goto("/gallery.html#/dialog-stacking-trap");
+  await page.goto("/harness.html#/dialog-stacking-trap");
 
-  const dialog = page.getByTestId("gallery-trapped-dialog");
+  const dialog = page.getByTestId("harness-trapped-dialog");
   await expect(dialog).toBeVisible();
 
   // The ancestor is 80px tall with overflow:hidden. Rendered in place, the dialog
   // would be cropped to it; portalled, it is free of it entirely.
   const dialogBox = (await dialog.boundingBox())!;
-  const trapBox = (await page.getByTestId("gallery-trap").boundingBox())!;
+  const trapBox = (await page.getByTestId("harness-trap").boundingBox())!;
   expect(dialogBox.height).toBeGreaterThan(trapBox.height);
 
   // The ancestor also carries transform + filter, both of which create a stacking
   // context that traps every descendant z-index. Paint order proves the escape.
-  expect(await isTopmost(page, "gallery-trapped-dialog")).toBe(true);
+  expect(await isTopmost(page, "harness-trapped-dialog")).toBe(true);
 });
 
 test("a sticky header does not paint over the modal scrim", async ({ page }) => {
-  await page.goto("/gallery.html#/dialog-stacking-trap");
-  await expect(page.getByTestId("gallery-trapped-dialog")).toBeVisible();
+  await page.goto("/harness.html#/dialog-stacking-trap");
+  await expect(page.getByTestId("harness-trapped-dialog")).toBeVisible();
 
   const coveredByHeader = await page.evaluate(() => {
-    const header = document.querySelector('[data-testid="gallery-trap-header"]')!;
+    const header = document.querySelector('[data-testid="harness-trap-header"]')!;
     const r = header.getBoundingClientRect();
     const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
     return header.contains(hit);
@@ -51,17 +51,17 @@ test("a sticky header does not paint over the modal scrim", async ({ page }) => 
 });
 
 test("a menu opened inside a modal draws above it", async ({ page }) => {
-  await page.goto("/gallery.html#/dialog-with-menu");
-  await page.getByTestId("gallery-dialog-menu-trigger").click();
+  await page.goto("/harness.html#/dialog-with-menu");
+  await page.getByTestId("harness-dialog-menu-trigger").click();
 
-  const surface = page.getByTestId("gallery-dialog-menu-surface");
+  const surface = page.getByTestId("harness-dialog-menu-surface");
   await expect(surface).toBeVisible();
-  expect(await isTopmost(page, "gallery-dialog-menu-surface")).toBe(true);
+  expect(await isTopmost(page, "harness-dialog-menu-surface")).toBe(true);
 });
 
 test("a toast raised from inside a modal is still on top", async ({ page }) => {
-  await page.goto("/gallery.html#/toast-over-modal");
-  await page.getByTestId("gallery-toast-fire").click();
+  await page.goto("/harness.html#/toast-over-modal");
+  await page.getByTestId("harness-toast-fire").click();
 
   const region = page.getByTestId("toast-region");
   await expect(region).toBeVisible();
@@ -79,8 +79,8 @@ test("a toast raised from inside a modal is still on top", async ({ page }) => {
 });
 
 test("every overlay shares one body-level host, and it is the last child of body", async ({ page }) => {
-  await page.goto("/gallery.html#/dialog-with-menu");
-  await page.getByTestId("gallery-dialog-menu-trigger").click();
+  await page.goto("/harness.html#/dialog-with-menu");
+  await page.getByTestId("harness-dialog-menu-trigger").click();
 
   const hosts = await page.locator("#proto-ui-overlay-root").count();
   expect(hosts).toBe(1);
