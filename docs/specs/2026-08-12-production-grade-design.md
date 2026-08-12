@@ -220,15 +220,34 @@ compete, because the top layer is not part of the document's stacking contexts a
 
 - dismiss order — `useDismiss` acts only when `isTopmost(id)`;
 - refcounting scroll lock and inert;
-- the fallback path, where the effective layer is `tokens.layer[kind] + ownerOrdinal * STEP` with
-  `STEP = 10`, so a menu opened in dialog A stays below dialog B (defect 1.1b). `STEP` lives in
-  `overlay/OverlayStack.tsx` and the scale's gaps (`overlay` 1000 → `modal` 1010 → `popover` 1100)
-  bound how deep a stack the fallback supports: nine levels, then the gate's ordering check fails
-  rather than the layering silently inverting.
+- the fallback path.
 
-`tokens.layer` shrinks its primary role to in-flow chrome — `base`, `raised`, `sticky`. The overlay
-values stay, documented as fallback-only, and `layer:scan` enforces that they are read only inside
-the fallback branch.
+**Corrected during implementation.** The fallback formula stated here was
+`tokens.layer[kind] + ownerOrdinal * STEP`. That **reproduces the defect it was meant to fix.**
+Because the per-kind base for `popover` (1100) outranks `modal` (1010), a menu opened in dialog A
+would still paint above a dialog B opened later — no choice of `ownerOrdinal` repairs it, since the
+kind term dominates. Worked through while writing the tests:
+
+| Surface | Per-kind formula | Promotion order |
+|---|---|---|
+| dialog A | modal + 0 = 1010 | 1000 |
+| menu in A | popover + 0 = 1100 | 1010 |
+| dialog B (opens later) | modal + 10 = **1020** ✗ under the menu | 1020 ✓ above it |
+
+The fallback therefore uses **promotion order alone**: `tokens.layer.overlay + ordinal * STEP`,
+`STEP = 10`, a surface's scrim sitting just below its own value. Consequences, all simplifications:
+
+- **`kind` plays no part in stacking.** It selects the platform API and whether the surface blocks
+  the page; it never decides who paints on top. The fallback and the top layer therefore cannot
+  disagree, because both are ordered by when a surface opened.
+- **`OverlayOwner` and `ownerOrdinal` are gone.** They existed to keep a popover above its own modal
+  but below a later one; promotion order does that without an owner chain, so the API loses a
+  concept rather than gaining one.
+- **`tokens.layer` keeps `base`, `raised`, `sticky` and `overlay`.** The `modal` / `popover` /
+  `toast` / `tooltip` entries are removed in Task 15 together with `layer:scan`'s ordering check:
+  a per-kind overlay scale is not merely unused now, it is the thing that was wrong.
+- A toast must be raised *after* the surface it should cover — which is true of the top layer too,
+  and is why the toast region promotes per batch rather than once at mount.
 
 ### 4.4 Testing the two paths honestly
 

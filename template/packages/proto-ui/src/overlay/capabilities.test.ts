@@ -1,4 +1,4 @@
-import { detectCapabilities, type Capabilities } from "./capabilities";
+import { detectCapabilities, type Capabilities, type CapabilityView } from "./capabilities";
 
 // jsdom 26 implements none of the three APIs — no showModal, no showPopover, no
 // CSS.supports. That is why `view` is a parameter: every "supported" branch below is
@@ -8,7 +8,7 @@ import { detectCapabilities, type Capabilities } from "./capabilities";
 // The views here are fixtures, not mocks of a first-party module: they stand in for a
 // browser, which is exactly what jsdom is already doing.
 
-const view = (shape: Record<string, unknown>) => shape as unknown as Window;
+const view = (shape: CapabilityView) => shape;
 
 describe("detectCapabilities", () => {
   it("reports nothing supported under jsdom, which implements none of the three", () => {
