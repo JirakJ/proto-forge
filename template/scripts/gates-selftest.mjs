@@ -734,6 +734,39 @@ expect("consistency: a non-English script in code fails", "consistency.mjs", con
   "src/features/f.ts": 'export const label = "Привет";\n',
 }), { pass: false, matching: /non-English/ });
 
+// The CSS mirror. The overlay stylesheet has to exist, which puts design values in two
+// languages; these three cases are what keeps them one source.
+const TOKENS_WITH_COLOR = `export const tokens = {
+  color: { bg: "#ffffff", scrim: "rgba(0, 0, 0, 0.5)", primaryFg: "#ffffff" },
+  radius: { md: "8px" },
+  focusRing: "0 0 0 3px rgba(29, 78, 216, 0.5)",
+} as const;
+`;
+
+expect("consistency: a stylesheet using only token vars passes", "consistency.mjs", consistencyBase({
+  "packages/proto-ui/tokens.ts": TOKENS_WITH_COLOR,
+  "packages/proto-ui/src/overlay/overlay.css":
+    "dialog::backdrop { background: var(--pf-color-scrim); }\n" +
+    "dialog[open] { background: var(--pf-color-bg); border-radius: var(--pf-radius-md); }\n",
+}), { pass: true });
+
+expect("consistency: a stylesheet var no token produces fails", "consistency.mjs", consistencyBase({
+  "packages/proto-ui/tokens.ts": TOKENS_WITH_COLOR,
+  "packages/proto-ui/src/overlay/overlay.css": "dialog::backdrop { background: var(--pf-color-invented); }\n",
+}), { pass: false, matching: /does not produce/ });
+
+expect("consistency: a literal colour in the stylesheet fails", "consistency.mjs", consistencyBase({
+  "packages/proto-ui/tokens.ts": TOKENS_WITH_COLOR,
+  "packages/proto-ui/src/overlay/overlay.css": "dialog::backdrop { background: #00000080; }\n",
+}), { pass: false, matching: /literal design value/ });
+
+expect("consistency: a camelCase token resolves to its kebab-case custom property", "consistency.mjs", consistencyBase({
+  "packages/proto-ui/tokens.ts": TOKENS_WITH_COLOR,
+  // primaryFg -> --pf-color-primary-fg, and the top-level scalar focusRing -> --pf-focus-ring.
+  "packages/proto-ui/src/overlay/overlay.css":
+    "dialog[open] { color: var(--pf-color-primary-fg); box-shadow: var(--pf-focus-ring); }\n",
+}), { pass: true });
+
 // --- snapshot:diff -----------------------------------------------------------
 // The passing case needs a seed.lock holding a hash only the gate can compute,
 // so `prepare` writes the baseline the way an operator would.

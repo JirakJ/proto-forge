@@ -1,0 +1,60 @@
+/*
+ * @adr 008 - the only stylesheet in the library, and why it has to exist
+ *
+ * Everything else in @jj/proto-ui styles itself with inline `style` props. Two things
+ * cannot be expressed that way, and both belong to the top layer:
+ *
+ *   ::backdrop            the scrim a modal <dialog> paints behind itself. There is no
+ *                         element to attach a style prop to.
+ *   @supports             the fallback branch has to be selected by the browser, not by
+ *                         script, or a surface flashes in the wrong place before the
+ *                         capability check has run.
+ *
+ * Every value is a var(--pf-*) produced from tokens.ts. `consistency` fails on a var
+ * this file uses that the tokens do not produce, so a design value cannot enter here.
+ */
+
+/* The modal scrim. Matches what the fallback path draws with its own element, so the
+   two paths look identical rather than merely behaving identically. */
+dialog::backdrop {
+  background: var(--pf-color-scrim);
+}
+
+/* A dialog in the top layer is positioned by the browser; it needs no inset of its own,
+   and must not inherit the block layout of wherever it happens to sit in the DOM. */
+dialog[open] {
+  margin: auto;
+  border: 0;
+  padding: 0;
+  max-inline-size: min(90vw, 40rem);
+  max-block-size: 85vh;
+  background: var(--pf-color-bg);
+  color: var(--pf-color-fg);
+  border-radius: var(--pf-radius-md);
+}
+
+/* Popover surfaces: the browser paints them in the top layer, so the only thing to
+   remove is the UA's own chrome. */
+[popover]:popover-open {
+  margin: 0;
+  border: 0;
+  padding: 0;
+  background: var(--pf-color-bg);
+  color: var(--pf-color-fg);
+  overflow: visible;
+}
+
+/*
+ * The no-top-layer path. A browser without :popover-open never matches the rule above,
+ * and the surface is a portalled element carrying an inline z-index from the stack
+ * instead. Nothing to do here but state the contract, so the next reader knows the
+ * fallback is deliberate and where its layering comes from.
+ */
+@supports not selector(:popover-open) {
+  [data-pf-fallback-surface] {
+    position: fixed;
+  }
+}
+
+/* Reduced motion is honoured by having no transitions to suppress: an overlay that
+   animates in is an overlay a test has to wait for, and waiting is where flake lives. */
