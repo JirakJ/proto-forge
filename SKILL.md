@@ -194,4 +194,4 @@ Banned: hardcoded literals ignoring arguments; inline `return [{id:1,...}]` in a
 
 The process mechanics — phase order, the copy-first rule, the full demo-deletion set, ADR-band allocation (incl. the auth-band skip), prompt-log numbering, snapshot cadence, and target-directory naming — are defined **here and in `references/decision-table.md`**. Do not defer them elsewhere; they are deterministic and belong in the skill. Only genuine *domain-requirement* ambiguity (what the product should do) escalates per the escalation rule.
 
-This skill implements BRS-PROTO-FORGE-001 v1.2.0; P0 scope + deliberate trims are recorded in `~/work/docs/superpowers/specs/2026-07-05-proto-forge-design.md`.
+This skill implements the requirements register in `references/requirements.md` — the normative source for every `BR-xx` / `NFR-xx` / `BRS §x` citation in this repository. The design decisions behind the current seed are recorded in `docs/specs/`, and the plugin's own decision history in `docs/adr/`.

@@ -17,6 +17,13 @@ import { walk, read, readJson, isMarkdown, fail, ok } from "./lib.mjs";
 const READER_PATHS = new Set(["~/.claude/skills/proto-forge", "~/.config/proto-forge/config.json"]);
 const HOME_POINTER = /(?:~|\/Users)\/[^\s`'")\],;]*/g;
 
+// A decision record that removes a pointer has to quote the pointer it removed,
+// or it cannot state what it decided. Such a record declares it once, at the top,
+// with a reason. Honoured ONLY under docs/adr/ — the skill, the READMEs and the
+// reference files have no way to opt out, which is where it matters.
+const HISTORICAL = /<!--\s*historical-pointers:\s*(.{15,}?)\s*-->/;
+const mayQuoteHistory = (file, body) => file.startsWith("docs/adr/") && HISTORICAL.test(body);
+
 const errors = [];
 
 if (!existsSync("SKILL.md")) fail("skill-lint FAILED", ["SKILL.md is missing — the skill is the product"]);
@@ -62,8 +69,14 @@ const prose = [
   ...walk("docs/adr", isMarkdown),
 ].filter((p) => existsSync(p));
 
+let exempted = 0;
 for (const file of prose) {
-  const lines = read(file).split("\n");
+  const body = read(file);
+  if (mayQuoteHistory(file, body)) {
+    exempted += 1;
+    continue;
+  }
+  const lines = body.split("\n");
   for (const [i, line] of lines.entries()) {
     for (const m of line.matchAll(HOME_POINTER)) {
       const pointer = m[0].replace(/[.`)]+$/, "");
@@ -77,4 +90,7 @@ for (const file of prose) {
 }
 
 if (errors.length > 0) fail("skill-lint FAILED", errors);
-ok(`skill-lint: frontmatter agrees with skill.json, ${prose.length} prose files reference nothing outside the repo`);
+ok(
+  `skill-lint: frontmatter agrees with skill.json, ${prose.length - exempted} prose files reference nothing ` +
+    `outside the repo${exempted > 0 ? ` (${exempted} decision record(s) quoting removed pointers)` : ""}`,
+);

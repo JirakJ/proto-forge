@@ -62,4 +62,38 @@ expect(
   { pass: true },
 );
 
+expect(
+  "skill-lint: a decision record may quote the pointer it removed, once declared",
+  "skill-lint.mjs",
+  {
+    "SKILL.md": goodSkill,
+    "skill.json": skillJson,
+    "docs/adr/002-thing.md":
+      "<!-- historical-pointers: this record quotes the path it removed -->\n\n" +
+      "The manifest used to live in `~/work/agentic-os/plugins/proto-forge`.\n",
+  },
+  { pass: true },
+);
+
+expect(
+  "skill-lint: the historical-pointers escape does not work outside docs/adr",
+  "skill-lint.mjs",
+  {
+    "SKILL.md": `${goodSkill}\n<!-- historical-pointers: trying to opt the skill out -->\n\nSee \`~/work/docs/spec.md\`.\n`,
+    "skill.json": skillJson,
+  },
+  { pass: false, matching: /outside this repository/ },
+);
+
+expect(
+  "skill-lint: the escape needs a real reason, not a bare marker",
+  "skill-lint.mjs",
+  {
+    "SKILL.md": goodSkill,
+    "skill.json": skillJson,
+    "docs/adr/002-thing.md": "<!-- historical-pointers: x -->\n\nSee `~/work/agentic-os`.\n",
+  },
+  { pass: false, matching: /outside this repository/ },
+);
+
 report();
