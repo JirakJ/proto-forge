@@ -36,10 +36,23 @@ other stacked on `z-index`.
 
 ## Decision
 
-**The platform decides who is on top.** A modal is a real `<dialog>` opened with
-`showModal()`; menus, toasts and tooltips use the Popover API. An element in the top layer
-is not part of the document's stacking contexts at all, so no ancestor and no `z-index` —
-however large — competes with it. Order *within* the top layer is promotion order, which
+**The platform decides who is on top, and every surface asks the same way.** Modals,
+menus, toasts and tooltips are all promoted into the top layer as **manual popovers**. An
+element in the top layer is not part of the document's stacking contexts at all, so no
+ancestor and no `z-index` — however large — competes with it.
+
+Not `showModal()`, and that is the decision this ADR turned on. `showModal()` looks like
+the obvious mechanism for a modal, and it supplies focus containment and background
+inertness for free. It also marks **the entire document outside the dialog** as inert, and
+promoting a popover into the top layer does **not** lift that inertness. A menu or a toast
+raised from inside a modal was therefore painted correctly and completely dead to the
+pointer — visible, on top, unclickable. Only a browser could show this; jsdom has no
+inertness and no top layer, and a `zIndex` assertion would have called it a pass.
+
+One mechanism for every surface removes the interaction. The library already owns what
+`showModal()` was providing: `useFocusScope` contains focus, and `useInertBackground` marks
+**the app root only**, which is precisely what leaves the overlay host — and therefore
+every surface above the modal — reachable. Order *within* the top layer is promotion order, which
 is precisely the semantics required: a dialog opened later is above, a popover raised from
 it is above that, and closing one returns the previous surface to the top.
 
@@ -51,16 +64,17 @@ entries were not merely unused, they were the defect.
 
 **One responsibility per module** (NFR-20). `packages/proto-ui/src/overlay/` holds
 `OverlayStack` (order, `isTopmost`, the fallback value — and the only reader of the scale),
-`capabilities` (the only feature detection), `topLayer` (the only caller of `showModal`,
-`showPopover`, `hidePopover`), `useDismiss` (**the** keydown owner, dispatching to the
+`capabilities` (the only feature detection), `topLayer` (the only caller of
+`showPopover` and `hidePopover`), `useDismiss` (**the** keydown owner, dispatching to the
 topmost surface alone), `useScrollLock` and `useInertBackground` (refcounted, restoring what
 they found), `useFocusScope` (entry, containment, return through a stack) and `useAnchor`
 (CSS anchor positioning where available, rect arithmetic otherwise). A primitive composes
 these and implements none of them.
 
-**The fallback path is real code, not a comment.** A browser without `showModal` renders the
-same `<dialog>` element with its `open` attribute set, plus its own scrim, and takes over
-focus trapping, inerting and Escape. Same markup, same testids, one test contract (NFR-24).
+**The fallback path is real code, not a comment.** A browser without the Popover API
+renders the same element with a scrim of its own and a layer from the stack. Focus
+containment, inertness and Escape are library-owned on **both** paths, so the platform path
+is not a special case and there is one behaviour to test (NFR-24).
 
 **`<Portal>` stays.** Top layer *and* a body-level host is deliberate redundancy: the
 fallback needs the host, and it keeps the "no fixed surface outside the portal" rule
@@ -85,7 +99,7 @@ document element — a wrapper element would not reach the top layer, where a su
 descendant of nothing the provider renders. `consistency` re-derives the set, so the two
 languages stay one source.
 
-jsdom implements none of `showModal`, `showPopover` or `CSS.supports`, so capabilities are
+jsdom implements none of `showPopover`, `showModal` or `CSS.supports`, so capabilities are
 **injected** and every platform call is guarded on the element. Both paths are therefore
 reachable from unit tests, and the overlay modules reach 100 % coverage with no exemptions,
 while Chromium proves the paint order the unit tests cannot see.
@@ -95,6 +109,10 @@ one file and one test file. The cost is indirection: reading `Dialog` now means 
 seven small modules instead of one large one.
 
 ## Alternatives considered
+
+**`<dialog>` with `showModal()` for the modal.** Tried, implemented, and refuted by a
+browser test — see the Decision. It is the single most important thing this record has to
+say, because the code reads as if `showModal()` were the obvious choice.
 
 **A dynamic z-index stack, without the top layer.** Fixes ordering and dismissal, and was
 the plan of record until the arithmetic was written out. It still loses to a hostile

@@ -11,7 +11,7 @@ import { tokens } from "../tokens";
 // jsdom has no showModal at all, so without pinning capabilities the top-layer branch
 // would never run here — and it is the primary one.
 const FALLBACK: Capabilities = { topLayerDialog: false, popover: false, cssAnchor: false };
-const TOP_LAYER: Capabilities = { topLayerDialog: true, popover: true, cssAnchor: false };
+const TOP_LAYER: Capabilities = { topLayerDialog: false, popover: true, cssAnchor: false };
 
 /** An app root, so the inert bookkeeping has something real to mark. */
 function withAppRoot() {
@@ -60,7 +60,7 @@ describe("Dialog — the contract both paths share", () => {
     expect(dialog).toHaveAttribute("aria-modal", "true");
     expect(dialog).toHaveAttribute("aria-label", "Confirm");
     expect(dialog).toHaveTextContent("Body");
-    expect(dialog.tagName).toBe("DIALOG");
+    expect(dialog).toHaveAttribute("data-pf-modal");
   });
 
   it.each([
@@ -94,45 +94,34 @@ describe("Dialog — the contract both paths share", () => {
 });
 
 describe("Dialog — the top-layer path", () => {
-  it("closes on the native cancel event, keeping React the owner of `open`", () => {
-    let closed = 0;
-    renderDialog(TOP_LAYER, { onClose: () => (closed += 1) });
-    const dialog = screen.getByTestId("dlg");
-    fireEvent(dialog, new Event("cancel", { bubbles: false, cancelable: true }));
-    expect(closed).toBe(1);
-  });
-
-  it("paints no scrim of its own — ::backdrop is the browser's job", () => {
+  it("paints no scrim of its own: ::backdrop is the browser's", () => {
     renderDialog(TOP_LAYER);
     expect(screen.queryByTestId("dlg-scrim")).toBeNull();
   });
 
-  it("does not inert the app root: showModal() already does it natively", () => {
+  it("still owns focus containment, inertness and Escape", () => {
+    // showModal() would have supplied the first two natively, and was rejected for it:
+    // its inertness also killed every surface promoted above the modal. So the library
+    // owns them on BOTH paths, and this asserts the platform path is not a special case.
     const root = withAppRoot();
-    renderDialog(TOP_LAYER);
-    expect(root.hasAttribute("inert")).toBe(false);
-  });
-
-  it("does not trap Tab itself: an inert document already contains focus", () => {
+    let closed = 0;
     render(
       <ProtoUIProvider capabilities={TOP_LAYER}>
-        <Dialog open title="Confirm" data-testid="dlg" onClose={() => {}}>
+        <Dialog open title="Confirm" data-testid="dlg" onClose={() => (closed += 1)}>
           <button data-testid="one">One</button>
           <button data-testid="two">Two</button>
         </Dialog>
       </ProtoUIProvider>,
     );
+    expect(root.hasAttribute("inert")).toBe(true);
+
     const two = screen.getByTestId("two");
     two.focus();
     fireEvent.keyDown(two, { key: "Tab" });
-    expect(document.activeElement).toBe(two);
-  });
+    expect(document.activeElement).toBe(screen.getByTestId("one"));
 
-  it("does not handle Escape itself, leaving it to the native cancel event", () => {
-    let closed = 0;
-    renderDialog(TOP_LAYER, { onClose: () => (closed += 1) });
     fireEvent.keyDown(document, { key: "Escape" });
-    expect(closed).toBe(0);
+    expect(closed).toBe(1);
   });
 });
 
@@ -166,7 +155,7 @@ describe("Dialog — the fallback path", () => {
     expect(closed).toBe(1);
   });
 
-  it("inerts the app root, which is what makes it actually modal", () => {
+  it("inerts the app root, and never the overlay host above it", () => {
     const root = withAppRoot();
     const { unmount } = renderDialog(FALLBACK);
     expect(root.hasAttribute("inert")).toBe(true);
@@ -200,9 +189,9 @@ describe("Dialog — the fallback path", () => {
     expect(document.activeElement).toBe(two);
   });
 
-  it("shows the element non-modally so role=dialog stays addressable", () => {
+  it("carries its own layer from the stack, since the platform assigns none", () => {
     renderDialog(FALLBACK);
-    expect(screen.getByTestId("dlg")).toHaveAttribute("open");
+    expect(Number(screen.getByTestId("dlg").style.zIndex)).toBeGreaterThan(tokens.layer.sticky);
   });
 });
 

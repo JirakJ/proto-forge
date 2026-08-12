@@ -3,7 +3,6 @@ import { tokens } from "../tokens";
 import { Portal } from "./Portal";
 import {
   demote,
-  isPromoted,
   promote,
   useDismiss,
   useFocusScope,
@@ -23,62 +22,61 @@ export type DialogProps = {
 
 // @adr 008 - a modal that is on top because the browser put it there
 //
-// The surface is a real <dialog>, opened with showModal(), which places it in the
-// browser's TOP LAYER. That is a different guarantee from a high z-index: the top layer
-// is not part of the document's stacking contexts, so an ancestor transform, filter or
-// overflow cannot trap or clip it, and a hostile `z-index: 2147483647` in application
-// code cannot compete with it at all. Order within the top layer is promotion order,
-// which is why two dialogs stack correctly with no arithmetic.
+// The surface is promoted into the browser's TOP LAYER as a manual popover. That is a
+// different guarantee from a high z-index: the top layer is not part of the document's
+// stacking contexts, so an ancestor transform, filter or overflow cannot trap or clip
+// it, and a hostile `z-index: 2147483647` in application code cannot compete with it at
+// all. Order within the top layer is promotion order, which is why two dialogs stack
+// correctly with no arithmetic.
+//
+// Not showModal(). That was the first design and a browser test refuted it: showModal()
+// marks the whole document outside the dialog inert, and promoting a popover does not
+// lift that inertness, so a menu or toast raised from inside a modal was visible but
+// dead to the pointer. One mechanism for every surface removes the interaction.
 //
 // Everything else is composed rather than built here (NFR-20). Dialog owns no listener,
 // no focus trap and no scroll bookkeeping of its own:
 //
 //   useOverlaySlot        place in the stack, and the fallback z-index
 //   promote / demote      the only platform calls
-//   useFocusScope         entry and return; trapping only where the platform does not
+//   useFocusScope         entry, containment and return
 //   useScrollLock         refcounted, so two dialogs do not unlock each other's page
-//   useInertBackground    only on the fallback path; showModal() inerts natively
+//   useInertBackground    the app root only, which is what keeps a menu above the modal
+//                         reachable -- the thing showModal() got wrong
 //   useDismiss            Escape via the topmost surface only
 //
-// The fallback path (a browser, or jsdom, without showModal) renders the SAME <dialog>
-// element with its `open` attribute set, plus a scrim element of its own, and takes over
-// focus trapping, inerting and Escape. Same markup and same testids either way, so one
-// test contract covers both (NFR-24).
+// The fallback path (no Popover API) renders the same element with its own scrim and its
+// own layer from the stack. Same markup, same testids, same behaviour, so one test
+// contract covers both (NFR-24).
 export function Dialog({ open, onClose, title, children, "data-testid": testid }: DialogProps) {
-  const surfaceRef = useRef<HTMLDialogElement>(null);
+  const surfaceRef = useRef<HTMLDivElement>(null);
   const slot = useOverlaySlot("modal", open);
   const { capabilities } = slot;
   // Whether the PLATFORM will place this surface. Decided at render time so the scrim is
-  // not added and removed after the fact, which would flash.
-  const platformOwnsLayering = capabilities.topLayerDialog;
+  // not added and removed after the fact, which would flash. On the platform path the
+  // scrim is ::backdrop; on the fallback it is an element of our own.
+  const platformOwnsLayering = capabilities.popover;
 
   useEffect(() => {
     const surface = surfaceRef.current;
     if (surface === null || !open) return;
-    promote(surface, "modal", capabilities);
-    // Not promoted means the platform declined — a browser without showModal, or a test
-    // pinning the capability on an element that does not implement it. Showing the
-    // element non-modally keeps it visible and keeps `role=dialog` addressable.
-    if (!isPromoted(surface, "modal", capabilities)) surface.setAttribute("open", "");
-    return () => {
-      demote(surface, "modal", capabilities);
-      surface.removeAttribute("open");
-    };
+    promote(surface, capabilities);
+    return () => demote(surface, capabilities);
   }, [open, capabilities]);
 
-  useFocusScope({ ref: surfaceRef, active: open, trap: !platformOwnsLayering });
+  // The library owns all three, on both paths. A manual popover gives no native focus
+  // containment and no native inertness -- deliberately, because the native versions
+  // came bundled with an inertness that broke every surface above the modal.
+  useFocusScope({ ref: surfaceRef, active: open, trap: true });
   useScrollLock(open);
-  useInertBackground(open && !platformOwnsLayering);
+  useInertBackground(open);
   useDismiss({
     ref: surfaceRef,
     slot,
     onDismiss: onClose,
     enabled: open,
-    // On the top-layer path the native `cancel` event owns Escape; handling it twice
-    // would close two levels of a stack on one keystroke.
-    escape: !platformOwnsLayering,
-    // A modal's outside click is its scrim's click, handled below, so that the dialog
-    // does not also close on a click landing in the browser's own backdrop.
+    // A modal's outside click is its scrim's click, handled below, so the dialog does
+    // not also close on a click that lands on the backdrop.
     outsidePointer: false,
   });
 
@@ -98,18 +96,14 @@ export function Dialog({ open, onClose, title, children, "data-testid": testid }
           }}
         />
       )}
-      <dialog
+      <div
         ref={surfaceRef}
+        role="dialog"
         aria-modal="true"
+        data-pf-modal=""
         aria-label={title}
         tabIndex={-1}
         data-testid={testid}
-        onCancel={(event) => {
-          // Keep React the owner of `open`: letting the browser close the element would
-          // leave the DOM and the prop disagreeing.
-          event.preventDefault();
-          onClose();
-        }}
         onClick={(event) => event.stopPropagation()}
         style={
           platformOwnsLayering
@@ -134,7 +128,7 @@ export function Dialog({ open, onClose, title, children, "data-testid": testid }
           {title}
         </h2>
         {children}
-      </dialog>
+      </div>
     </Portal>
   );
 }
