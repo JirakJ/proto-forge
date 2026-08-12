@@ -32,7 +32,9 @@ The "conservative default" is itself a fixed rule, so off-table behavior stays r
 
 ## ADR number ranges (BRS §9.6)
 
-Allocate **by facet order**, not sequentially-as-encountered. `adr-lint` fails any ADR outside its phase's range.
+Allocate **by facet order**, not sequentially-as-encountered.
+
+`adr-lint` verifies anchors, statuses and prompt-log links; it does **not** verify bands, because a band maps to a *kind* of decision and an ADR file does not declare its kind (see `references/requirements.md` §19.6). Band allocation is a rule of the pipeline, verified in review.
 
 | Range            | Reserved for                                                     | Assigned          |
 | ---------------- | ---------------------------------------------------------------- | ----------------- |
