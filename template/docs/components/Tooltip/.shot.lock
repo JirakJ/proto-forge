@@ -1,0 +1,10 @@
+{
+  "source": "79f87d2bc3510d99a2d6a5a1973ce6e6e5535e943eaf2cce8457cd1ce3736cb6",
+  "shots": [
+    {
+      "file": "open.png",
+      "note": "Describes the control it wraps, never takes focus, and never intercepts the pointer."
+    }
+  ],
+  "capturedBy": "docs:shots"
+}

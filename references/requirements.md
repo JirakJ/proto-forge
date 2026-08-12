@@ -413,25 +413,41 @@ supersede link.
 
 ### BR-16 — Every popup surface is on top by construction
 
-**MUST.** Every surface (§2) renders through `<Portal>` into the single body-level
-overlay root. Stacking values come from `tokens.layer` and from nowhere else: a numeric
-`zIndex` outside the token file is a violation, anything positioned out of flow
-(`fixed` / `absolute` / `sticky`) declares its layer, and a `position: fixed` surface
-that skips the portal is a violation. The scale's order is itself fixed, bottom-up:
-chrome below the modal scrim, the modal above its scrim, menus above the modal, toasts
-above every blocking surface, tooltips last.
+**MUST.** Every surface (§2) is promoted into the browser's **top layer**, and also renders
+through `<Portal>` into the single body-level overlay root so the no-top-layer path has a
+host. Order among surfaces is **the order they opened**, never a per-kind constant.
+
+Nine mechanical consequences, all enforced: no numeric `zIndex` outside the token file;
+out-of-flow positioning declares its layer; a `position: fixed` surface goes through the
+portal; a surface claims a slot rather than keeping its own books; **exactly one**
+`document` keydown listener exists in the library; **exactly one** module reads the overlay
+layer base; fixed surfaces in the library live under `overlay/`; the scale stays ordered and
+**grows no per-kind overlay entry**; platform top-layer calls happen only in the adapter.
 
 - **Why:** A popup that is on top only until someone adds `transform` to a parent is not
   on top. An ancestor `transform` / `filter` / `will-change` / `opacity < 1` creates a
   stacking context no descendant `z-index` escapes; an ancestor `overflow: hidden` crops
-  what is left; and a later sibling with any `z-index` wins on source order. A z-index
-  convention held in a comment is exactly what drifts, because nothing fails when it is
-  ignored.
+  what is left; and a later sibling with any `z-index` wins on source order. Even a
+  perfectly ordered scale loses to `z-index: 2147483647` in application code — which the
+  top layer does not compete with at all.
+
+  A per-kind scale is not merely incomplete, it is wrong: ranking `popover` above `modal`
+  is correct for one modal and inverted for two, because a menu belonging to dialog A then
+  paints above a dialog B opened later, and no choice of offsets repairs it.
+
+  A convention held in a comment is exactly what drifts, because nothing fails when it is
+  ignored. Rules 4-9 apply that lesson to the composition itself: a primitive that quietly
+  grows its own keydown listener reintroduces "Escape closes everything", and without a
+  rule nothing would notice.
 - **Enforced by:** `layer:scan`
 - **Proven by:** `gates:selftest` → "layer: a portalled overlay on a layer token
   passes", "layer: a hardcoded z-index fails", "layer: an out-of-flow element without a
   layer fails", "layer: a fixed surface rendered in place, without a portal, fails",
-  "layer: a scale that puts toasts under modals fails"
+  "layer: a scale that grows a per-kind overlay entry fails", "layer: a library surface
+  without a slot fails (rule 4)", "layer: a second document keydown listener in the
+  library fails (rule 5)", "layer: reading the overlay base outside OverlayStack fails
+  (rule 6)", "layer: a platform top-layer call outside the adapter fails (rule 9)",
+  "layer: prose about showModal in a doc comment is not a call (rule 9)"
 - **Verified in a browser by:** `test:e2e`, through real paint order (`elementFromPoint`)
   rather than by reading a style value back — jsdom has no layout and no paint, so a unit
   test can assert a `zIndex` but never that an element is on top
@@ -561,8 +577,10 @@ platform call.
   test could address the pieces separately.
 - **Enforced by:** `layer:scan` (one dismiss owner, one reader of the fallback scale, one
   adapter for platform calls), `lint`
-- **Proven by:** `gates:selftest` → "layer: a portalled overlay on a layer token passes",
-  "layer: a fixed surface rendered in place, without a portal, fails"
+- **Proven by:** `gates:selftest` → "layer: a library surface without a slot fails (rule 4)",
+  "layer: a second document keydown listener in the library fails (rule 5)", "layer: reading
+  the overlay base outside OverlayStack fails (rule 6)", "layer: a platform top-layer call
+  outside the adapter fails (rule 9)"
 - **Decided in:** ADR 008
 
 ### NFR-21 — Open for a new kind of surface, closed for edits to the old ones (OCP)

@@ -14,9 +14,13 @@
  * this file uses that the tokens do not produce, so a design value cannot enter here.
  */
 
-/* The modal scrim. Matches what the fallback path draws with its own element, so the
-   two paths look identical rather than merely behaving identically. */
-[popover]::backdrop {
+/* The modal scrim, and ONLY for a modal. Every promoted surface gets a ::backdrop from
+   the platform, so an unscoped rule here painted a scrim behind menus, toasts and
+   tooltips too — caught by looking at a regenerated screenshot, not by a test, because
+   no assertion was watching for "the page is unexpectedly grey". Scoped to the marker
+   Dialog sets. Matches what the fallback path draws with its own element, so the two
+   paths look identical rather than merely behaving identically. */
+[popover][data-pf-modal]::backdrop {
   background: var(--pf-color-scrim);
 }
 
