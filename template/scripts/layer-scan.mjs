@@ -50,13 +50,17 @@ const files = [
 for (const file of files) {
   const src = read(file);
 
-  // 1. zIndex must name a layer token.
+  // 1. zIndex must come from the scale or from the stack — never from a number.
+  // `slot.fallbackZIndex` is the stack's computed value for the no-top-layer path: it is
+  // derived from tokens.layer inside OverlayStack (rule 6), and a surface is allowed to
+  // sit one step above it so a scrim can go underneath its own dialog.
   if (file !== TOKENS_FILE) {
     for (const m of src.matchAll(/zIndex\s*:\s*([^,\n}]+)/g)) {
       const value = m[1].trim();
-      if (!/^tokens\.layer\.[a-zA-Z]+$/.test(value)) {
+      const allowed = /^tokens\.layer\.[a-zA-Z]+$/.test(value) || /^slot\.fallbackZIndex(\s*\+\s*1)?$/.test(value);
+      if (!allowed) {
         errors.push(
-          `${file}: zIndex ${value} — use tokens.layer.* so the page has one stacking scale (BR-16)`,
+          `${file}: zIndex ${value} — use tokens.layer.* or slot.fallbackZIndex so the page has one stacking scale (BR-16)`,
         );
       }
     }

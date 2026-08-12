@@ -1,8 +1,16 @@
 import { useEffect, useRef, type ReactNode } from "react";
-import * as RadixDialog from "@radix-ui/react-dialog";
 import { tokens } from "../tokens";
-import { useProviderKind } from "../providers/index";
 import { Portal } from "./Portal";
+import {
+  demote,
+  isPromoted,
+  promote,
+  useDismiss,
+  useFocusScope,
+  useInertBackground,
+  useOverlaySlot,
+  useScrollLock,
+} from "./overlay/index";
 
 export type DialogProps = {
   open: boolean;
@@ -13,141 +21,120 @@ export type DialogProps = {
   "data-testid": string;
 };
 
-const FOCUSABLE =
-  'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
-
-// Provider switch (BR-11): "own" renders an accessible modal; "radix" sits on
-// @radix-ui/react-dialog. Same API, same tests pass under both — including the
-// layering contract, which is why both portal to the body-level overlay root.
-export function Dialog(props: DialogProps) {
-  return useProviderKind() === "radix" ? <RadixDialogImpl {...props} /> : <OwnDialogImpl {...props} />;
-}
-
-function OwnDialogImpl({ open, onClose, title, children, "data-testid": testid }: DialogProps) {
-  const ref = useRef<HTMLDivElement>(null);
-  // onClose is read through a ref so the effect below can key on [open] ONLY.
-  // Keying on onClose would tear down + re-run the effect on every parent
-  // re-render that passes a fresh inline onClose, stealing focus mid-interaction.
-  const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
+// @adr 008 - a modal that is on top because the browser put it there
+//
+// The surface is a real <dialog>, opened with showModal(), which places it in the
+// browser's TOP LAYER. That is a different guarantee from a high z-index: the top layer
+// is not part of the document's stacking contexts, so an ancestor transform, filter or
+// overflow cannot trap or clip it, and a hostile `z-index: 2147483647` in application
+// code cannot compete with it at all. Order within the top layer is promotion order,
+// which is why two dialogs stack correctly with no arithmetic.
+//
+// Everything else is composed rather than built here (NFR-20). Dialog owns no listener,
+// no focus trap and no scroll bookkeeping of its own:
+//
+//   useOverlaySlot        place in the stack, and the fallback z-index
+//   promote / demote      the only platform calls
+//   useFocusScope         entry and return; trapping only where the platform does not
+//   useScrollLock         refcounted, so two dialogs do not unlock each other's page
+//   useInertBackground    only on the fallback path; showModal() inerts natively
+//   useDismiss            Escape via the topmost surface only
+//
+// The fallback path (a browser, or jsdom, without showModal) renders the SAME <dialog>
+// element with its `open` attribute set, plus a scrim element of its own, and takes over
+// focus trapping, inerting and Escape. Same markup and same testids either way, so one
+// test contract covers both (NFR-24).
+export function Dialog({ open, onClose, title, children, "data-testid": testid }: DialogProps) {
+  const surfaceRef = useRef<HTMLDialogElement>(null);
+  const slot = useOverlaySlot("modal", open);
+  const { capabilities } = slot;
+  // Whether the PLATFORM will place this surface. Decided at render time so the scrim is
+  // not added and removed after the fact, which would flash.
+  const platformOwnsLayering = capabilities.topLayerDialog;
 
   useEffect(() => {
-    if (!open) return;
-    const opener = document.activeElement as HTMLElement | null;
-    const node = ref.current!;
-    node.focus();
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        onCloseRef.current();
-        return;
-      }
-      if (e.key !== "Tab") return;
-      const items = [...node.querySelectorAll<HTMLElement>(FOCUSABLE)];
-      if (items.length === 0) {
-        e.preventDefault();
-        node.focus();
-        return;
-      }
-      const first = items[0]!;
-      const last = items[items.length - 1]!;
-      const active = document.activeElement;
-      if (e.shiftKey && (active === first || active === node)) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && active === last) {
-        e.preventDefault();
-        first.focus();
-      }
-    };
-    document.addEventListener("keydown", onKey);
+    const surface = surfaceRef.current;
+    if (surface === null || !open) return;
+    promote(surface, "modal", capabilities);
+    // Not promoted means the platform declined — a browser without showModal, or a test
+    // pinning the capability on an element that does not implement it. Showing the
+    // element non-modally keeps it visible and keeps `role=dialog` addressable.
+    if (!isPromoted(surface, "modal", capabilities)) surface.setAttribute("open", "");
     return () => {
-      document.removeEventListener("keydown", onKey);
-      /* v8 ignore next -- jsdom activeElement is never null; restore runs in a real browser */
-      opener?.focus();
+      demote(surface, "modal", capabilities);
+      surface.removeAttribute("open");
     };
-  }, [open]);
+  }, [open, capabilities]);
+
+  useFocusScope({ ref: surfaceRef, active: open, trap: !platformOwnsLayering });
+  useScrollLock(open);
+  useInertBackground(open && !platformOwnsLayering);
+  useDismiss({
+    ref: surfaceRef,
+    slot,
+    onDismiss: onClose,
+    enabled: open,
+    // On the top-layer path the native `cancel` event owns Escape; handling it twice
+    // would close two levels of a stack on one keystroke.
+    escape: !platformOwnsLayering,
+    // A modal's outside click is its scrim's click, handled below, so that the dialog
+    // does not also close on a click landing in the browser's own backdrop.
+    outsidePointer: false,
+  });
 
   if (!open) return null;
+
   return (
     <Portal>
-      <div
-        data-testid={`${testid}-scrim`}
-        style={{
-          position: "fixed",
-          inset: 0,
-          zIndex: tokens.layer.overlay,
-          background: tokens.color.scrim,
-          display: "grid",
-          placeItems: "center",
-        }}
-        onClick={onClose}
-      >
+      {platformOwnsLayering ? null : (
         <div
-          ref={ref}
-          role="dialog"
-          aria-modal="true"
-          aria-label={title}
-          tabIndex={-1}
-          data-testid={testid}
-          onClick={(e) => e.stopPropagation()}
-          style={{
-            position: "relative",
-            zIndex: tokens.layer.modal,
-            background: tokens.color.bg,
-            color: tokens.color.fg,
-            padding: tokens.space.lg,
-            borderRadius: tokens.radius.md,
-            minWidth: "280px",
-          }}
-        >
-          <h2 data-testid={`${testid}-title`} style={{ fontSize: tokens.font.sizeLg, marginBlockStart: 0 }}>
-            {title}
-          </h2>
-          {children}
-        </div>
-      </div>
-    </Portal>
-  );
-}
-
-function RadixDialogImpl({ open, onClose, title, children, "data-testid": testid }: DialogProps) {
-  return (
-    <RadixDialog.Root open={open} onOpenChange={() => onClose() /* controlled: only ever signals close */}>
-      <RadixDialog.Portal>
-        <RadixDialog.Overlay
           data-testid={`${testid}-scrim`}
+          onClick={onClose}
           style={{
             position: "fixed",
             inset: 0,
-            zIndex: tokens.layer.overlay,
+            zIndex: slot.fallbackZIndex,
             background: tokens.color.scrim,
           }}
         />
-        <RadixDialog.Content
-          data-testid={testid}
-          aria-describedby={undefined}
-          style={{
-            position: "fixed",
-            zIndex: tokens.layer.modal,
-            insetBlockStart: "50%",
-            insetInlineStart: "50%",
-            transform: "translate(-50%, -50%)",
-            background: tokens.color.bg,
-            color: tokens.color.fg,
-            padding: tokens.space.lg,
-            borderRadius: tokens.radius.md,
-            minWidth: "280px",
-          }}
-        >
-          <RadixDialog.Title
-            data-testid={`${testid}-title`}
-            style={{ fontSize: tokens.font.sizeLg, marginBlockStart: 0 }}
-          >
-            {title}
-          </RadixDialog.Title>
-          {children}
-        </RadixDialog.Content>
-      </RadixDialog.Portal>
-    </RadixDialog.Root>
+      )}
+      <dialog
+        ref={surfaceRef}
+        aria-modal="true"
+        aria-label={title}
+        tabIndex={-1}
+        data-testid={testid}
+        onCancel={(event) => {
+          // Keep React the owner of `open`: letting the browser close the element would
+          // leave the DOM and the prop disagreeing.
+          event.preventDefault();
+          onClose();
+        }}
+        onClick={(event) => event.stopPropagation()}
+        style={
+          platformOwnsLayering
+            ? { background: tokens.color.bg, color: tokens.color.fg, padding: tokens.space.lg }
+            : {
+                position: "fixed",
+                zIndex: slot.fallbackZIndex + 1,
+                insetBlockStart: "50%",
+                insetInlineStart: "50%",
+                transform: "translate(-50%, -50%)",
+                margin: 0,
+                border: 0,
+                background: tokens.color.bg,
+                color: tokens.color.fg,
+                padding: tokens.space.lg,
+                borderRadius: tokens.radius.md,
+                minWidth: "280px",
+              }
+        }
+      >
+        <h2 data-testid={`${testid}-title`} style={{ fontSize: tokens.font.sizeLg, marginBlockStart: 0 }}>
+          {title}
+        </h2>
+        {children}
+      </dialog>
+    </Portal>
   );
 }
