@@ -899,7 +899,7 @@ expect("budget: refuses to measure a build containing the component catalogue", 
   pass: false,
   matching: /never ships/,
   prepare: (dir) =>
-    writeDist(dir, { "assets/app.js": "globalThis.app = 1;\n", "gallery.html": "<!doctype html>\n" }),
+    writeDist(dir, { "assets/app.js": "globalThis.app = 1;\n", "harness.html": "<!doctype html>\n" }),
 });
 
 expect("budget: JS over the gzipped ceiling fails", "budget.mjs", {}, {

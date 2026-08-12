@@ -4,7 +4,9 @@ import { hashFiles, isCode, read, walk } from "./lib.mjs";
 
 // Shared vocabulary for the two documentation gates: what a component's source
 // is, where its lock lives, and how "is this screenshot still current?" is answered.
-export const CASES_FILE = "src/gallery/cases.tsx";
+export const CASES_FILE = "src/harness/cases.ts";
+/** A mount edit changes the picture as surely as a case edit changes the framing. */
+export const MOUNTS_FILE = "src/harness/mounts.tsx";
 
 /** PascalCase exports of the library — SCREAMING_CASE constants are not components. */
 export function documentableComponents(indexPath = "packages/proto-ui/src/index.ts") {
@@ -63,8 +65,8 @@ export function featureSources(feature) {
  * it are unchanged — a case edit changes framing and state, which changes the image.
  */
 export function sourceHash(sources) {
-  const inputs = existsSync(CASES_FILE) ? [...sources, CASES_FILE] : sources;
-  return hashFiles(inputs);
+  const registry = [CASES_FILE, MOUNTS_FILE].filter((f) => existsSync(f));
+  return hashFiles([...sources, ...registry]);
 }
 
 export const lockFor = (kind, name) => join("docs", kind, name, ".shot.lock");

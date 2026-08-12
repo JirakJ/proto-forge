@@ -15,12 +15,12 @@ export default defineConfig({
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: {
-    // VITE_GALLERY=1 adds gallery.html as a second entry point. e2e/overlay.e2e.ts
+    // VITE_HARNESS=1 adds harness.html as a second entry point. The layering suite
     // needs it: proving a popup escapes a stacking trap requires a page that HAS
     // one, and that adversarial fixture does not belong in the application. The
     // production `pnpm build` is unaffected, and `budget` refuses to measure a
-    // gallery build so the extra entry can never be mistaken for shipped weight.
-    command: "VITE_GALLERY=1 pnpm build && pnpm preview --port 4173 --strictPort",
+    // harness build so the extra entry can never be mistaken for shipped weight.
+    command: "VITE_HARNESS=1 pnpm build && pnpm preview --port 4173 --strictPort",
     url: "http://localhost:4173",
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

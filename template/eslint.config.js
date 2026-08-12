@@ -271,11 +271,12 @@ export default tseslint.config(
     plugins: { local },
     rules: { "local/no-user-facing-literal": ["error", { properties: true }] },
   },
-  // Tests and the screenshot gallery may use fixtures and literal strings freely:
-  // they are the fixtures. The gallery renders every component in every state and
-  // never ships in a production build.
+  // Tests and the screenshot harness may use fixtures and literal strings freely:
+  // they are the fixtures. The harness renders every component in every state and
+  // never ships in a production build. (The old glob said src/app/gallery/**, which
+  // never matched the real path — a dead override the rename surfaced.)
   {
-    files: ["**/*.test.{ts,tsx}", "**/*.e2e.ts", "**/__fixtures__/**", "src/app/gallery/**"],
+    files: ["**/*.test.{ts,tsx}", "**/*.e2e.ts", "**/__fixtures__/**", "src/harness/**"],
     rules: {
       "i18next/no-literal-string": "off",
       "local/no-user-facing-literal": "off",

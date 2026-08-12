@@ -1,13 +1,13 @@
 {
-  "source": "add2927bab09e7af532e3224ef72983185ff53ef19b4105a7ab6c3f254a0c5f3",
+  "source": "b8a9a5c38b2799f0b73a863d7bafb9f86f097be4d863fbd0336f63427da75524",
   "shots": [
     {
       "file": "info.png",
-      "note": "A polite toast in the body-level region at the top of the layer scale."
+      "note": "A polite toast in the body-level region, promoted per batch so it lands above whatever was open."
     },
     {
       "file": "over-modal.png",
-      "note": "A toast raised from inside a modal still draws above it — tokens.layer.toast outranks modal."
+      "note": "A toast raised from inside a modal still draws above it, because it was promoted later."
     }
   ],
   "capturedBy": "docs:shots"

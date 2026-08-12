@@ -9,12 +9,12 @@ const LIMITS = { js: 300_000, css: 60_000, chunk: 250_000 };
 
 if (!existsSync("dist")) fail("no dist/ — run: pnpm build");
 
-// The gallery is a test fixture built into dist only when VITE_GALLERY=1 (E2E and
+// The harness is a test fixture built into dist only when VITE_HARNESS=1 (E2E and
 // `docs:shots` do that). Measuring it would report weight no user downloads, so
 // refuse the measurement rather than quietly produce a wrong — and flattering or
 // alarming — number.
-if (existsSync("dist/gallery.html")) {
-  fail("dist/ contains the component gallery, which never ships — re-measure a production build: pnpm build");
+if (existsSync("dist/harness.html")) {
+  fail("dist/ contains the component harness, which never ships — re-measure a production build: pnpm build");
 }
 
 const assets = walk("dist", (p) => /\.(js|css)$/.test(p))
