@@ -1,0 +1,59 @@
+name: verify
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+# Two jobs, deliberately separate: a plugin failure and a template failure have
+# different causes and different fixes, and one combined red X hides which happened.
+jobs:
+  plugin:
+    name: plugin gates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: template/.nvmrc
+      - name: selftest the gates
+        run: node scripts/selftest-all.mjs
+      - name: verify
+        run: node scripts/citations.mjs && node scripts/skill-lint.mjs && node scripts/manifest-lint.mjs && node scripts/template-integrity.mjs
+
+  template:
+    name: template verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.11.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: template/.nvmrc
+          cache: pnpm
+          cache-dependency-path: template/pnpm-lock.yaml
+      - name: install gitleaks
+        # sec:scan hard-stops in CI when gitleaks is absent (NFR-08, BRS §4). Installing
+        # it here is what makes that hard-stop meaningful rather than a permanent failure.
+        uses: gitleaks/gitleaks-action@v2
+        with:
+          version: latest
+        continue-on-error: true
+      - name: install
+        working-directory: template
+        run: pnpm install --frozen-lockfile
+      - name: install browsers
+        working-directory: template
+        run: pnpm exec playwright install --with-deps chromium
+      - name: verify
+        working-directory: template
+        run: pnpm verify
+      - name: upload playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: template/playwright-report/
+          retention-days: 7
