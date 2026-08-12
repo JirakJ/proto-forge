@@ -92,6 +92,9 @@ Exclusions are enumerated, not open-ended. A path is excluded only when it conta
 executable product code (type declarations), is a fixture catalogue, or is the
 bootstrap entry whose behaviour is covered end-to-end instead.
 
+- **Enforced by:** `test:unit` (per-glob V8 thresholds), `lint`
+- **Proven by:** `gates:selftest` → "hook: lowering a coverage threshold is blocked"
+
 ## §4 Security
 
 The baseline below is wired into the template and is not optional. Two of its gates —
@@ -319,7 +322,8 @@ intrinsics. Code clones over 30 tokens fail, except among library primitives.
 - **Why:** A primitive re-implemented in a feature carries none of the library's
   accessibility work and none of its tests, and the divergence is invisible until a
   screen reader meets it.
-- **Enforced by:** `dup:scan` (`jscpd` plus `component-dup-scan`)
+- **Enforced by:** `dup:scan`, which runs jscpd for clones and component-dup-scan for
+  re-implemented primitives
 - **Proven by:** `gates:selftest` → "dup: a feature composing proto-ui primitives
   passes", "dup: a raw <button> in a feature fails", "dup: a raw element wearing a
   primitive role fails"
@@ -458,6 +462,27 @@ operator's agreement. It is never a way to make a red gate green.
   blocked", "hook: lowering a coverage threshold is blocked"
 - **Decided in:** ADR 009
 
+### BR-19 — A component is not finished until it is documented and photographed
+
+**MUST.** Every exported component and every feature has a page under `docs/`. The page
+describes the API, the testid map, the i18n keys and the accessibility contract, and it
+shows a screenshot — or states, in a `<!-- no-screenshot: reason -->` comment, why there
+cannot be one. Screenshots are captured from a catalogue entry point that is never part
+of a production build, and each folder's `.shot.lock` records the hash of the source the
+image was taken from, so **a screenshot of older code fails** rather than flattering.
+
+- **Why:** Building the component, writing its page and capturing its states is one task,
+  not three. Where documentation is a follow-up it does not happen, and where a
+  screenshot is not tied to the code it depicts it stays green forever while quietly
+  becoming fiction — which is worse than no picture, because a reader trusts it.
+- **Enforced by:** `docs:verify`
+- **Proven by:** `gates:selftest` → "docs: a page that states why there is no screenshot
+  passes", "docs: a component with no page fails", "docs: a stub page fails", "docs: a
+  page with neither a screenshot nor a stated reason fails", "docs: a page referencing a
+  screenshot that is not on disk fails", "docs: screenshots with nothing recording which
+  code they show fail", "docs: a screenshot taken from older code fails"
+- **Decided in:** ADR 009
+
 ### NFR-02 — No heavy runtime UI dependency
 
 **MUST.** The prototype ships no component-framework runtime beyond React. The owned
@@ -521,6 +546,26 @@ blocked locally by a hook.
 - **Proven by:** `gates:selftest` → "hook: rewriting an existing prompt-log entry is
   blocked", "hook: adding a NEW prompt-log entry is allowed"
 - **Decided in:** ADR 002 (prototype namespace)
+
+### NFR-25 — Every gate has a demonstrated failure case
+
+**MUST.** For every gate, `gates:selftest` builds a throwaway project, breaks exactly one
+thing, and asserts the gate's exit code and the wording of its complaint. A gate with no
+such case is not considered enforcing. Where a gate cannot be exercised in a fixture — it
+needs a network, a registry, an external binary — the limit is stated in §19 rather than
+covered by a case that only proves the binary is absent.
+
+- **Why:** A gate nobody has seen fail is a gate nobody knows works. This is not
+  hypothetical: nine of sixteen gates had no case at all while the documentation claimed
+  each one was demonstrated, and the missing case for `docs:verify` was the one thing
+  separating that gate from a check that a file exists.
+- **Enforced by:** `gates:selftest`, and `citations` at the plugin level, which fails when
+  a rule cites a case the suite does not register
+- **Proven by:** `pnpm selftest` → "citations: a rule with no selftest case fails",
+  "citations: a selftest case the suite never registers fails". The rule's own proof is
+  necessarily at the plugin level: a meta-rule about gates cannot be demonstrated by
+  breaking one gate.
+- **Decided in:** ADR 009
 
 ## §11 The decision table
 
@@ -630,7 +675,31 @@ be skipped in CI". The dependency-audit half needs a registry and a real lockfil
 is exercised by CI running the actual gate rather than by a throwaway fixture. Stated
 here rather than covered by a fixture that would only assert that `pnpm` is absent.
 
-### §19.5 `BR-11` describes a tension, not a mechanism
+### §19.5 Two rules needed a number the original register did not supply
+
+`BR-19` (documentation) and `NFR-25` (every gate has a demonstrated failure case) state
+rules the repository already contained and already enforced — ADR 009 decides both,
+`AGENTS.md` restates the first, and `docs:verify` and `gates:selftest` implement them —
+but neither carried a `BR-` or `NFR-` citation anywhere, so the reconstruction had no
+number to recover. New numbers were assigned rather than guessing that one of the uncited
+`BR-01` / `BR-03` / `BR-04` had been the documentation rule: a wrong guess would put a
+fabricated identity on a real rule, which is harder to notice than a new number.
+
+Both were found by `citations` check 5 — a gate that no rule named — which is the check
+working as intended on its first run.
+
+### §19.6 `adr-lint` does not verify ADR bands
+
+`references/decision-table.md` claimed "`adr-lint` fails any ADR outside its phase's
+range". It does not, and it cannot as written: the bands in §9.6 map to a *kind* of
+decision (domain entity, feature, security control), and an ADR file does not declare its
+kind — so the only checkable statement would be "the number is between 001 and 199",
+which is trivially true of every ADR the pipeline produces. The documentation was
+corrected to state what is enforced (anchors, statuses, prompt-log links) rather than
+implementing a check that would assert nothing. Band allocation remains a rule of the
+pipeline, verified in review.
+
+### §19.7 `BR-11` describes a tension, not a mechanism
 
 Its evidence (ADR 021, the provider selector) states a goal — do not re-invent
 accessibility primitives, do not hard-depend on a third party — and a mechanism chosen
