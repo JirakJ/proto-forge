@@ -21,3 +21,7 @@ overrides:
   undici: ^7.29.0
   js-yaml: ^4.3.1
   nanoid: ^3.3.17
+  # qs GHSA-q8mj-m7cp-5q26 (MODERATE, arrayLimit bypass under allowDots) — dev-only,
+  # via @stryker-mutator/core → typed-rest-client. Drop when typed-rest-client moves
+  # its range past 6.15.1.
+  qs: ">=6.15.2"
