@@ -63,4 +63,7 @@ Without a live waiver the setting is ignored and the gate runs at `error` anyway
 | `pnpm layer:scan` · `pnpm testid:scan` | Structural invariants (fast; also run on every edit) |
 | `pnpm docs:shots` · `pnpm docs:verify` | Capture / check component screenshots |
 | `pnpm gates:selftest` | Proves each gate still rejects what it claims to |
-| `pnpm sync:jira` · `pnpm sync:confluence` | Show what *would* be sent. `--commit` to actually send. |
+| `pnpm sync:jira` · `pnpm sync:confluence` | Show what *would* be sent. `--commit` to actually send; every sent object gets an MDX record in `docs/external/`. |
+| `pnpm sync:pull --page <id> [--affects a,b]` | Fetch a Confluence page into a `pull` record. `affectedFiles` is yours to declare. |
+| `pnpm sync:status [--fail-on-drift]` | Which external records changed upstream, and which local files that touches |
+| `pnpm external:verify` | Provenance of every record in `docs/external/` (part of `verify`) |

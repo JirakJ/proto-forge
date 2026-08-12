@@ -31,6 +31,7 @@ export const MANDATORY_GATES = [
   "coverage",
   "ignores",
   "mutation",
+  "external",
 ];
 
 const MODES = ["error", "warn", "off"];
@@ -62,6 +63,7 @@ export const DEFAULTS = {
     coverage: { mode: "error" },
     ignores: { mode: "error" },
     mutation: { mode: "error" },
+    external: { mode: "error" },
     budget: { mode: "error" },
     dup: { mode: "error" },
     adr: { mode: "error" },
