@@ -29,15 +29,11 @@ export function readOutbox(kind) {
     .map((f) => ({ file: join(OUTBOX, f), payload: JSON.parse(readFileSync(join(OUTBOX, f), "utf8")) }));
 }
 
-const LEDGER = ".proto-forge/integrations.json";
-
-export const readLedger = () => (existsSync(LEDGER) ? JSON.parse(readFileSync(LEDGER, "utf8")) : {});
-
-export function recordLedger(kind, key, value) {
-  const ledger = readLedger();
-  ledger[kind] = { ...(ledger[kind] ?? {}), [key]: value };
-  writeFileSync(LEDGER, `${JSON.stringify(ledger, null, 2)}\n`);
-}
+// No JSON ledger. What an integration has sent (or fetched) lives as MDX records in
+// docs/external/** — see scripts/external.mjs. The records carry the remote URL, the
+// last-seen revision and the affected local files, so they answer the operator's
+// question directly; a second store of the same facts would violate BR-15, and the
+// JSON one was the copy nobody read.
 
 /**
  * Everything that must be true before a live write. Ordered cheapest-first, and

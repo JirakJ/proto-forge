@@ -658,6 +658,61 @@ expect("ignores: a population that grew past its pin fails", "ignore-registry.mj
     0,
   ), { pass: false, matching: /pins 0/ });
 
+// --- external:verify ---------------------------------------------------------------
+// A record in docs/external/** is provenance for a remote object. Every field the
+// claim needs is required, and the emptiest one is the reason the gate exists:
+// affectedFiles=[] asserts "this object concerns nothing here".
+const RECORD = (over = "") => `---
+source: "confluence"
+id: "123"
+url: "https://acme.atlassian.net/wiki/pages/123"
+title: "Architecture"
+remoteVersion: 4
+remoteUpdatedAt: "2026-08-12T10:00:00Z"
+syncedAt: "2026-08-12T10:05:00Z"
+direction: "push"
+affectedFiles:
+  - "docs/ARCHITECTURE.md"
+${over}---
+
+Pushed from this repository.
+`;
+const externalProject = (record, over = {}) => ({
+  "docs/external/confluence/architecture.mdx": record,
+  "docs/ARCHITECTURE.md": "# Architecture\n",
+  ...over,
+});
+
+expect("external: a complete record passes", "external-verify.mjs", externalProject(RECORD()), { pass: true });
+
+expect("external: a record with no url fails", "external-verify.mjs",
+  externalProject(RECORD().replace('url: "https://acme.atlassian.net/wiki/pages/123"\n', "")),
+  { pass: false, matching: /missing required frontmatter "url"/ });
+
+expect("external: a url on the wrong host fails when the integration is configured", "external-verify.mjs",
+  externalProject(RECORD().replace("acme.atlassian.net", "evil.example.com"), {
+    ".proto-forge/config.json": {
+      integrations: { confluence: { enabled: false, baseUrl: "https://acme.atlassian.net" } },
+    },
+  }),
+  { pass: false, matching: /not the configured confluence host/ });
+
+expect("external: a non-ISO remoteUpdatedAt fails", "external-verify.mjs",
+  externalProject(RECORD().replace('remoteUpdatedAt: "2026-08-12T10:00:00Z"', 'remoteUpdatedAt: "yesterday"')),
+  { pass: false, matching: /not an ISO-8601 instant/ });
+
+expect("external: an affected file that does not exist fails", "external-verify.mjs",
+  externalProject(RECORD().replace('"docs/ARCHITECTURE.md"', '"docs/GONE.md"')),
+  { pass: false, matching: /does not exist/ });
+
+expect("external: an empty affectedFiles fails — it asserts the object concerns nothing", "external-verify.mjs",
+  externalProject(RECORD().replace('affectedFiles:\n  - "docs/ARCHITECTURE.md"\n', "affectedFiles: []\n")),
+  { pass: false, matching: /affects nothing/ });
+
+expect("external: a Confluence record without a remoteVersion fails", "external-verify.mjs",
+  externalProject(RECORD().replace("remoteVersion: 4\n", "")),
+  { pass: false, matching: /remoteVersion is required/ });
+
 // --- coverage:policy -------------------------------------------------------------
 // 100% is only meaningful while nobody lowers a threshold and nobody adds an
 // exclusion. A hook blocks both locally; this gate is the same promise in CI.

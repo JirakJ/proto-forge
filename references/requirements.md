@@ -527,6 +527,36 @@ operator's agreement. It is never a way to make a red gate green.
   blocked", "hook: lowering a coverage threshold is blocked"
 - **Decided in:** ADR 009
 
+### BR-18 — Every external object has a local record with provenance and an owner list
+
+**MUST.** Everything pushed to, or pulled from, an external system (Confluence, JIRA)
+exists locally as one MDX record in `docs/external/<source>/<id>.mdx`, versioned with
+the code. The frontmatter carries: `source`, `id`, `url` (absolute, on the configured
+host), `title`, `remoteVersion` (required for Confluence — it is the drift oracle),
+`remoteUpdatedAt` and `syncedAt` (ISO-8601 instants), `direction` (`push` | `pull`),
+and **`affectedFiles` — non-empty, every entry a file that exists**. The records are
+the ledger; a second store of the same facts is a BR-15 violation.
+
+On a push, `affectedFiles` is derived from the documents the payload was built from. On
+a pull it is a human judgement: reused from an existing record for the same object, or
+declared with `--affects` — and a pull that declares nothing writes the record and
+fails, naming the flag to re-run with. `sync:status` compares every record against the
+remote and reports drift **with the affected files listed**, so an upstream change maps
+to the local documents it concerns.
+
+- **Why:** An operator looking at an upstream edit has three questions — which object,
+  which revision did we last see, and which of our files does this touch. A record that
+  cannot answer the third (`affectedFiles: []`) asserts the object concerns nothing
+  here, which is worse than no record: the drift report it feeds would name no work.
+- **Enforced by:** `external:verify`
+- **Proven by:** `gates:selftest` → "external: a complete record passes", "external: a
+  record with no url fails", "external: a url on the wrong host fails when the
+  integration is configured", "external: a non-ISO remoteUpdatedAt fails", "external:
+  an affected file that does not exist fails", "external: an empty affectedFiles fails
+  — it asserts the object concerns nothing", "external: a Confluence record without a
+  remoteVersion fails"
+- **Decided in:** ADR 009, amended by the v0.4.0 spec §9A
+
 ### BR-19 — A component is not finished until it is documented and photographed
 
 **MUST.** Every exported component and every feature has a page under `docs/`. The page

@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { loadConfig, activeWaivers } from "./config.mjs";
-import { assertMayCommit, atlassian, readLedger, recordLedger, writeOutbox } from "./outbox.mjs";
+import { assertMayCommit, atlassian, writeOutbox } from "./outbox.mjs";
+import { readRecords, writeRecord } from "./external.mjs";
 import { read, walk, ok, note } from "./lib.mjs";
 
 // @adr 009 - JIRA tickets are staged, reviewed, then created by an operator
@@ -20,7 +21,8 @@ if (!jira.enabled) {
 }
 
 const createFor = jira.createFor ?? [];
-const ledger = readLedger().jira ?? {};
+// The MDX records ARE the ledger: file name = payload id, frontmatter.id = issue key.
+const ledger = Object.fromEntries(readRecords("jira").map((r) => [r.id, r.frontmatter]));
 const staged = [];
 
 // --- what deserves a ticket --------------------------------------------------
@@ -112,7 +114,23 @@ for (const item of staged) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ fields: item.fields }),
   });
-  recordLedger("jira", item.id, { key: result.key, summary: item.fields.summary });
+  writeRecord(
+    "jira",
+    item.id,
+    {
+      source: "jira",
+      id: result.key,
+      url: `${integration.baseUrl}/browse/${result.key}`,
+      title: item.fields.summary,
+      // JIRA's create response carries no timestamps; the moment we created it IS its
+      // last update, within clock skew. sync:status refreshes this from the API.
+      remoteUpdatedAt: new Date().toISOString(),
+      syncedAt: new Date().toISOString(),
+      direction: "push",
+      affectedFiles: [item.source],
+    },
+    "Created from this repository by `pnpm sync:jira --commit`. The source listed in the frontmatter is the decision this ticket tracks.",
+  );
   created.push({ ...item, key: result.key });
 
   // Write the key back where a reader of the decision will look for it.

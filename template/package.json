@@ -11,7 +11,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "verify": "pnpm run config:check && pnpm run gates:selftest && pnpm run lint && pnpm run typecheck && pnpm run coverage:policy && pnpm run ignores && pnpm run test:unit && pnpm run test:mutation && pnpm run build && pnpm run budget && pnpm run i18n:verify && pnpm run layer:scan && pnpm run overlay:matrix && pnpm run testid:scan && pnpm run docs:verify && pnpm run stub:scan && pnpm run adr:lint && pnpm run prompt:lint && pnpm run dup:scan && pnpm run consistency && pnpm run sec:scan && pnpm run snapshot:diff && pnpm run test:e2e",
+    "verify": "pnpm run config:check && pnpm run gates:selftest && pnpm run lint && pnpm run typecheck && pnpm run coverage:policy && pnpm run ignores && pnpm run test:unit && pnpm run test:mutation && pnpm run build && pnpm run budget && pnpm run i18n:verify && pnpm run layer:scan && pnpm run overlay:matrix && pnpm run testid:scan && pnpm run docs:verify && pnpm run external:verify && pnpm run stub:scan && pnpm run adr:lint && pnpm run prompt:lint && pnpm run dup:scan && pnpm run consistency && pnpm run sec:scan && pnpm run snapshot:diff && pnpm run test:e2e",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test:unit": "vitest run --coverage",
@@ -42,6 +42,9 @@
     "overlay:matrix": "node scripts/overlay-matrix.mjs",
     "coverage:policy": "node scripts/coverage-policy.mjs",
     "ignores": "node scripts/ignore-registry.mjs",
+    "external:verify": "node scripts/external-verify.mjs",
+    "sync:pull": "node scripts/sync-pull.mjs",
+    "sync:status": "node scripts/sync-status.mjs",
     "test:mutation": "stryker run"
   },
   "dependencies": {
