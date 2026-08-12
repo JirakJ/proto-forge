@@ -49,3 +49,37 @@ export const tokens = {
 
 export type Tokens = typeof tokens;
 export type Layer = keyof Tokens["layer"];
+
+// --- the same tokens, as CSS custom properties --------------------------------
+// `::backdrop` and `@supports` cannot be written as inline styles, so the overlay
+// stylesheet needs the design values in CSS. They are DERIVED here rather than typed
+// out again: a second hand-written copy is the single-source violation BR-15 exists to
+// prevent, and it would be one nobody notices until a colour changes in one place only.
+//
+// `consistency` re-derives this set and fails when the stylesheet uses a var this
+// generator does not produce, or when a name it produces is not backed by a token.
+
+const NAME_PREFIX = "--pf";
+
+/** `color.primaryFg` becomes `--pf-color-primary-fg`: one predictable name per token. */
+const kebab = (value: string) => value.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
+
+function properties(): string[] {
+  const out: string[] = [];
+  for (const [group, value] of Object.entries(tokens)) {
+    if (typeof value === "object") {
+      for (const [key, leaf] of Object.entries(value)) {
+        out.push(`${NAME_PREFIX}-${kebab(group)}-${kebab(key)}: ${String(leaf)};`);
+      }
+    } else {
+      out.push(`${NAME_PREFIX}-${kebab(group)}: ${String(value)};`);
+    }
+  }
+  return out;
+}
+
+/** The `:root` block the library injects once, via ProtoUIProvider. */
+export const tokensCssProperties: string = properties().join("\n  ");
+
+/** Every custom-property name the tokens produce, for the consistency gate and for tests. */
+export const tokensCssNames: readonly string[] = properties().map((line) => line.split(":")[0]!.trim());

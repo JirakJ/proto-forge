@@ -547,6 +547,85 @@ blocked locally by a hook.
   blocked", "hook: adding a NEW prompt-log entry is allowed"
 - **Decided in:** ADR 002 (prototype namespace)
 
+### NFR-20 — One responsibility per module (SRP)
+
+**MUST.** A module does one job, and a module that grows a second is split rather than
+sectioned with comments. Concretely, in the part of the tree where this bites: an overlay
+primitive **composes** the `overlay/` hooks and implements none of their concerns itself —
+no primitive owns its own dismissal, focus containment, scroll lock, inert bookkeeping or
+platform call.
+
+- **Why:** `Dialog` previously did portalling, focus trapping, Escape handling and
+  layering in one file, and each of those was untestable without the other three. The
+  reason the two-modal and menu-in-modal defects went unnoticed for so long is that no
+  test could address the pieces separately.
+- **Enforced by:** `layer:scan` (one dismiss owner, one reader of the fallback scale, one
+  adapter for platform calls), `lint`
+- **Proven by:** `gates:selftest` → "layer: a portalled overlay on a layer token passes",
+  "layer: a fixed surface rendered in place, without a portal, fails"
+- **Decided in:** ADR 008
+
+### NFR-21 — Open for a new kind of surface, closed for edits to the old ones (OCP)
+
+**MUST.** Adding a kind of overlay is a new composition of the existing hooks, not an
+edit to the primitives that already exist. A new kind arrives with its own tests, harness
+case and documentation, and it does not change the behaviour of any other kind.
+
+- **Why:** A per-kind stacking scale is the anti-pattern this replaces: adding a fifth
+  surface meant re-deciding where the other four paint, and every such decision was a
+  chance to invert two of them.
+- **Enforced by:** `dup:scan`, `docs:verify`
+- **Proven by:** `gates:selftest` → "dup: a feature composing proto-ui primitives passes",
+  "docs: a component with no page fails"
+- **Decided in:** ADR 008, ADR 020
+
+### NFR-22 — Depend on contracts, not on concretions (DIP)
+
+**MUST.** A primitive depends on the overlay stack through **context**, never on a module
+singleton, so a test can mount an independent stack and a tree can pin its own
+capabilities. Domain code depends on a repository **port**, never on an adapter. Feature
+code depends on the library's public surface, never on a file inside it.
+
+- **Why:** A module singleton is a global with a nicer name: two trees in one document
+  would fight over it, and no test could isolate either. The same argument applies one
+  layer down, which is why persistence sits behind a port.
+- **Enforced by:** `lint` (`boundaries/element-types`), `typecheck`, `consistency`
+- **Proven by:** `lint` and `typecheck` running over the template's own tree, which
+  contains one module per layer, plus the overlay suite's "keeps two provider trees
+  independent" and "uses the capabilities it is given rather than detecting them"
+- **Decided in:** ADR 001, ADR 008, ADR 022
+
+### NFR-23 — Narrow interfaces (ISP)
+
+**MUST.** A consumer is not made to depend on what it does not use. A hook takes the
+members it reads, not an object that happens to contain them; a non-blocking surface does
+not import scroll-lock or inert machinery; a feature imports the primitives it renders,
+not the library's internals.
+
+- **Why:** `detectCapabilities(view: Window)` was rejected by the type checker and rightly
+  so — it promised hundreds of members to read three. The narrow type is not only more
+  honest, it is what lets a test pass an object literal instead of casting away the type
+  system, and a cast is where a test starts asserting its own fiction.
+- **Enforced by:** `typecheck`, `lint`
+- **Proven by:** `typecheck` over the template's own tree, plus the overlay suite's
+  "survives a view missing each constructor entirely"
+- **Decided in:** ADR 008
+
+### NFR-24 — One contract, interchangeable surfaces (LSP)
+
+**MUST.** Every overlay satisfies one `OverlaySurface` contract — kind, open, dismissal,
+testid — so a caller that can drive one can drive any of them. This is what makes a single
+generated browser suite able to exercise every surface rather than one hand-written spec
+per component.
+
+- **Why:** Where two implementations of "the same" component differed on the property that
+  mattered most — one portalled and one did not — the claim "the same tests pass under
+  both" was false exactly where it was load-bearing.
+- **Enforced by:** `typecheck`, `dup:scan`
+- **Proven by:** the primitive suites under `packages/proto-ui/src/**`, which drive each
+  surface through the same contract
+- **Decided in:** ADR 008, ADR 020
+
 ### NFR-25 — Every gate has a demonstrated failure case
 
 **MUST.** For every gate, `gates:selftest` builds a throwaway project, breaks exactly one
