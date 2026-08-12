@@ -1,0 +1,21 @@
+{
+  "name": "proto-forge",
+  "version": "0.3.0",
+  "private": true,
+  "type": "module",
+  "description": "The proto-forge skill and its prototype template. This package holds the plugin-level gates only; the generated prototype has its own package.json under template/.",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22 <23"
+  },
+  "packageManager": "pnpm@10.11.0",
+  "scripts": {
+    "verify": "pnpm run citations && pnpm run skill:lint && pnpm run manifest:lint && pnpm run template:integrity",
+    "citations": "node scripts/citations.mjs",
+    "skill:lint": "node scripts/skill-lint.mjs",
+    "manifest:lint": "node scripts/manifest-lint.mjs",
+    "template:integrity": "node scripts/template-integrity.mjs",
+    "verify:template": "node scripts/verify-template.mjs",
+    "selftest": "node scripts/selftest-all.mjs"
+  }
+}
