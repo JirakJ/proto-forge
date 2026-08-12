@@ -1,24 +1,14 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect } from "@playwright/test";
+import { isTopmost } from "./support/overlay";
 
 // @adr 008 - the layering guarantee, asserted against a real browser
 // jsdom has no layout and no paint, so a unit test can assert a zIndex value but
 // never that an element is actually on top. These run against the built app in
-// Chromium and ask the only question that matters: at the centre of this popup,
-// what does the browser say the user would click?
+// Chromium and ask the only question that matters: at this popup's centre and
+// corners, what does the browser say the user would click?
 //
 // The harness supplies the adversarial page. It is a fixture, not shipped UI —
 // harness.html is a separate entry point built only when VITE_HARNESS=1.
-
-/** True when the element is what a click at its own centre would actually hit. */
-async function isTopmost(page: Page, testid: string) {
-  return page.evaluate((id) => {
-    const el = document.querySelector(`[data-testid="${id}"]`);
-    if (el === null) return false;
-    const r = el.getBoundingClientRect();
-    const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
-    return hit !== null && el.contains(hit);
-  }, testid);
-}
 
 test("a modal escapes an ancestor stacking context and is not clipped by it", async ({ page }) => {
   await page.goto("/harness.html#/dialog-stacking-trap");
