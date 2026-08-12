@@ -2,6 +2,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
+import { randomBytes } from "node:crypto";
 import { fail, ok } from "./lib.mjs";
 
 // @adr 009 - the gates are the product, so the gates get tested
@@ -22,21 +23,30 @@ function project(files) {
   return dir;
 }
 
-function run(gate, dir, args = []) {
+function run(gate, dir, args = [], env = {}) {
   // HOME is redirected so an operator's ~/.config/proto-forge/config.json cannot
   // change the outcome of a self-test.
   const r = spawnSync(process.execPath, [join(SCRIPTS, gate), ...args], {
     cwd: dir,
     encoding: "utf8",
-    env: { ...process.env, HOME: dir, PROTO_FORGE_TODAY: "2026-08-11" },
+    env: { ...process.env, HOME: dir, PROTO_FORGE_TODAY: "2026-08-11", ...env },
   });
   return { code: r.status, out: `${r.stdout}${r.stderr}` };
 }
 
-function expect(name, gate, files, { pass, matching, args = [] }) {
+/**
+ * `prepare` runs after the files are written and before the gate does, with the
+ * throwaway dir as its argument. Two gates need it: snapshot:diff, whose passing
+ * case requires a seed.lock containing a hash only the gate itself can compute,
+ * and budget, whose fixtures are too large to hold as string literals.
+ * `env` overrides the child environment — sec:scan's CI hard-stop is only
+ * observable with an empty PATH.
+ */
+function expect(name, gate, files, { pass, matching, args = [], env = {}, prepare }) {
   const dir = project(files);
   try {
-    const { code, out } = run(gate, dir, args);
+    if (prepare !== undefined) prepare(dir);
+    const { code, out } = run(gate, dir, args, env);
     const passed = code === 0;
     if (passed !== pass) {
       results.push(`${name}: expected ${pass ? "PASS" : "FAIL"}, got ${passed ? "PASS" : "FAIL"} — ${out.trim()}`);
@@ -552,6 +562,278 @@ hook(
   if (storage.includes("no-screenshot")) results.push("md-to-storage: HTML comments must not reach the page");
   if (!attachments.includes("open.png")) results.push("md-to-storage: image was not reported as an attachment");
 }
+
+// --- docs:verify -------------------------------------------------------------
+// Nine gates below had no self-test at all, while AGENTS.md claimed this command
+// "proves each gate still rejects what it claims to". For docs:verify the untested
+// claim was the load-bearing one: that a screenshot taken from OLDER code fails.
+const PROSE = "The Button primitive takes a variant and a required testid. ".repeat(5);
+
+const docsBase = (over = {}) => ({
+  "packages/proto-ui/src/index.ts": 'export { Button } from "./Button";\n',
+  "packages/proto-ui/src/Button.tsx": "export function Button() {\n  return null;\n}\n",
+  ...over,
+});
+
+expect("docs: a page that states why there is no screenshot passes", "docs-verify.mjs", docsBase({
+  "docs/components/Button/README.md": `# Button\n\n${PROSE}\n\n<!-- no-screenshot: a headless primitive renders nothing of its own -->\n`,
+}), { pass: true });
+
+expect("docs: a component with no page fails", "docs-verify.mjs", docsBase(), {
+  pass: false,
+  matching: /is missing/,
+});
+
+expect("docs: a stub page fails", "docs-verify.mjs", docsBase({
+  "docs/components/Button/README.md": "# Button\n\nTODO.\n",
+}), { pass: false, matching: /stub/ });
+
+expect("docs: a page with neither a screenshot nor a stated reason fails", "docs-verify.mjs", docsBase({
+  "docs/components/Button/README.md": `# Button\n\n${PROSE}\n`,
+}), { pass: false, matching: /no screenshot/ });
+
+expect("docs: a page referencing a screenshot that is not on disk fails", "docs-verify.mjs", docsBase({
+  "docs/components/Button/README.md": `# Button\n\n${PROSE}\n\n![variants](./variants.png)\n`,
+}), { pass: false, matching: /does not exist/ });
+
+expect("docs: screenshots with nothing recording which code they show fail", "docs-verify.mjs", docsBase({
+  "docs/components/Button/README.md": `# Button\n\n${PROSE}\n\n![variants](./variants.png)\n`,
+  "docs/components/Button/variants.png": "png-bytes",
+}), { pass: false, matching: /nothing records/ });
+
+expect("docs: a screenshot taken from older code fails", "docs-verify.mjs", docsBase({
+  "docs/components/Button/README.md": `# Button\n\n${PROSE}\n\n![variants](./variants.png)\n`,
+  "docs/components/Button/variants.png": "png-bytes",
+  "docs/components/Button/.shot.lock": { source: "0000000000000000000000000000000000000000000000000000000000000000" },
+}), { pass: false, matching: /older/ });
+
+// --- stub:scan ---------------------------------------------------------------
+expect("stub: clean production code passes", "stub-scan.mjs", {
+  "src/features/f.ts": "export const f = () => 1;\n",
+}, { pass: true });
+
+expect("stub: a banned marker in production code fails", "stub-scan.mjs", {
+  "src/features/f.ts": "// TODO: finish this\nexport const f = () => 1;\n",
+}, { pass: false, matching: /banned marker/ });
+
+expect("stub: 'not implemented' in production code fails", "stub-scan.mjs", {
+  "src/features/f.ts": 'export const f = () => {\n  throw new Error("not implemented");\n};\n',
+}, { pass: false, matching: /banned marker/ });
+
+expect("stub: mocking a first-party module fails", "stub-scan.mjs", {
+  "src/features/f.test.ts": 'vi.mock("@/domain/note/repository");\n',
+}, { pass: false, matching: /first-party/ });
+
+expect("stub: pulling __fixtures__ into production code fails", "stub-scan.mjs", {
+  "src/features/f.ts": 'import { makeNote } from "./__fixtures__/note";\nexport const f = () => makeNote();\n',
+}, { pass: false, matching: /__fixtures__/ });
+
+// --- adr:lint ----------------------------------------------------------------
+const adr = (num, status, extra = "") =>
+  `# ADR ${num}: A decision\n\n- Status: ${status}\n- Date: 2026-08-12\n${extra}\n## Context\n\nx\n`;
+const promptEntry = "---\nid: 0001\ntimestamp: 2026-08-12T00:00:00Z\nphase: 1\n---\n\n## Prompt\n\nx\n";
+
+expect("adr: an anchored, accepted, prompt-linked ADR passes", "adr-lint.mjs", {
+  "docs/adr/010-a-decision.md": adr("010", "accepted", "- Prompt-log: .prompts/0001-x.md\n"),
+  ".prompts/0001-x.md": promptEntry,
+  "src/domain/note/model.ts": "// @adr 010 - the note domain\nexport type Note = { id: string };\n",
+}, { pass: true });
+
+expect("adr: an anchor to an ADR that does not exist fails", "adr-lint.mjs", {
+  "src/domain/note/model.ts": "// @adr 777 - invented\nexport type Note = { id: string };\n",
+}, { pass: false, matching: /no ADR file/ });
+
+expect("adr: an anchor to a proposed ADR fails", "adr-lint.mjs", {
+  "docs/adr/010-a-decision.md": adr("010", "proposed", "- Prompt-log: .prompts/0001-x.md\n"),
+  ".prompts/0001-x.md": promptEntry,
+  "src/domain/note/model.ts": "// @adr 010 - the note domain\nexport type Note = { id: string };\n",
+}, { pass: false, matching: /proposed ADR/ });
+
+expect("adr: an accepted ADR nobody anchored fails", "adr-lint.mjs", {
+  "docs/adr/010-a-decision.md": adr("010", "accepted", "- Prompt-log: .prompts/0001-x.md\n"),
+  ".prompts/0001-x.md": promptEntry,
+  "src/domain/note/model.ts": "export type Note = { id: string };\n",
+}, { pass: false, matching: /never anchored/ });
+
+expect("adr: an accepted ADR with no prompt-log back-reference fails", "adr-lint.mjs", {
+  "docs/adr/010-a-decision.md": adr("010", "accepted"),
+  "src/domain/note/model.ts": "// @adr 010 - the note domain\nexport type Note = { id: string };\n",
+}, { pass: false, matching: /Prompt-log/ });
+
+expect("adr: a prompt-log reference pointing at nothing fails", "adr-lint.mjs", {
+  "docs/adr/010-a-decision.md": adr("010", "accepted", "- Prompt-log: .prompts/0009-absent.md\n"),
+  "src/domain/note/model.ts": "// @adr 010 - the note domain\nexport type Note = { id: string };\n",
+}, { pass: false, matching: /does not exist/ });
+
+// --- prompt:lint -------------------------------------------------------------
+expect("prompt: well-formed, strictly increasing entries pass", "prompt-log-lint.mjs", {
+  ".prompts/0001-scaffold.md": promptEntry,
+  ".prompts/0002-brief.md": promptEntry.replace("id: 0001", "id: 0002"),
+}, { pass: true });
+
+expect("prompt: an empty log fails", "prompt-log-lint.mjs", {
+  "src/a.ts": "export const a = 1;\n",
+}, { pass: false, matching: /no prompt-log entries/ });
+
+expect("prompt: a filename that is not NNNN-slug.md fails", "prompt-log-lint.mjs", {
+  ".prompts/1-scaffold.md": promptEntry,
+}, { pass: false, matching: /NNNN-slug/ });
+
+expect("prompt: an id that disagrees with the filename fails", "prompt-log-lint.mjs", {
+  ".prompts/0001-scaffold.md": promptEntry.replace("id: 0001", "id: 0002"),
+}, { pass: false, matching: /!=/ });
+
+expect("prompt: an entry with no ## Prompt section fails", "prompt-log-lint.mjs", {
+  ".prompts/0001-scaffold.md": "---\nid: 0001\ntimestamp: 2026-08-12T00:00:00Z\nphase: 1\n---\n\n## Outcome\n\nx\n",
+}, { pass: false, matching: /## Prompt/ });
+
+// Two entries sharing a number is the only way to reach the ordering check:
+// ids are validated against the filename, and filenames sort ascending, so a
+// duplicated prefix is what a botched "append" actually looks like.
+expect("prompt: ids that do not strictly increase fail", "prompt-log-lint.mjs", {
+  ".prompts/0001-a.md": promptEntry,
+  ".prompts/0001-b.md": promptEntry,
+}, { pass: false, matching: /strictly increasing/ });
+
+// --- dup:scan (the component half) -------------------------------------------
+expect("dup: a feature composing proto-ui primitives passes", "component-dup-scan.mjs", {
+  "src/features/notes/ui/Notes.tsx":
+    'import { Button } from "@jj/proto-ui";\nexport const N = () => <Button data-testid="n">x</Button>;\n',
+}, { pass: true });
+
+expect("dup: a raw <button> in a feature fails", "component-dup-scan.mjs", {
+  "src/features/notes/ui/Notes.tsx": 'export const N = () => <button data-testid="n">x</button>;\n',
+}, { pass: false, matching: /raw <button>/ });
+
+expect("dup: a raw element wearing a primitive role fails", "component-dup-scan.mjs", {
+  "src/features/notes/ui/Notes.tsx": 'export const N = () => <div role="dialog" data-testid="n" />;\n',
+}, { pass: false, matching: /primitive role/ });
+
+// --- consistency -------------------------------------------------------------
+const consistencyBase = (over = {}) => ({
+  "src/i18n/config.ts": 'export const DEFAULT_LOCALE = "en" as const;\n',
+  "packages/proto-ui/tokens.ts": "export const tokens = { color: {} } as const;\n",
+  "src/config/env.ts": "const EnvSchema = z.object({});\nexport const env = EnvSchema.parse({});\n",
+  ...over,
+});
+
+expect("consistency: one definition per single-source registry passes", "consistency.mjs", consistencyBase(), {
+  pass: true,
+});
+
+expect("consistency: design tokens defined twice fails", "consistency.mjs", consistencyBase({
+  "src/theme/tokens.ts": "export const tokens = { color: {} } as const;\n",
+}), { pass: false, matching: /defined 2x/ });
+
+expect("consistency: two accepted ADRs sharing a title fails", "consistency.mjs", consistencyBase({
+  "docs/adr/010-a.md": adr("010", "accepted"),
+  "docs/adr/011-b.md": adr("011", "accepted").replace("# ADR 011: A decision", "# ADR 011: A decision"),
+}), { pass: false, matching: /duplicate accepted ADR title/ });
+
+expect("consistency: a non-English script in code fails", "consistency.mjs", consistencyBase({
+  "src/features/f.ts": 'export const label = "Привет";\n',
+}), { pass: false, matching: /non-English/ });
+
+// --- snapshot:diff -----------------------------------------------------------
+// The passing case needs a seed.lock holding a hash only the gate can compute,
+// so `prepare` writes the baseline the way an operator would.
+const snapshotBase = (over = {}) => ({
+  "package.json": { version: "0.1.0", scripts: { verify: "pnpm run lint && pnpm run test:unit" } },
+  "packages/proto-ui/package.json": { name: "@jj/proto-ui", version: "0.1.0" },
+  "packages/proto-ui/src/index.ts": 'export { Button } from "./Button";\n',
+  "packages/proto-ui/src/Button.tsx": "export function Button() {\n  return null;\n}\n",
+  "src/app/routes.ts": "export const routes = { home: '/' } as const;\n",
+  // The generated locks live here, and neither --write-seed nor --write creates
+  // the directory: a prototype always has it, because the template ships it.
+  ".proto-forge/config.json": { policy: "strict" },
+  ...over,
+});
+const writeBaseline = (dir) => {
+  run("snapshot-diff.mjs", dir, ["--write-seed"]);
+  run("snapshot-diff.mjs", dir, ["--write"]);
+};
+
+expect("snapshot: a tree matching its committed baseline passes", "snapshot-diff.mjs", snapshotBase(), {
+  pass: true,
+  prepare: writeBaseline,
+});
+
+expect("snapshot: a missing seed.lock fails", "snapshot-diff.mjs", snapshotBase(), {
+  pass: false,
+  matching: /seed\.lock missing/,
+});
+
+expect("snapshot: a vendored seed that differs from seed.lock fails", "snapshot-diff.mjs", snapshotBase({
+  ".proto-forge/seed.lock": {
+    package: "@jj/proto-ui",
+    version: "0.1.0",
+    sha256: "0000000000000000000000000000000000000000000000000000000000000000",
+    vendoredAt: "packages/proto-ui",
+  },
+}), { pass: false, matching: /seed integrity/ });
+
+expect("snapshot: a file added after the baseline fails", "snapshot-diff.mjs", snapshotBase(), {
+  pass: false,
+  matching: /fileTree drifted/,
+  prepare: (dir) => {
+    writeBaseline(dir);
+    writeFileSync(join(dir, "src", "app", "unexpected.ts"), "export const x = 1;\n");
+  },
+});
+
+expect("snapshot: a gate removed from verify after the baseline fails", "snapshot-diff.mjs", snapshotBase(), {
+  pass: false,
+  matching: /gates drifted/,
+  prepare: (dir) => {
+    writeBaseline(dir);
+    writeFileSync(
+      join(dir, "package.json"),
+      JSON.stringify({ version: "0.1.0", scripts: { verify: "pnpm run lint" } }, null, 2),
+    );
+  },
+});
+
+// --- budget ------------------------------------------------------------------
+// Fixtures are generated, not literal: exceeding a 300 kB gzipped ceiling needs
+// ~400 kB of incompressible bytes, which does not belong in source.
+const writeDist = (dir, files) => {
+  mkdirSync(join(dir, "dist", "assets"), { recursive: true });
+  for (const [name, body] of Object.entries(files)) writeFileSync(join(dir, "dist", name), body);
+};
+
+expect("budget: a small production bundle passes", "budget.mjs", {}, {
+  pass: true,
+  prepare: (dir) => writeDist(dir, { "assets/app.js": "globalThis.app = 1;\n", "assets/app.css": "a{color:red}\n" }),
+});
+
+expect("budget: no dist fails rather than reporting zero", "budget.mjs", {}, {
+  pass: false,
+  matching: /no dist/,
+});
+
+expect("budget: refuses to measure a build containing the component catalogue", "budget.mjs", {}, {
+  pass: false,
+  matching: /never ships/,
+  prepare: (dir) =>
+    writeDist(dir, { "assets/app.js": "globalThis.app = 1;\n", "gallery.html": "<!doctype html>\n" }),
+});
+
+expect("budget: JS over the gzipped ceiling fails", "budget.mjs", {}, {
+  pass: false,
+  matching: /exceeds/,
+  prepare: (dir) => writeDist(dir, { "assets/app.js": randomBytes(500_000).toString("base64") }),
+});
+
+// --- sec:scan ----------------------------------------------------------------
+// Only the deterministic half is self-testable: that the secret scan cannot be
+// silently skipped in CI. `pnpm audit` needs a registry, so its behaviour is
+// asserted by CI running the real gate, not here — recorded in
+// references/requirements.md §19 rather than papered over.
+expect("security: the secret scan cannot be skipped in CI", "sec-scan.mjs", {}, {
+  pass: false,
+  matching: /mandatory/,
+  env: { CI: "1", PATH: "" },
+});
 
 if (results.length) fail(`gates:selftest FAILED (${results.length})`, results);
 ok("gates:selftest: every gate, guardrail and converter rejects what it claims to reject");
