@@ -1,6 +1,6 @@
 ---
 name: proto-forge
-description: "Use when the user wants to scaffold or build a new web-app prototype, MVP, or first shippable product slice from a short brief — triggers on /proto-forge, \"forge a prototype\", \"scaffold an app\", \"build me a prototype/MVP\". Turns a product brief into a production-grade React 19 + TypeScript + Vite prototype with zero placeholders: owned component library, full unit/component/E2E tests, WCAG 2.2 AA a11y, fully-translated i18n, portalled overlays on one stacking scale, a documented + screenshotted component catalogue, a strict security baseline, per-ADR commits, an append-only prompt log, and a `pnpm verify` gate suite. Deterministic: the same normalized brief yields the same structure."
+description: "Use when the user wants to scaffold or build a new web-app prototype, MVP, or first shippable product slice from a short brief — triggers on /proto-forge, \"forge a prototype\", \"scaffold an app\", \"build me a prototype/MVP\". Turns a product brief into a production-grade React 19 + TypeScript + Vite prototype with zero placeholders: owned component library, 100% unit coverage behind a mutation-testing gate, a generated Playwright component suite, WCAG 2.2 AA a11y, fully-translated i18n, top-layer overlays ordered by open order, a documented + screenshotted component catalogue, a strict security baseline, per-ADR commits, an append-only prompt log, and a `pnpm verify` gate suite. Deterministic: the same normalized brief yields the same structure."
 ---
 
 # proto-forge
@@ -66,7 +66,7 @@ Per entity, in facet order, generate `src/domain/<entity>/{model.ts,schema.ts,re
 
 The template already vendors `@jj/proto-ui` under `packages/proto-ui/` — Button, Field, Select, Checkbox, Dialog, Menu, Table, Tabs, Tooltip, ToastProvider, Portal, ProtoUIProvider (ADR 020 own library, 008 layering — pre-written). The seed is byte-pinned: `.proto-forge/seed.lock` holds its sha256 and `snapshot:diff` re-verifies it every run (BRS §17.2) — **never edit files under `packages/proto-ui/` during generation** (a Claude Code hook blocks it); a legitimate seed upgrade = ADR + `pnpm seed:lock`. Mount `ProtoUIProvider` once at the app root. Then per `persistence`:
 - `local` (T5) → real Dexie/IndexedDB adapter implementing the repository port. ADR 022.
-- `api` (T6) → typed client from the contract + real local adapter behind the same port; zod-validate responses. ADR 023.
+- `api` (T6) → typed client from the contract + real local adapter behind the same port; zod-validate responses. **MSW is the test seam for the `api` facet**: request handlers mirror the contract, unit/component tests run against `setupServer`, and no first-party module is ever mocked — the network boundary is the only legitimate stub point. MSW is added *by this facet*, never pre-installed (an unused devDependency is dead weight `consistency` rightly rejects). ADR 023.
 
 Seed data (if needed) lives **only** in `src/infra/**/seed.ts`, typed against the domain schema. Never inline literals in components/hooks.
 
@@ -98,7 +98,7 @@ Add each locale to `SUPPORTED_LOCALES` in `src/i18n/config.ts` **and** import it
 
 ### Phase 6 — Test build (gate)
 
-`pnpm test:unit` (coverage gate, layered thresholds) + `pnpm test:e2e`. Generate missing tests until floors are met. Tests assert **behavior** (Testing Library role/testid queries), never implementation details, never `vi.mock` of first-party modules. `src/test/setup.ts` asserts testid uniqueness in the rendered DOM after every test — a failure there means two elements share a name, not that the test is wrong.
+`pnpm test:unit` (100/100/100/100 on every glob; `coverage:policy` locks the thresholds and the exclusion list, `ignores` pins the `v8 ignore` population) + `pnpm test:mutation` (Stryker, break 90 on the behavioural core) + `pnpm test:e2e` (including the suite **generated** from `src/harness/cases.ts` — adding a case adds its browser tests). Generate missing tests until every gate is green. Tests assert **behavior** (Testing Library role/testid queries), never implementation details, never `vi.mock` of first-party modules; fixture data comes from `defineFactory` in `src/test/factory.ts`, parsed through the domain schema. `src/test/setup.ts` asserts testid uniqueness in the rendered DOM after every test — a failure there means two elements share a name, not that the test is wrong.
 
 ### Phase 7 — Security harden (gate, T11)
 
@@ -170,9 +170,9 @@ SemVer tag; `CHANGELOG.md` from the ADR set + Conventional Commits; attach SBOM 
 ## Gate commands (all in `template/package.json`)
 
 `verify` runs all, fail-fast:
-`config:check` · `gates:selftest` · `lint` · `typecheck` · `test:unit` · `build` · `budget` · `i18n:verify` · `layer:scan` · `testid:scan` · `docs:verify` · `stub:scan` · `adr:lint` · `prompt:lint` · `dup:scan` · `consistency` · `sec:scan` · `snapshot:diff` · `test:e2e`.
+`config:check` · `gates:selftest` · `lint` · `typecheck` · `coverage:policy` · `ignores` · `test:unit` · `test:mutation` · `build` · `budget` · `i18n:verify` · `layer:scan` · `overlay:matrix` · `testid:scan` · `docs:verify` · `external:verify` · `stub:scan` · `adr:lint` · `prompt:lint` · `dup:scan` · `consistency` · `sec:scan` · `snapshot:diff` · `test:e2e`.
 
-Supporting commands: `config:show` · `docs:shots` · `i18n:extract` · `snapshot` · `seed:lock` · `sync:jira` · `sync:confluence`.
+Supporting commands: `config:show` · `docs:shots` · `i18n:extract` · `snapshot` · `seed:lock` · `sync:jira` · `sync:confluence` · `sync:pull` · `sync:status`.
 
 `gates:selftest` builds a throwaway project per failure mode and asserts every gate's exit code — run it after touching any scan script.
 

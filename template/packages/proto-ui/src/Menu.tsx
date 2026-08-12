@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { tokens } from "../tokens";
 import { Portal } from "./Portal";
-import { demote, promote, useAnchor, useDismiss, useFocusScope, useOverlaySlot } from "./overlay/index";
+import { useAnchor, useDismiss, useFocusScope, useOverlaySlot, usePromotion } from "./overlay/index";
 
 /** `label` is already translated by the caller — never a literal (BR-08). */
 export type MenuItem = { id: string; label: string; onSelect: () => void };
@@ -67,12 +67,7 @@ export function Menu({ label, items, "data-testid": testid }: MenuProps) {
 
   const close = useCallback(() => setOpen(false), []);
 
-  useEffect(() => {
-    const surface = surfaceRef.current;
-    if (surface === null || !open) return;
-    promote(surface, capabilities);
-    return () => demote(surface, capabilities);
-  }, [open, capabilities]);
+  usePromotion(surfaceRef, open, capabilities);
 
   // No trap: a menu is not modal, and the page behind it stays operable.
   useFocusScope({ ref: surfaceRef, active: open, trap: false, initialFocus: "first" });

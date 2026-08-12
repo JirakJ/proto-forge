@@ -1,7 +1,7 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from "react";
 import { tokens } from "../tokens";
 import { Portal } from "./Portal";
-import { demote, promote, useOverlaySlot } from "./overlay/index";
+import { useOverlaySlot, usePromotion } from "./overlay/index";
 
 type Tone = "info" | "error";
 type ToastEntry = { id: string; message: string; tone: Tone };
@@ -75,12 +75,7 @@ export function ToastProvider({ children, label, duration = 4000 }: ToastProvide
     [dismiss, duration],
   );
 
-  useEffect(() => {
-    const region = regionRef.current;
-    if (region === null || !showing) return;
-    promote(region, capabilities);
-    return () => demote(region, capabilities);
-  }, [showing, capabilities]);
+  usePromotion(regionRef, showing, capabilities);
 
   return (
     <ToastContext.Provider value={{ notify }}>
