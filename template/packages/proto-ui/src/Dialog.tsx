@@ -1,14 +1,13 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
 import { tokens } from "../tokens";
 import { Portal } from "./Portal";
 import {
-  demote,
-  promote,
   useDismiss,
   useFocusScope,
   useInertBackground,
   useOverlaySlot,
   useScrollLock,
+  usePromotion,
   type OverlaySlot,
 } from "./overlay/index";
 
@@ -83,12 +82,7 @@ export function Dialog({ open, onClose, title, children, "data-testid": testid }
   // scrim is ::backdrop; on the fallback it is an element of our own.
   const platformOwnsLayering = capabilities.popover;
 
-  useEffect(() => {
-    const surface = surfaceRef.current;
-    if (surface === null || !open) return;
-    promote(surface, capabilities);
-    return () => demote(surface, capabilities);
-  }, [open, capabilities]);
+  usePromotion(surfaceRef, open, capabilities);
 
   // The library owns all three, on both paths. A manual popover gives no native focus
   // containment and no native inertness -- deliberately, because the native versions

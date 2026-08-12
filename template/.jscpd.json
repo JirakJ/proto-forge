@@ -1,5 +1,5 @@
 {
-  "_comment": "src/gallery/** is excluded for the same reason tests and fixtures are: it IS a fixture catalogue. Each case is a deliberately parallel declaration of one component in one state, and the repetition is what makes the list readable at a glance. De-duplicating it into a factory would hide exactly what a reader comes here to see. It never ships — gallery.html is only built when VITE_GALLERY=1.",
+  "_comment": "src/harness/** is excluded for the same reason tests and fixtures are: it IS a fixture catalogue. Each mount is a deliberately parallel declaration of one component in one state — including adversarial fixtures that repeat a dialog three ways on purpose — and the repetition is what makes the catalogue readable at a glance. De-duplicating it into a factory would hide exactly what a reader comes here to see. It never ships: harness.html is only built when VITE_HARNESS=1.",
   "threshold": 0,
   "minTokens": 30,
   "reporters": ["consoleFull"],
@@ -11,6 +11,6 @@
     "**/__fixtures__/**",
     "**/dist/**",
     "**/coverage/**",
-    "src/gallery/**"
+    "src/harness/**"
   ]
 }

@@ -1,7 +1,7 @@
-import { cloneElement, useCallback, useEffect, useId, useRef, useState, type ReactElement } from "react";
+import { cloneElement, useCallback, useId, useRef, useState, type ReactElement } from "react";
 import { tokens } from "../tokens";
 import { Portal } from "./Portal";
-import { demote, promote, useAnchor, useDismiss, useOverlaySlot } from "./overlay/index";
+import { useAnchor, useDismiss, useOverlaySlot, usePromotion } from "./overlay/index";
 
 export type TooltipProps = {
   /** The description. Already translated by the caller — never a literal (BR-08). */
@@ -38,12 +38,7 @@ export function Tooltip({ label, children, "data-testid": testid }: TooltipProps
   const show = useCallback(() => setOpen(true), []);
   const hide = useCallback(() => setOpen(false), []);
 
-  useEffect(() => {
-    const surface = surfaceRef.current;
-    if (surface === null || !open) return;
-    promote(surface, capabilities);
-    return () => demote(surface, capabilities);
-  }, [open, capabilities]);
+  usePromotion(surfaceRef, open, capabilities);
 
   // Escape dismisses, because a tooltip that will not go away is worse than no tooltip.
   // No outside-pointer dismissal: pointer-leave already covers it, and claiming outside
