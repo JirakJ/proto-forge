@@ -64,22 +64,29 @@ const NAME_PREFIX = "--pf";
 /** `color.primaryFg` becomes `--pf-color-primary-fg`: one predictable name per token. */
 const kebab = (value: string) => value.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
 
-function properties(): string[] {
-  const out: string[] = [];
+function entries(): [string, string][] {
+  const out: [string, string][] = [];
   for (const [group, value] of Object.entries(tokens)) {
     if (typeof value === "object") {
       for (const [key, leaf] of Object.entries(value)) {
-        out.push(`${NAME_PREFIX}-${kebab(group)}-${kebab(key)}: ${String(leaf)};`);
+        out.push([`${NAME_PREFIX}-${kebab(group)}-${kebab(key)}`, String(leaf)]);
       }
     } else {
-      out.push(`${NAME_PREFIX}-${kebab(group)}: ${String(value)};`);
+      out.push([`${NAME_PREFIX}-${kebab(group)}`, String(value)]);
     }
   }
   return out;
 }
 
-/** The `:root` block the library injects once, via ProtoUIProvider. */
-export const tokensCssProperties: string = properties().join("\n  ");
+/**
+ * name/value pairs, which is the shape the provider actually applies. The string and
+ * name-only forms below are derived from this one so there is a single traversal of
+ * `tokens` to get wrong.
+ */
+export const tokensCssEntries: readonly (readonly [string, string])[] = entries();
+
+/** The same declarations as CSS text, for documentation and for tests to assert against. */
+export const tokensCssProperties: string = tokensCssEntries.map(([n, v]) => `${n}: ${v};`).join("\n  ");
 
 /** Every custom-property name the tokens produce, for the consistency gate and for tests. */
-export const tokensCssNames: readonly string[] = properties().map((line) => line.split(":")[0]!.trim());
+export const tokensCssNames: readonly string[] = tokensCssEntries.map(([n]) => n);

@@ -41,7 +41,6 @@
     "prepare": "husky || true"
   },
   "dependencies": {
-    "@radix-ui/react-dialog": "^1.1.21",
     "dexie": "^4.4.4",
     "dompurify": "^3.4.13",
     "i18next": "^24.2.3",

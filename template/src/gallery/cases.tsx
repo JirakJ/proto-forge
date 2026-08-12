@@ -308,7 +308,7 @@ export const cases: GalleryCase[] = [
   },
 ];
 
-/** The gallery renders with the "own" provider — the default a prototype ships. */
+/** The gallery renders through the library root, exactly as a prototype does. */
 export const GalleryProviders = ({ children }: { children: ReactNode }) => (
-  <ProtoUIProvider provider="own">{children}</ProtoUIProvider>
+  <ProtoUIProvider>{children}</ProtoUIProvider>
 );

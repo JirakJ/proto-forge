@@ -13,7 +13,7 @@ import { routes } from "./routes";
 export function App() {
   const { t } = useTranslation();
   return (
-    <ProtoUIProvider provider="own">
+    <ProtoUIProvider>
       <BrowserRouter>
         <a
           href="#main"

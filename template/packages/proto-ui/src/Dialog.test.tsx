@@ -1,26 +1,48 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 import { Dialog, type DialogProps } from "./Dialog";
 import { OVERLAY_ROOT_ID } from "./Portal";
-import { ProtoUIProvider, type ProviderKind } from "../providers/index";
+import { ProtoUIProvider } from "../providers/index";
+import type { Capabilities } from "./overlay/index";
 import { tokens } from "../tokens";
 
-function renderDialog(kind: ProviderKind, props: Partial<DialogProps> = {}) {
+// Two paths, exercised deliberately rather than by whatever the environment implements.
+// jsdom has no showModal at all, so without pinning capabilities the top-layer branch
+// would never run here — and it is the primary one.
+const FALLBACK: Capabilities = { topLayerDialog: false, popover: false, cssAnchor: false };
+const TOP_LAYER: Capabilities = { topLayerDialog: true, popover: true, cssAnchor: false };
+
+/** An app root, so the inert bookkeeping has something real to mark. */
+function withAppRoot() {
+  const root = document.createElement("div");
+  root.id = "root";
+  document.body.append(root);
+  return root;
+}
+
+function renderDialog(capabilities: Capabilities, props: Partial<DialogProps> = {}) {
   const onClose = props.onClose ?? (() => {});
-  const utils = render(
-    <ProtoUIProvider provider={kind}>
+  return render(
+    <ProtoUIProvider capabilities={capabilities}>
       <Dialog open title="Confirm" data-testid="dlg" onClose={onClose} {...props}>
-        <p>Body</p>
+        <p data-testid="dlg-body">Body</p>
       </Dialog>
     </ProtoUIProvider>,
   );
-  return { ...utils, onClose };
 }
 
-describe("Dialog (own provider)", () => {
-  it("renders nothing when closed", () => {
+afterEach(() => {
+  document.getElementById("root")?.remove();
+});
+
+describe("Dialog — the contract both paths share", () => {
+  it.each([
+    ["fallback", FALLBACK],
+    ["top layer", TOP_LAYER],
+  ])("renders nothing when closed (%s)", (_name, capabilities) => {
     render(
-      <ProtoUIProvider provider="own">
+      <ProtoUIProvider capabilities={capabilities}>
         <Dialog open={false} title="Confirm" data-testid="dlg" onClose={() => {}}>
           <p>Body</p>
         </Dialog>
@@ -29,146 +51,249 @@ describe("Dialog (own provider)", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
-  it("renders an accessible modal and focuses it when open", () => {
-    renderDialog("own");
-    const dlg = screen.getByRole("dialog");
-    expect(dlg).toHaveAttribute("aria-modal", "true");
-    expect(dlg).toHaveAttribute("aria-label", "Confirm");
-    expect(dlg).toHaveTextContent("Body");
-    expect(document.activeElement).toBe(dlg);
+  it.each([
+    ["fallback", FALLBACK],
+    ["top layer", TOP_LAYER],
+  ])("renders an accessible modal named by its title (%s)", (_name, capabilities) => {
+    renderDialog(capabilities);
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toHaveAttribute("aria-modal", "true");
+    expect(dialog).toHaveAttribute("aria-label", "Confirm");
+    expect(dialog).toHaveTextContent("Body");
+    expect(dialog.tagName).toBe("DIALOG");
   });
 
-  it("escapes the app tree: scrim and surface live in the body-level portal, above the app", () => {
-    renderDialog("own");
+  it.each([
+    ["fallback", FALLBACK],
+    ["top layer", TOP_LAYER],
+  ])("escapes the app tree into the body-level host (%s)", (_name, capabilities) => {
+    renderDialog(capabilities);
     const host = document.getElementById(OVERLAY_ROOT_ID)!;
-    const scrim = screen.getByTestId("dlg-scrim");
-    expect(host).toContainElement(scrim);
     expect(host).toContainElement(screen.getByTestId("dlg"));
-    expect(scrim).toHaveStyle({ position: "fixed", zIndex: String(tokens.layer.overlay) });
-    expect(screen.getByTestId("dlg")).toHaveStyle({ zIndex: String(tokens.layer.modal) });
-    expect(tokens.layer.overlay).toBeGreaterThan(tokens.layer.sticky);
+    expect(host.parentElement).toBe(document.body);
   });
 
-  it("closes on Escape, ignores other keys, and (no focusables) keeps Tab inside", () => {
+  it.each([
+    ["fallback", FALLBACK],
+    ["top layer", TOP_LAYER],
+  ])("focuses the surface on open and holds the page still (%s)", (_name, capabilities) => {
+    const { unmount } = renderDialog(capabilities);
+    expect(document.activeElement).toBe(screen.getByTestId("dlg"));
+    expect(document.documentElement.style.overflow).toBe("hidden");
+    unmount();
+    expect(document.documentElement.style.overflow).toBe("");
+  });
+
+  it.each([
+    ["fallback", FALLBACK],
+    ["top layer", TOP_LAYER],
+  ])("titles itself with a heading carrying its own testid (%s)", (_name, capabilities) => {
+    renderDialog(capabilities);
+    expect(screen.getByTestId("dlg-title")).toHaveTextContent("Confirm");
+  });
+});
+
+describe("Dialog — the top-layer path", () => {
+  it("closes on the native cancel event, keeping React the owner of `open`", () => {
     let closed = 0;
-    renderDialog("own", { onClose: () => (closed += 1) });
-    fireEvent.keyDown(document, { key: "a" });
-    expect(closed).toBe(0);
-    fireEvent.keyDown(document, { key: "Tab" }); // no focusable children -> stays on dialog
-    expect(document.activeElement).toBe(screen.getByRole("dialog"));
-    fireEvent.keyDown(document, { key: "Escape" });
+    renderDialog(TOP_LAYER, { onClose: () => (closed += 1) });
+    const dialog = screen.getByTestId("dlg");
+    fireEvent(dialog, new Event("cancel", { bubbles: false, cancelable: true }));
     expect(closed).toBe(1);
   });
 
-  it("closes on scrim click but not on content click", async () => {
-    const user = userEvent.setup();
-    let closed = 0;
-    renderDialog("own", { onClose: () => (closed += 1) });
-    await user.click(screen.getByRole("dialog"));
-    expect(closed).toBe(0);
-    await user.click(screen.getByTestId("dlg-scrim"));
-    expect(closed).toBe(1);
+  it("paints no scrim of its own — ::backdrop is the browser's job", () => {
+    renderDialog(TOP_LAYER);
+    expect(screen.queryByTestId("dlg-scrim")).toBeNull();
   });
 
-  it("tears down its key listener when it closes", () => {
-    let closed = 0;
-    const { rerender } = render(
-      <ProtoUIProvider provider="own">
-        <Dialog open title="Confirm" data-testid="dlg" onClose={() => (closed += 1)}>
-          <p>Body</p>
-        </Dialog>
-      </ProtoUIProvider>,
-    );
-    rerender(
-      <ProtoUIProvider provider="own">
-        <Dialog open={false} title="Confirm" data-testid="dlg" onClose={() => (closed += 1)}>
-          <p>Body</p>
-        </Dialog>
-      </ProtoUIProvider>,
-    );
-    fireEvent.keyDown(document, { key: "Escape" });
-    expect(closed).toBe(0);
+  it("does not inert the app root: showModal() already does it natively", () => {
+    const root = withAppRoot();
+    renderDialog(TOP_LAYER);
+    expect(root.hasAttribute("inert")).toBe(false);
   });
 
-  it("does not steal focus when the parent re-renders with a new onClose", () => {
-    const calls: string[] = [];
-    const { rerender } = render(
-      <ProtoUIProvider provider="own">
-        <Dialog open title="Confirm" data-testid="dlg" onClose={() => calls.push("a")}>
-          <button data-testid="inner">x</button>
-        </Dialog>
-      </ProtoUIProvider>,
-    );
-    const inner = screen.getByTestId("inner");
-    inner.focus();
-    expect(document.activeElement).toBe(inner);
-    rerender(
-      <ProtoUIProvider provider="own">
-        <Dialog open title="Confirm" data-testid="dlg" onClose={() => calls.push("b")}>
-          <button data-testid="inner">x</button>
-        </Dialog>
-      </ProtoUIProvider>,
-    );
-    // Effect keyed on [open] only: no re-run, focus stays where the user put it.
-    expect(document.activeElement).toBe(inner);
-    // onClose read through a ref: Escape calls the latest handler.
-    fireEvent.keyDown(document, { key: "Escape" });
-    expect(calls).toEqual(["b"]);
-  });
-
-  it("traps Tab focus within the dialog", () => {
+  it("does not trap Tab itself: an inert document already contains focus", () => {
     render(
-      <ProtoUIProvider provider="own">
+      <ProtoUIProvider capabilities={TOP_LAYER}>
         <Dialog open title="Confirm" data-testid="dlg" onClose={() => {}}>
           <button data-testid="one">One</button>
           <button data-testid="two">Two</button>
         </Dialog>
       </ProtoUIProvider>,
     );
-    const dlg = screen.getByTestId("dlg");
-    const one = screen.getByTestId("one");
     const two = screen.getByTestId("two");
-
-    // Tab at the last focusable wraps to the first.
     two.focus();
-    fireEvent.keyDown(document, { key: "Tab" });
-    expect(document.activeElement).toBe(one);
-
-    // Shift+Tab at the first wraps to the last.
-    one.focus();
-    fireEvent.keyDown(document, { key: "Tab", shiftKey: true });
+    fireEvent.keyDown(two, { key: "Tab" });
     expect(document.activeElement).toBe(two);
+  });
 
-    // Tab in the middle (not last) does not wrap.
-    one.focus();
-    fireEvent.keyDown(document, { key: "Tab" });
-    expect(document.activeElement).toBe(one);
-
-    // Shift+Tab from the dialog container wraps to the last.
-    dlg.focus();
-    fireEvent.keyDown(document, { key: "Tab", shiftKey: true });
-    expect(document.activeElement).toBe(two);
-
-    // Shift+Tab at the last (neither first nor container) does not wrap.
-    two.focus();
-    fireEvent.keyDown(document, { key: "Tab", shiftKey: true });
-    expect(document.activeElement).toBe(two);
+  it("does not handle Escape itself, leaving it to the native cancel event", () => {
+    let closed = 0;
+    renderDialog(TOP_LAYER, { onClose: () => (closed += 1) });
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(closed).toBe(0);
   });
 });
 
-describe("Dialog (radix provider)", () => {
-  it("renders content and closes on Escape", async () => {
-    const user = userEvent.setup();
-    let closed = 0;
-    renderDialog("radix", { onClose: () => (closed += 1) });
-    expect(screen.getByTestId("dlg")).toHaveTextContent("Body");
-    await user.keyboard("{Escape}");
-    expect(closed).toBeGreaterThan(0);
+describe("Dialog — the fallback path", () => {
+  it("draws its own scrim above the app chrome and below its surface", () => {
+    renderDialog(FALLBACK);
+    const scrim = screen.getByTestId("dlg-scrim");
+    const surface = screen.getByTestId("dlg");
+    expect(scrim).toHaveStyle({ position: "fixed" });
+    const scrimZ = Number(scrim.style.zIndex);
+    expect(scrimZ).toBeGreaterThan(tokens.layer.sticky);
+    expect(Number(surface.style.zIndex)).toBeGreaterThan(scrimZ);
   });
 
-  it("carries the same layering contract as the own provider", () => {
-    renderDialog("radix");
-    expect(screen.getByTestId("dlg-scrim")).toHaveStyle({ zIndex: String(tokens.layer.overlay) });
-    expect(screen.getByTestId("dlg")).toHaveStyle({ zIndex: String(tokens.layer.modal) });
+  it("closes on a scrim click but not on a click in its own content", async () => {
+    const user = userEvent.setup();
+    let closed = 0;
+    renderDialog(FALLBACK, { onClose: () => (closed += 1) });
+    await user.click(screen.getByTestId("dlg-body"));
+    expect(closed).toBe(0);
+    await user.click(screen.getByTestId("dlg-scrim"));
+    expect(closed).toBe(1);
+  });
+
+  it("closes on Escape, because nothing native will", () => {
+    let closed = 0;
+    renderDialog(FALLBACK, { onClose: () => (closed += 1) });
+    fireEvent.keyDown(document, { key: "a" });
+    expect(closed).toBe(0);
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(closed).toBe(1);
+  });
+
+  it("inerts the app root, which is what makes it actually modal", () => {
+    const root = withAppRoot();
+    const { unmount } = renderDialog(FALLBACK);
+    expect(root.hasAttribute("inert")).toBe(true);
+    unmount();
+    expect(root.hasAttribute("inert")).toBe(false);
+  });
+
+  it("traps Tab within the dialog", () => {
+    render(
+      <ProtoUIProvider capabilities={FALLBACK}>
+        <Dialog open title="Confirm" data-testid="dlg" onClose={() => {}}>
+          <button data-testid="one">One</button>
+          <button data-testid="two">Two</button>
+        </Dialog>
+      </ProtoUIProvider>,
+    );
+    const surface = screen.getByTestId("dlg");
+    const one = screen.getByTestId("one");
+    const two = screen.getByTestId("two");
+
+    two.focus();
+    fireEvent.keyDown(two, { key: "Tab" });
+    expect(document.activeElement).toBe(one);
+
+    one.focus();
+    fireEvent.keyDown(one, { key: "Tab", shiftKey: true });
+    expect(document.activeElement).toBe(two);
+
+    surface.focus();
+    fireEvent.keyDown(surface, { key: "Tab", shiftKey: true });
+    expect(document.activeElement).toBe(two);
+  });
+
+  it("shows the element non-modally so role=dialog stays addressable", () => {
+    renderDialog(FALLBACK);
+    expect(screen.getByTestId("dlg")).toHaveAttribute("open");
+  });
+});
+
+describe("Dialog — lifecycle", () => {
+  it("tears its dismissal down when it closes", () => {
+    let closed = 0;
+    function Closing() {
+      const [open, setOpen] = useState(true);
+      return (
+        <ProtoUIProvider capabilities={FALLBACK}>
+          <Dialog open={open} title="Confirm" data-testid="dlg" onClose={() => (closed += 1)}>
+            <button data-testid="hide" onClick={() => setOpen(false)}>
+              hide
+            </button>
+          </Dialog>
+        </ProtoUIProvider>
+      );
+    }
+    render(<Closing />);
+    fireEvent.click(screen.getByTestId("hide"));
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(closed).toBe(0);
+  });
+
+  it("does not steal focus when the parent re-renders with a new onClose", () => {
+    const calls: string[] = [];
+    function Renaming() {
+      const [label, setLabel] = useState("a");
+      return (
+        <ProtoUIProvider capabilities={FALLBACK}>
+          <Dialog open title="Confirm" data-testid="dlg" onClose={() => calls.push(label)}>
+            <button data-testid="inner">x</button>
+            <button data-testid="rename" onClick={() => setLabel("b")}>
+              rename
+            </button>
+          </Dialog>
+        </ProtoUIProvider>
+      );
+    }
+    render(<Renaming />);
+    const inner = screen.getByTestId("inner");
+    inner.focus();
+    fireEvent.click(screen.getByTestId("rename"));
+    // Focus is still where the user put it. If the focus effect keyed on onClose it
+    // would have re-run on this render and yanked focus back to the surface, which is
+    // the bug this asserts against.
+    expect(document.activeElement).toBe(inner);
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(calls).toEqual(["b"]);
+  });
+
+  it("stacks: the second dialog owns Escape, and closing it returns Escape to the first", () => {
+    const calls: string[] = [];
+    function Stacked() {
+      const [secondOpen, setSecondOpen] = useState(false);
+      return (
+        <ProtoUIProvider capabilities={FALLBACK}>
+          <Dialog open title="First" data-testid="one" onClose={() => calls.push("one")}>
+            <button data-testid="open-two" onClick={() => setSecondOpen(true)}>
+              open
+            </button>
+          </Dialog>
+          <Dialog
+            open={secondOpen}
+            title="Second"
+            data-testid="two"
+            onClose={() => {
+              calls.push("two");
+              setSecondOpen(false);
+            }}
+          >
+            <p data-testid="two-body">Second body</p>
+          </Dialog>
+        </ProtoUIProvider>
+      );
+    }
+    render(<Stacked />);
+    fireEvent.click(screen.getByTestId("open-two"));
+
+    // The later dialog paints above the earlier one, and owns Escape alone.
+    expect(Number(screen.getByTestId("two").style.zIndex)).toBeGreaterThan(
+      Number(screen.getByTestId("one").style.zIndex),
+    );
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(calls).toEqual(["two"]);
+
+    // The first is still open and still holds the page.
+    expect(screen.getByTestId("one")).toBeInTheDocument();
+    expect(document.documentElement.style.overflow).toBe("hidden");
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(calls).toEqual(["two", "one"]);
   });
 });
