@@ -1,7 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { Table, type Column } from "./Table";
-
-type Row = { id: string; name: string; note: string | null };
+import { makeRow, type Row } from "./__fixtures__/rows";
 
 const columns: Column<Row>[] = [
   { key: "name", header: "Name" },
@@ -18,10 +17,7 @@ describe("Table", () => {
         emptyLabel="None"
         columns={columns}
         rowKey={(r) => r.id}
-        rows={[
-          { id: "1", name: "Ada", note: "hi" },
-          { id: "2", name: "Grace", note: null },
-        ]}
+        rows={[makeRow({ name: "Ada", note: "hi" }), makeRow({ note: null })]}
       />,
     );
     expect(screen.getByTestId("t")).toContainElement(screen.getByTestId("t-caption"));
@@ -44,10 +40,7 @@ describe("Table", () => {
         emptyLabel="None"
         columns={columns}
         rowKey={(r) => r.id}
-        rows={[
-          { id: "1", name: "Ada", note: "hi" },
-          { id: "2", name: "Grace", note: "yo" },
-        ]}
+        rows={[makeRow(), makeRow()]}
       />,
     );
     const ids = [...screen.getByTestId("t").querySelectorAll("[data-testid]")].map(

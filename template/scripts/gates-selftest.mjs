@@ -739,6 +739,19 @@ expect("stub: pulling __fixtures__ into production code fails", "stub-scan.mjs",
   "src/features/f.ts": 'import { makeNote } from "./__fixtures__/note";\nexport const f = () => makeNote();\n',
 }, { pass: false, matching: /__fixtures__/ });
 
+expect("stub: a fixture built with defineFactory passes", "stub-scan.mjs", {
+  "src/domain/note/__fixtures__/note.ts":
+    'import { z } from "zod";\nimport { defineFactory } from "../../../test/factory";\n' +
+    'export const NoteSchema = z.object({ id: z.string() });\n' +
+    'export const makeNote = defineFactory(NoteSchema, (seq) => ({ id: String(seq) }));\n' +
+    'export type Note = z.output<typeof NoteSchema>;\n',
+}, { pass: true });
+
+expect("stub: a fixture exporting a bare literal fails", "stub-scan.mjs", {
+  "src/domain/note/__fixtures__/note.ts":
+    'export const notes = [{ id: "1", text: "hand-written" }];\n',
+}, { pass: false, matching: /defineFactory/ });
+
 // --- adr:lint ----------------------------------------------------------------
 const adr = (num, status, extra = "") =>
   `# ADR ${num}: A decision\n\n- Status: ${status}\n- Date: 2026-08-12\n${extra}\n## Context\n\nx\n`;

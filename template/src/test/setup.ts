@@ -1,6 +1,13 @@
 import "@testing-library/jest-dom/vitest";
-import { afterEach } from "vitest";
+import { afterEach, beforeEach } from "vitest";
 import { cleanup } from "@testing-library/react";
+import { resetFactorySequence } from "./factory";
+
+// Fixture determinism: every test starts its factories at instance 1, so two runs of
+// the same test see byte-identical data and a failure diff is readable.
+beforeEach(() => {
+  resetFactorySequence();
+});
 
 // BR-02 (the runtime half). Lint catches literal duplicate testids inside one
 // file; only the rendered DOM shows the collisions that matter — a list that
