@@ -29,6 +29,8 @@ import type { OverlaySlot } from "./OverlayStack";
 type Latest = {
   onDismiss: () => void;
   ref: RefObject<HTMLElement | null>;
+  /** The control that opened the surface, if it toggles. See `ignore` below. */
+  ignore: RefObject<HTMLElement | null> | undefined;
   ordinal: number;
   escape: boolean;
   outsidePointer: boolean;
@@ -63,6 +65,11 @@ function handlePointerDown(event: Event): void {
   if (entry === undefined || !entry.outsidePointer) return;
   const surface = entry.ref.current;
   if (surface === null || surface.contains(event.target as Node)) return;
+  // A pointer on the toggle that opened this surface is not an outside click. Dismissing
+  // here would close the surface, and the click that follows would reopen it — so the
+  // toggle would appear dead.
+  const toggle = entry.ignore?.current;
+  if (toggle !== null && toggle !== undefined && toggle.contains(event.target as Node)) return;
   entry.onDismiss();
 }
 
@@ -83,6 +90,11 @@ function sync(): void {
 export type UseDismissOptions = {
   /** The surface itself. A pointer inside it is not an outside click. */
   ref: RefObject<HTMLElement | null>;
+  /**
+   * A control that toggles the surface — a menu button. Pointers on it are left alone so
+   * the toggle's own handler decides, instead of dismiss and reopen cancelling out.
+   */
+  ignore?: RefObject<HTMLElement | null>;
   slot: OverlaySlot;
   onDismiss: () => void;
   /** False while the surface is closed, so a closed overlay never competes for Escape. */
@@ -98,11 +110,13 @@ export function useDismiss({
   slot,
   onDismiss,
   enabled,
+  ignore,
   escape = true,
   outsidePointer = true,
 }: UseDismissOptions): void {
-  const latest = useRef<Latest>({ onDismiss, ref, ordinal: slot.ordinal, escape, outsidePointer });
-  latest.current = { onDismiss, ref, ordinal: slot.ordinal, escape, outsidePointer };
+  const state: Latest = { onDismiss, ref, ignore, ordinal: slot.ordinal, escape, outsidePointer };
+  const latest = useRef<Latest>(state);
+  latest.current = state;
 
   // Deps are the identity of the surface and whether it is open — nothing that changes
   // while it stays open. That is what keeps registration to once per surface.

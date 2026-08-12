@@ -1,8 +1,7 @@
 # Dialog
 
-A modal that is on top because the browser put it there. The surface is a real `<dialog>`
-opened with `showModal()`, which places it in the **top layer** — not part of the document's
-stacking contexts at all. So no ancestor `transform`, `filter` or `overflow: hidden` can trap
+A modal that is on top because the browser put it there. The surface is promoted into the
+**top layer** as a manual popover — not part of the document's stacking contexts at all. So no ancestor `transform`, `filter` or `overflow: hidden` can trap
 or clip it, and a `z-index: 2147483647` somewhere in application code cannot compete with it.
 
 ![Dialog over its backdrop](open.png)
@@ -26,7 +25,7 @@ traps and crops an in-place modal — it stays whole and on top:
 | Prop | Type | Notes |
 | --- | --- | --- |
 | `open` | `boolean` | Fully controlled. Closed renders `null`, not a hidden node. |
-| `onClose` | `() => void` | Called by Escape (via the native `cancel` event), and by a scrim click on the fallback path. |
+| `onClose` | `() => void` | Called by Escape when this is the topmost surface, and by a scrim click on the fallback path. |
 | `title` | `string` | **Required**, already translated. Becomes the accessible name and the visible `<h2>`. |
 | `data-testid` | `string` | **Required.** Heading is `<testid>-title`; the fallback scrim is `<testid>-scrim`. |
 
@@ -40,18 +39,22 @@ Dialog implements none of this itself (NFR-20) — it wires together the `overla
 | the only platform calls | `promote` / `demote` |
 | focus entry and return | `useFocusScope` |
 | refcounted scroll lock | `useScrollLock` |
-| refcounted `inert` (fallback only) | `useInertBackground` |
-| Escape, topmost only (fallback only) | `useDismiss` |
+| refcounted `inert`, on the app root only | `useInertBackground` |
+| Escape, topmost only | `useDismiss` |
 
 ## Two paths, one contract
 
 | | Top layer | Fallback |
 | --- | --- | --- |
-| Placement | `showModal()` | `open` attribute + own scrim element |
-| Scrim | `dialog::backdrop` | a `position: fixed` element at `slot.fallbackZIndex` |
-| Focus containment | native — the rest of the document is inert | `useFocusScope({ trap: true })` |
-| Background inert | native | `useInertBackground` on the app root |
-| Escape | native `cancel` event | `useDismiss` |
+| Placement | `showPopover()` on a manual popover | `position: fixed` at `slot.fallbackZIndex` |
+| Scrim | `[popover]::backdrop` | a `position: fixed` element under the surface |
+| Focus containment | `useFocusScope({ trap: true })` | same |
+| Background inert | `useInertBackground` on the app root | same |
+| Escape | `useDismiss`, topmost only | same |
+
+Only the placement and the scrim differ. `showModal()` would have supplied containment and
+inertness natively, and was rejected for it: its inertness also killed every surface
+promoted above the modal (ADR 008).
 
 Markup and testids are identical either way, so one test file covers both (NFR-24).
 `Dialog.test.tsx` pins the capabilities per case rather than accepting whatever the
@@ -67,10 +70,10 @@ than `OverlayStack` reading the overlay scale.
 
 ## Accessibility
 
-- `role="dialog"` (implicit in `<dialog>`), `aria-modal="true"`, accessible name from `title`.
+- `role="dialog"`, `aria-modal="true"`, accessible name from `title`.
 - Focus moves to the dialog on open and returns to the opener on close — through a stack, so
   closing a dialog opened from another dialog returns focus into the first one.
-- Tab is contained: natively on the top-layer path, by `useFocusScope` on the fallback.
+- Tab is contained by `useFocusScope` on both paths.
 - Escape closes **only the topmost** surface. A menu open inside the dialog takes the first
   Escape; the dialog takes the next.
 - The page cannot scroll behind it, and the lock survives a second dialog closing.

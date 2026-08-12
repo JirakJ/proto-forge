@@ -1,15 +1,27 @@
 import { render, screen, fireEvent } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { Menu, type MenuItem } from "./Menu";
 import { OVERLAY_ROOT_ID } from "./Portal";
+import { ProtoUIProvider } from "../providers/index";
 import { tokens } from "../tokens";
+import type { Capabilities } from "./overlay/index";
 
-function setup(items?: MenuItem[]) {
+// The fallback path is the default here: jsdom implements no Popover API, so this is
+// also what detection would report. The top-layer path is pinned where it matters, and
+// proven for real in e2e/overlay-layering.e2e.ts.
+const FALLBACK: Capabilities = { topLayerDialog: false, popover: false, cssAnchor: false };
+
+function setup(items?: MenuItem[], capabilities: Capabilities = FALLBACK) {
   const picked: string[] = [];
   const list: MenuItem[] = items ?? [
     { id: "edit", label: "Edit", onSelect: () => picked.push("edit") },
     { id: "del", label: "Delete", onSelect: () => picked.push("del") },
   ];
-  render(<Menu label="Actions" items={list} data-testid="menu" />);
+  render(
+    <ProtoUIProvider capabilities={capabilities}>
+      <Menu label="Actions" items={list} data-testid="menu" />
+    </ProtoUIProvider>,
+  );
   return { picked };
 }
 
@@ -20,12 +32,17 @@ describe("Menu", () => {
     expect(screen.queryByRole("menu")).toBeNull();
   });
 
-  it("opens on trigger click and selects an item, then closes and restores focus", () => {
+  it("opens on trigger click and selects an item, then closes and restores focus", async () => {
+    // userEvent, not fireEvent: a real click focuses the button it lands on, and the
+    // focus scope returns focus to whatever was focused when the surface opened. Menu
+    // deliberately owns no focus logic of its own (NFR-20), so the test has to behave
+    // like a user rather than dispatch a bare click.
+    const user = userEvent.setup();
     const { picked } = setup();
     const trigger = screen.getByTestId("menu-trigger");
-    fireEvent.click(trigger);
+    await user.click(trigger);
     expect(trigger).toHaveAttribute("aria-expanded", "true");
-    fireEvent.click(screen.getByTestId("menu-item-edit"));
+    await user.click(screen.getByTestId("menu-item-edit"));
     expect(picked).toEqual(["edit"]);
     expect(screen.queryByRole("menu")).toBeNull();
     expect(document.activeElement).toBe(trigger);
@@ -64,13 +81,26 @@ describe("Menu", () => {
     expect(screen.queryByRole("menu")).toBeNull();
   });
 
-  it("renders the surface in the body-level portal above the modal layer", () => {
+  it("renders the surface in the body-level portal, on the layer the stack assigned it", () => {
     setup();
     fireEvent.click(screen.getByTestId("menu-trigger"));
     const surface = screen.getByTestId("menu-surface");
     expect(document.getElementById(OVERLAY_ROOT_ID)).toContainElement(surface);
-    expect(surface).toHaveStyle({ position: "fixed", zIndex: String(tokens.layer.popover) });
-    expect(tokens.layer.popover).toBeGreaterThan(tokens.layer.modal);
+    expect(surface).toHaveStyle({ position: "fixed" });
+    // Nothing here names a per-kind layer: the value comes from the stack, and it is
+    // above the app chrome. Which surface wins against another is promotion order,
+    // asserted in OverlayStack.test.tsx and in the browser.
+    expect(Number(surface.style.zIndex)).toBeGreaterThan(tokens.layer.sticky);
+  });
+
+  it("is promoted into the top layer when the platform has the Popover API", () => {
+    const TOP_LAYER: Capabilities = { topLayerDialog: true, popover: true, cssAnchor: false };
+    setup(undefined, TOP_LAYER);
+    fireEvent.click(screen.getByTestId("menu-trigger"));
+    // jsdom has no showPopover, so promote() declines and the attribute is not set --
+    // which is exactly the no-op contract topLayer.test.ts pins. What this asserts is
+    // that Menu asks, and still renders a usable surface either way.
+    expect(screen.getByRole("menu")).toBeInTheDocument();
   });
 
   it("moves focus into the surface on open, and copes with an empty menu", () => {

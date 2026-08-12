@@ -1,59 +1,43 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { tokens } from "../tokens";
 import { Portal } from "./Portal";
+import { demote, promote, useAnchor, useDismiss, useFocusScope, useOverlaySlot } from "./overlay/index";
 
 /** `label` is already translated by the caller — never a literal (BR-08). */
 export type MenuItem = { id: string; label: string; onSelect: () => void };
 export type MenuProps = { label: string; items: MenuItem[]; "data-testid": string };
 
-type Anchor = { top: number; left: number };
-
-// Menu button: aria-haspopup + aria-expanded toggle a role=menu of menuitems.
-// The surface renders in the body-level portal at tokens.layer.popover — above a
-// modal, so a menu opened inside a dialog is still usable — and is anchored to the
-// trigger in viewport coordinates, since a portalled surface has no offset parent.
-// Escape or a pointer outside closes and returns focus to the trigger.
+// @adr 008 - a menu that is above its own dialog, and below a later one
+//
+// The surface is promoted into the browser's top layer through the Popover API, so paint
+// order is promotion order: a menu opened inside a dialog draws above it, and a dialog
+// opened after the menu draws above the menu. A per-kind scale could not express that
+// second half — it ranked every popover above every modal, forever.
+//
+// Composed, not built here (NFR-20): useOverlaySlot for position in the stack,
+// promote/demote for the platform call, useAnchor for tracking the trigger in viewport
+// coordinates (a portalled surface shares no offset parent with it), useFocusScope for
+// entry and return, useDismiss for Escape and outside pointers — topmost only.
 export function Menu({ label, items, "data-testid": testid }: MenuProps) {
-  const [anchor, setAnchor] = useState<Anchor | null>(null);
+  const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const surfaceRef = useRef<HTMLUListElement>(null);
-  const open = anchor !== null;
+  const slot = useOverlaySlot("popover", open);
+  const { capabilities } = slot;
+  const position = useAnchor({ triggerRef, surfaceRef, open, capabilities });
 
-  const place = useCallback(() => {
-    const rect = triggerRef.current!.getBoundingClientRect();
-    setAnchor({ top: rect.bottom, left: rect.left });
-  }, []);
-
-  const close = useCallback(() => {
-    setAnchor(null);
-    triggerRef.current!.focus();
-  }, []);
+  const close = useCallback(() => setOpen(false), []);
 
   useEffect(() => {
-    if (!open) return;
-    // Focus enters the surface: portalled content sits at the end of the document,
-    // so without this the keyboard path would skip the whole app to reach it.
-    surfaceRef.current!.querySelector("button")?.focus();
+    const surface = surfaceRef.current;
+    if (surface === null || !open) return;
+    promote(surface, capabilities);
+    return () => demote(surface, capabilities);
+  }, [open, capabilities]);
 
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") close();
-    };
-    const onPointerDown = (e: Event) => {
-      const target = e.target as Node;
-      if (!triggerRef.current!.contains(target) && !surfaceRef.current!.contains(target)) close();
-    };
-    document.addEventListener("keydown", onKeyDown);
-    document.addEventListener("pointerdown", onPointerDown);
-    // Re-anchor rather than drift: `true` catches scrolls in any ancestor.
-    window.addEventListener("resize", place);
-    window.addEventListener("scroll", place, true);
-    return () => {
-      document.removeEventListener("keydown", onKeyDown);
-      document.removeEventListener("pointerdown", onPointerDown);
-      window.removeEventListener("resize", place);
-      window.removeEventListener("scroll", place, true);
-    };
-  }, [open, close, place]);
+  // No trap: a menu is not modal, and the page behind it stays operable.
+  useFocusScope({ ref: surfaceRef, active: open, trap: false, initialFocus: "first" });
+  useDismiss({ ref: surfaceRef, ignore: triggerRef, slot, onDismiss: close, enabled: open });
 
   return (
     <>
@@ -62,7 +46,7 @@ export function Menu({ label, items, "data-testid": testid }: MenuProps) {
         aria-haspopup="menu"
         aria-expanded={open}
         data-testid={`${testid}-trigger`}
-        onClick={() => (open ? close() : place())}
+        onClick={() => setOpen((current) => !current)}
         style={{
           padding: `${tokens.space.sm} ${tokens.space.md}`,
           border: `1px solid ${tokens.color.border}`,
@@ -83,9 +67,10 @@ export function Menu({ label, items, "data-testid": testid }: MenuProps) {
             data-testid={`${testid}-surface`}
             style={{
               position: "fixed",
-              zIndex: tokens.layer.popover,
-              insetBlockStart: anchor.top,
-              insetInlineStart: anchor.left,
+              zIndex: slot.fallbackZIndex,
+              // null while CSS anchor positioning is doing the work, or before the first
+              // measurement; the browser places the surface in that case.
+              ...(position ?? {}),
               marginBlockStart: tokens.space.xs,
               listStyle: "none",
               padding: tokens.space.xs,

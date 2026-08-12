@@ -16,13 +16,13 @@
 
 /* The modal scrim. Matches what the fallback path draws with its own element, so the
    two paths look identical rather than merely behaving identically. */
-dialog::backdrop {
+[popover]::backdrop {
   background: var(--pf-color-scrim);
 }
 
-/* A dialog in the top layer is positioned by the browser; it needs no inset of its own,
-   and must not inherit the block layout of wherever it happens to sit in the DOM. */
-dialog[open] {
+/* A modal surface in the top layer is centred by the browser and needs no inset of its
+   own. It must not inherit the block layout of wherever it sits in the DOM. */
+[popover][data-pf-modal]:popover-open {
   /* A top-layer element inherits from nothing in the app tree, so the family has to be
      stated here or the surface renders in the UA's serif default. */
   font-family: var(--pf-font-family);
