@@ -475,6 +475,37 @@ edit — but the anchors move with the code (the case registry's `// @adr 009` t
 `src/gallery/cases.tsx` to `src/harness/cases.ts`), and the new `overlay/` modules each gain an
 `// @adr 008` anchor. The single `// @adr 021` anchor is replaced by `// @adr 020`.
 
+## 9A External sync records (added after approval)
+
+Requested mid-implementation: everything pulled from Confluence and every JIRA ticket
+created must exist locally as **MDX** carrying, in its frontmatter, the URL of the remote
+object, its last-update time, and the local files it affects — so a change made upstream
+can be detected and reconciled.
+
+**What exists today.** Sync is push-only: `docs/**` → Confluence pages, ADRs → JIRA
+issues, staged as JSON in `.proto-forge/outbox/` and recorded in a JSON ledger at
+`.proto-forge/integrations.json`. There is **no pull direction at all**. So this is new
+functionality, not a reformat.
+
+**Design.**
+
+| | |
+|---|---|
+| Location | `docs/external/confluence/<id>.mdx`, `docs/external/jira/<key>.mdx` — versioned with the code, reviewable in a diff, and outside the `docs/components` + `docs/features` trees `docs:verify` walks |
+| The records **are** the ledger | `.proto-forge/integrations.json` is retired. Two stores of the same facts would violate BR-15, and the JSON one is the copy nobody reads. `readLedger`/`recordLedger` in `outbox.mjs` read and write MDX frontmatter instead. |
+| Frontmatter | `source` (`confluence`\|`jira`), `id`, `url`, `title`, `remoteUpdatedAt` (ISO-8601), `remoteVersion`, `syncedAt`, `direction` (`push`\|`pull`), `affectedFiles[]` |
+| `affectedFiles` on push | Derived: the `docs/**` file(s) the payload was built from, plus, for an ADR ticket, the files its commit touched. |
+| `affectedFiles` on pull | **Declared by the operator, and the gate fails on an empty list.** An upstream page's relationship to local files is a human judgement, and an empty list would assert "this affects nothing", which is worse than a missing record. |
+| `.proto-forge/outbox/` | Unchanged in role: *pending* payloads, pre-send. `docs/external/` is the *record*, post-send or pulled. |
+| Drift | `pnpm sync:status` compares `remoteVersion` / `remoteUpdatedAt` against the remote and reports which records are stale and which local files each stale record affects. Read-only, but still subject to the network guardrail. |
+| New gate | `external:verify` — required frontmatter present and well-typed, `url` absolute with a host matching the configured `baseUrl`, `remoteUpdatedAt` a valid ISO-8601 instant, every `affectedFiles` entry a file that exists, and the list non-empty. Mandatory, so relaxing it needs a waiver. |
+| New rule | `BR-18` in the register. Integrations were not covered by any rule before this — a gap independent of the request. |
+
+**One flag, and I proceed as asked.** MDX buys nothing over Markdown for frontmatter plus
+prose; its value is JSX in content, and nothing in this repository renders MDX today. The
+extension is therefore a forward-looking choice rather than a functional one. Recorded
+because a later reader will ask.
+
 ## 10 Out of scope, stated
 
 1. **Inline styles → CSS.** Only `overlay.css` is added. Migrating the library's `style={{}}` props
