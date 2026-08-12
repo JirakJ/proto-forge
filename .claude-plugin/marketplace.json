@@ -1,0 +1,15 @@
+{
+  "name": "proto-forge",
+  "owner": {
+    "name": "Jakub Jirák",
+    "url": "https://github.com/JirakJ"
+  },
+  "plugins": [
+    {
+      "name": "proto-forge",
+      "source": "./plugin",
+      "version": "0.3.0",
+      "description": "Scaffold a production-grade React 19 + TypeScript + Vite prototype from a short product brief."
+    }
+  ]
+}
