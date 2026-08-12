@@ -2,7 +2,7 @@
 
 <!-- no-screenshot: Portal renders nothing of its own — it relocates its children, so a picture of it would be a picture of whatever was passed in. Its behaviour is documented by the Dialog and Menu screenshots. -->
 
-The mechanism behind "popups are always on top". Every overlay surface in the library renders through it.
+One half of the mechanism behind "popups are always on top" — the top layer is the other. Every overlay surface renders through the portal AND is promoted; the portal is what keeps the no-top-layer fallback correct, and the promotion is what makes paint order the platform's problem instead of ours.
 
 ## API
 
@@ -15,7 +15,7 @@ export const OVERLAY_ROOT_ID = "proto-ui-overlay-root";
 
 Children are relocated into a single `<div id="proto-ui-overlay-root">` appended last to `<body>`. Three properties of that host are load-bearing:
 
-1. **It is unstyled.** No `position`, `transform`, `opacity` or `filter`, so it creates **no stacking context**. Values from `tokens.layer.*` therefore compete at the root level instead of being trapped inside a local context — the trap that makes `z-index: 9999` fail to do anything.
+1. **It is unstyled.** No `position`, `transform`, `opacity` or `filter`, so it creates **no stacking context**. On the fallback path the stack's z-index values therefore compete at the root level instead of being trapped inside a local context — the trap that makes `z-index: 9999` fail to do anything.
 2. **It is the last child of `<body>`.** Where two elements tie on z-index, document order decides, and the overlay root wins.
 3. **It is shared and idempotent.** Concurrent overlays reuse one host rather than stacking hosts, so a dialog with a menu inside it produces one root, not two.
 
@@ -23,7 +23,7 @@ Rendering an overlay *in place* gives none of these. An ancestor with `transform
 
 ## Enforcement
 
-`layer:scan` fails any file that renders a `position: fixed` surface without going through `Portal`, `RadixDialog.Portal` or `createPortal`.
+`layer:scan` fails any file that renders a `position: fixed` surface without going through `Portal` or `createPortal`, and rules 4–9 additionally require every library surface to claim a slot in the overlay stack.
 
 ## Server rendering
 
