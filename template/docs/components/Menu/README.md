@@ -14,7 +14,14 @@ A menu button whose surface escapes the app tree. The list renders in the body-l
 
 ## Layering
 
-`tokens.layer.popover` (1100) — deliberately **above** `modal` (1010), so a menu opened from inside a dialog is usable rather than painted underneath it. That case is photographed in [Dialog](../Dialog/README.md).
+The surface is promoted into the browser's **top layer**, where paint order is the order
+things opened. A menu opened inside a dialog draws above it because it opened later —
+and a dialog opened after the menu draws above the menu, which is the case a fixed
+per-kind scale used to invert. Both are photographed: the first in
+[Dialog](../Dialog/README.md), the second as this component's
+`menu-under-later-dialog` harness case.
+
+Nothing here reads `tokens.layer`; the fallback z-index comes from the overlay stack.
 
 ## Behaviour
 

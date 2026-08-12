@@ -26,7 +26,7 @@ Unique means unique in the rendered DOM, so inside a `.map()` the testid must be
 
 Across files, namespace them: `notes-submit`, not `submit`. The primitives make `data-testid` a required prop, so TypeScript objects before lint does.
 
-**3. Popups render through `<Portal>` and take their layer from `tokens.layer.*`.** Never a numeric `z-index`. Anything positioned `fixed`/`absolute`/`sticky` declares its layer. In practice: compose `Dialog`, `Menu` and `ToastProvider` rather than building an overlay — they already do this, and `component-dup-scan` rejects a hand-rolled one.
+**3. Popups live in the browser's top layer, ordered by when they opened.** Compose `Dialog`, `Menu`, `ToastProvider` and `Tooltip` rather than building an overlay — never call `showPopover`/`showModal` yourself, never install your own `document` keydown listener, never read `tokens.layer.overlay`, never a numeric `z-index`. Anything positioned `fixed`/`absolute`/`sticky` outside the library declares a chrome layer (`base`/`raised`/`sticky`). `layer:scan` enforces all of it, and `component-dup-scan` rejects a hand-rolled surface.
 
 **4. A component is not finished until it is documented and photographed.** Every exported component and every feature has a page under `docs/`, and that page shows a current screenshot. Add a case to `src/harness/cases.ts` and its mount to `src/harness/mounts.tsx`, run `pnpm docs:shots`. Editing a component invalidates its screenshots until you re-run it. If there is genuinely nothing to photograph, say so explicitly:
 
@@ -45,7 +45,7 @@ Across files, namespace them: `notes-submit`, not `submit`. The primitives make 
 
 ## When a gate is genuinely wrong
 
-Fix the code first — that is the answer roughly always. If the floor itself is wrong, write an ADR. To relax a **mandatory** gate (i18n, testid, layer, docs, security, stub, consistency, snapshot) you also need a `waivers[]` entry in `.proto-forge/config.json` with a reason, that ADR, and an expiry date:
+Fix the code first — that is the answer roughly always. If the floor itself is wrong, write an ADR. To relax a **mandatory** gate (i18n, testid, layer, overlay, docs, security, stub, consistency, snapshot) you also need a `waivers[]` entry in `.proto-forge/config.json` with a reason, that ADR, and an expiry date:
 
 ```json
 { "gate": "i18n", "reason": "single-locale pilot for the September demo", "adr": 150, "expires": "2026-09-30" }

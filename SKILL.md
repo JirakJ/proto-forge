@@ -25,7 +25,7 @@ A phase does not start until the previous phase's gate is green. Every phase wri
 Phase 0  BRIEF INTAKE      → normalized facets + prompt-log seed
 Phase 1  SCAFFOLD          → fixed repo skeleton (ADR 001-004)
 Phase 2  DOMAIN MODEL      → typed domain + zod schemas (ADR 010-019)
-Phase 3  COMPONENT LIBRARY → seed @jj/proto-ui + provider selector (ADR 020-021)
+Phase 3  COMPONENT LIBRARY → seed @jj/proto-ui, one owned implementation (ADR 020)
 Phase 4  FEATURE BUILD     → features from library (ADR 030-099, loop)
 Phase 5  I18N + A11Y PASS  → translate every locale + pseudo + axe (gate)
 Phase 6  TEST BUILD        → unit + component + E2E (gate)
@@ -64,13 +64,13 @@ Per entity, in facet order, generate `src/domain/<entity>/{model.ts,schema.ts,re
 
 ### Phase 3 — Component library (always, T4/T5/T6)
 
-The template already vendors `@jj/proto-ui` under `packages/proto-ui/` — Button, Field, Select, Checkbox, Dialog, Menu, Table, Tabs, ToastProvider, Portal, ProtoUIProvider (ADR 020 own library, 021 provider fallback, 008 layering — pre-written). The seed is byte-pinned: `.proto-forge/seed.lock` holds its sha256 and `snapshot:diff` re-verifies it every run (BRS §17.2) — **never edit files under `packages/proto-ui/` during generation** (a Claude Code hook blocks it); a legitimate seed upgrade = ADR + `pnpm seed:lock`. Wire the provider selector (`own` | `radix`). Then per `persistence`:
+The template already vendors `@jj/proto-ui` under `packages/proto-ui/` — Button, Field, Select, Checkbox, Dialog, Menu, Table, Tabs, Tooltip, ToastProvider, Portal, ProtoUIProvider (ADR 020 own library, 008 layering — pre-written). The seed is byte-pinned: `.proto-forge/seed.lock` holds its sha256 and `snapshot:diff` re-verifies it every run (BRS §17.2) — **never edit files under `packages/proto-ui/` during generation** (a Claude Code hook blocks it); a legitimate seed upgrade = ADR + `pnpm seed:lock`. Mount `ProtoUIProvider` once at the app root. Then per `persistence`:
 - `local` (T5) → real Dexie/IndexedDB adapter implementing the repository port. ADR 022.
 - `api` (T6) → typed client from the contract + real local adapter behind the same port; zod-validate responses. ADR 023.
 
 Seed data (if needed) lives **only** in `src/infra/**/seed.ts`, typed against the domain schema. Never inline literals in components/hooks.
 
-**Never hand-roll an overlay.** Compose `Dialog`, `Menu` and `ToastProvider`. They portal to a body-level root and take their stacking values from `tokens.layer.*`; `layer:scan` rejects a fixed-position surface that skips the portal, and `component-dup-scan` rejects a raw element wearing a primitive role.
+**Never hand-roll an overlay.** Compose `Dialog`, `Menu`, `ToastProvider` and `Tooltip`. They are promoted into the browser's top layer, ordered by when they opened, and portal to a body-level root for the no-top-layer fallback; `layer:scan` rejects a fixed-position surface that skips the portal, a second `document` keydown listener, a direct `showPopover` call and a numeric z-index, and `component-dup-scan` rejects a raw element wearing a primitive role.
 
 ### Phase 4 — Feature build (per flow, T7 — loop)
 
@@ -118,7 +118,7 @@ SemVer tag; `CHANGELOG.md` from the ADR set + Conventional Commits; attach SBOM 
 
 `.proto-forge/config.json` (merged over built-in strict defaults and `~/.config/proto-forge/config.json`) controls gate modes, integrations and guardrails. `pnpm config:show` prints what is in force; `pnpm config:check` runs first in `verify`.
 
-**Tightening is free. Relaxing a mandatory gate is not.** i18n, testid, layer, docs, security, stub, consistency and snapshot may drop below `error` only with a `waivers[]` entry carrying a reason, an existing ADR and an expiry date. Without a live waiver the setting is ignored and the gate runs at `error` anyway; with one, the run is stamped `conformance: "waived"`, the relaxation prints on every verify, and it expires by itself. **Never propose a waiver as a way to make a red gate green** — it is for a recorded product decision (a single-locale pilot), and it needs the operator's agreement, not yours.
+**Tightening is free. Relaxing a mandatory gate is not.** i18n, testid, layer, overlay, docs, security, stub, consistency and snapshot may drop below `error` only with a `waivers[]` entry carrying a reason, an existing ADR and an expiry date. Without a live waiver the setting is ignored and the gate runs at `error` anyway; with one, the run is stamped `conformance: "waived"`, the relaxation prints on every verify, and it expires by itself. **Never propose a waiver as a way to make a red gate green** — it is for a recorded product decision (a single-locale pilot), and it needs the operator's agreement, not yours.
 
 `.claude/settings.json` wires local hooks: they block edits to the byte-pinned seed and the append-only prompt log, block lowering a coverage threshold / budget ceiling / gate mode, block `--no-verify` and unlisted network hosts, run the structural scans after every TS edit, and sweep before the turn ends. `AGENTS.md` states the same rules in prose for CLIs that have no hook mechanism.
 
@@ -137,7 +137,7 @@ SemVer tag; `CHANGELOG.md` from the ADR set + Conventional Commits; attach SBOM 
 - **Number ranges** (allocate by facet order, not as-encountered — this is load-bearing for BR-14):
   | Range | For |
   |---|---|
-  | 001-009 | Foundational (stack, prompt-log, tests, i18n, routing, error boundary, performance budget, overlay layering, mandatory gates) — fixed at scaffold, **001-009 pre-written** |
+  | 001-009 | Foundational (stack, prompt-log, tests, i18n, routing, error boundary, performance budget, overlay layering, mandatory gates) — fixed at scaffold, **001-009 pre-written** (021 is retired; the number stays unused) |
   | 010-019 | Domain model (one per entity, facet order) |
   | 020-029 | Component library + providers + persistence/api adapters |
   | 030-039, 050-099 | Features (one per flow, facet order — **skip the 040-049 auth band**) |

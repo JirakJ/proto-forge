@@ -29,7 +29,7 @@ It used to be hard-coded to `"Notifications"` inside the library. That single En
 
 ## Layering
 
-`tokens.layer.toast` (1200) — above `modal` and above `popover`. A notification is the one thing allowed to draw over a blocking surface, because it may be the reason the surface should close.
+the top layer, promoted PER BATCH — the region claims its place when it has something to show and releases it when it empties, which is what puts a toast above a modal that was already open. A notification is the one thing allowed to draw over a blocking surface, because it may be the reason the surface should close.
 
 ## Accessibility
 
