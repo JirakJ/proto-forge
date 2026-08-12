@@ -1,6 +1,6 @@
 {
   "name": "proto-forge",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Turn a product brief into a production-grade React 19 + TypeScript + Vite prototype with zero placeholders: owned component library, full unit/component/E2E tests, WCAG 2.2 AA a11y, translated i18n, top-layer overlays, a screenshotted component catalogue, a strict security baseline and a pnpm verify gate suite.",
   "author": {
     "name": "Jakub Jirák"
