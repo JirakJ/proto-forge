@@ -6,6 +6,8 @@ import type { Capabilities } from "./capabilities";
 const SCRIPTED: Capabilities = { topLayerDialog: false, popover: false, cssAnchor: false };
 const CSS_ANCHORED: Capabilities = { topLayerDialog: false, popover: false, cssAnchor: true };
 
+const encodePosition = (position: Position | null) => (position === null ? "none" : JSON.stringify(position));
+
 /** jsdom has no layout, so the trigger is given the rect a browser would have measured. */
 function withRect(el: HTMLElement, rect: { top: number; bottom: number; left: number }) {
   el.getBoundingClientRect = () =>
@@ -35,24 +37,25 @@ function Harness({
   const [ready, setReady] = useState(false);
   const position = useAnchor({ triggerRef, surfaceRef, open, placement, capabilities });
 
+  // Extracted so the render function stays under the complexity ceiling: attach the
+  // ref AND hand the node the rect a browser would have measured, exactly once.
+  const attachTrigger = (node: HTMLButtonElement | null) => {
+    triggerRef.current = node;
+    if (node !== null && !ready) {
+      withRect(node, rect);
+      setReady(true);
+    }
+  };
+
   return (
     <>
-      <button
-        ref={(node) => {
-          triggerRef.current = node;
-          if (node !== null && !ready) {
-            withRect(node, rect);
-            setReady(true);
-          }
-        }}
-        data-testid={`${name}-trigger`}
-      >
+      <button ref={attachTrigger} data-testid={`${name}-trigger`}>
         open
       </button>
       {attachSurface ? (
-        <div ref={surfaceRef} data-testid={`${name}-surface`} data-position={position === null ? "none" : JSON.stringify(position)} />
+        <div ref={surfaceRef} data-testid={`${name}-surface`} data-position={encodePosition(position)} />
       ) : (
-        <span data-testid={`${name}-surface`} data-position={position === null ? "none" : JSON.stringify(position)} />
+        <span data-testid={`${name}-surface`} data-position={encodePosition(position)} />
       )}
     </>
   );

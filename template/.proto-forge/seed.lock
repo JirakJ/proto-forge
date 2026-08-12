@@ -2,7 +2,7 @@
   "package": "@jj/proto-ui",
   "version": "0.3.0",
   "sha": "20c067788c6bd53c073bb3767774f2d693a4bbc5",
-  "sha256": "d6ceb2c0f7d9fa217234a8f338d44c6f24648d3042809c3deef72a92216d663b",
+  "sha256": "6299cf01c9655e9233cdb4a918f4f71d9fc9ca092df9361e5c842e133ebcfba2",
   "vendoredAt": "packages/proto-ui",
   "note": "sha = upstream git commit of the skill release that vendored this seed; null until first published release. sha256 covers the vendored tree; snapshot:diff re-verifies it."
 }

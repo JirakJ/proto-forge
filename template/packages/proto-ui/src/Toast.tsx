@@ -25,6 +25,25 @@ export type ToastProviderProps = {
   duration?: number;
 };
 
+// The per-toast row, outside the provider so its lines are behaviour (NFR-20). Error
+// toasts use role=alert (assertive); info toasts role=status (polite).
+function ToastEntryView({ toast }: { toast: ToastEntry }) {
+  return (
+    <div
+      role={toast.tone === "error" ? "alert" : "status"}
+      data-testid={`toast-${toast.id}`}
+      style={{
+        background: toast.tone === "error" ? tokens.color.danger : tokens.color.fg,
+        color: tokens.color.primaryFg,
+        padding: tokens.space.sm,
+        borderRadius: tokens.radius.sm,
+      }}
+    >
+      {toast.message}
+    </div>
+  );
+}
+
 // @adr 008 - a toast is above whatever was open when it was raised
 //
 // The region is promoted into the top layer when it has something to show, and demoted
@@ -83,19 +102,7 @@ export function ToastProvider({ children, label, duration = 4000 }: ToastProvide
           }}
         >
           {toasts.map((t) => (
-            <div
-              key={t.id}
-              role={t.tone === "error" ? "alert" : "status"}
-              data-testid={`toast-${t.id}`}
-              style={{
-                background: t.tone === "error" ? tokens.color.danger : tokens.color.fg,
-                color: tokens.color.primaryFg,
-                padding: tokens.space.sm,
-                borderRadius: tokens.radius.sm,
-              }}
-            >
-              {t.message}
-            </div>
+            <ToastEntryView key={t.id} toast={t} />
           ))}
         </div>
       </Portal>

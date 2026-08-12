@@ -72,16 +72,22 @@ function handleKeyDown(event: KeyboardEvent): void {
   entry.onDismiss();
 }
 
+/**
+ * Is `target` inside the surface, or inside the toggle that opened it? A pointer on the
+ * toggle is not an outside click: dismissing there would close the surface, and the
+ * click that follows would reopen it — so the toggle would appear dead.
+ */
+function insideOwnTerritory(entry: Latest, target: Node): boolean {
+  const surface = entry.ref.current;
+  if (surface === null || surface.contains(target)) return true;
+  const toggle = entry.ignore?.current;
+  return toggle !== null && toggle !== undefined && toggle.contains(target);
+}
+
 function handlePointerDown(event: Event): void {
   const entry = topmost();
   if (entry === undefined || !entry.outsidePointer) return;
-  const surface = entry.ref.current;
-  if (surface === null || surface.contains(event.target as Node)) return;
-  // A pointer on the toggle that opened this surface is not an outside click. Dismissing
-  // here would close the surface, and the click that follows would reopen it — so the
-  // toggle would appear dead.
-  const toggle = entry.ignore?.current;
-  if (toggle !== null && toggle !== undefined && toggle.contains(event.target as Node)) return;
+  if (insideOwnTerritory(entry, event.target as Node)) return;
   entry.onDismiss();
 }
 

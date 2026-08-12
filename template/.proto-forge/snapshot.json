@@ -234,6 +234,7 @@
     "coverage:policy",
     "ignores",
     "test:unit",
+    "test:mutation",
     "build",
     "budget",
     "i18n:verify",
