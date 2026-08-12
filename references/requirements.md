@@ -491,12 +491,23 @@ image was taken from, so **a screenshot of older code fails** rather than flatte
   not three. Where documentation is a follow-up it does not happen, and where a
   screenshot is not tied to the code it depicts it stays green forever while quietly
   becoming fiction — which is worse than no picture, because a reader trusts it.
-- **Enforced by:** `docs:verify`
+- **Enforced by:** `docs:verify` for pages and screenshot freshness, and `overlay:matrix`
+  for the whole row: every exported component must be classified (surface | visual |
+  structural — the default is not "exempt"), exercised by a unit test, present in the
+  harness registry with a mount, covered by the generated browser suite, and documented.
+  A surface must additionally prove it wins a hit test, and a structural component must
+  NOT have a mount — a picture of a provider is a picture of its child.
 - **Proven by:** `gates:selftest` → "docs: a page that states why there is no screenshot
   passes", "docs: a component with no page fails", "docs: a stub page fails", "docs: a
   page with neither a screenshot nor a stated reason fails", "docs: a page referencing a
   screenshot that is not on disk fails", "docs: screenshots with nothing recording which
-  code they show fail", "docs: a screenshot taken from older code fails"
+  code they show fail", "docs: a screenshot taken from older code fails", "matrix: a
+  complete row passes", "matrix: an exported component with no case fails as
+  unclassified", "matrix: a renderable case with no mount fails", "matrix: a component
+  no unit test exercises fails", "matrix: a surface with no topmost case fails",
+  "matrix: an undocumented component fails", "matrix: a structural component with a
+  mount fails", "matrix: a browser suite that stops reading the registry empties every
+  cell", "matrix: a case for a component the library does not export fails"
 - **Decided in:** ADR 009
 
 ### NFR-02 — No heavy runtime UI dependency
