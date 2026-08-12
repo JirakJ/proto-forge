@@ -1,5 +1,6 @@
 import { draftNote } from "./model";
 import { NoteSchema } from "./schema";
+import { makeNote } from "./__fixtures__/note";
 
 describe("Note domain", () => {
   it("drafts a note by trimming whitespace", () => {
@@ -15,7 +16,9 @@ describe("Note domain", () => {
   });
 
   it("validates a full note shape", () => {
-    const note = { id: crypto.randomUUID(), text: "hi", createdAt: Date.now() };
+    // The fixture is schema-derived and deterministic — no randomUUID, no Date.now —
+    // so the parsed round-trip and the rejection are about the same bytes every run.
+    const note = makeNote({ text: "hi" });
     expect(NoteSchema.parse(note)).toEqual(note);
     expect(() => NoteSchema.parse({ ...note, id: "not-a-uuid" })).toThrow();
   });
