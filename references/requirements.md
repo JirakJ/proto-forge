@@ -78,22 +78,32 @@ mock a first-party module (BR-12).
 End-to-end tests are a separate pass/fail gate and are never folded into a coverage
 percentage: a percentage that includes browser runs hides which of the two failed.
 
-### §3.1 Coverage by architectural boundary
+### §3.1 Coverage: 100 on every glob, and the configuration is part of the contract
 
-Coverage thresholds are set per glob and enforced by Vitest's V8 provider, configured
-in `template/vite.config.ts`. Thresholds are a floor, never a target: a file below its
-layer's floor fails the gate.
+Every glob in `template/vite.config.ts` carries a floor of
+`statements/branches/functions/lines = 100`, enforced by Vitest's V8 provider. A floor
+below 100 is a standing licence for untested branches; a line that genuinely cannot be
+reached is a design problem to fix, never a threshold problem to lower.
 
-Lowering a threshold is blocked by a hook (`template/scripts/hooks/guard-write.mjs`)
-and, where the hook does not run — CI — by the gate itself. A genuine change to a floor
-is an ADR.
+What keeps 100 honest rather than performative is the pair of gates around it:
+`coverage:policy` locks the configuration — every threshold must read 100, and every
+exclusion must be on its allow-list **with the stated reason on the line above**, so the
+exclude list stays a record instead of becoming a dumping ground — and `test:mutation`
+proves the assertions fire rather than merely execute (§3.2, added with the mutation gate).
 
-Exclusions are enumerated, not open-ended. A path is excluded only when it contains no
-executable product code (type declarations), is a fixture catalogue, or is the
-bootstrap entry whose behaviour is covered end-to-end instead.
+Lowering a threshold or adding an exclusion is blocked by a hook
+(`template/scripts/hooks/guard-write.mjs`) locally and by `coverage:policy` in CI, where
+hooks do not run. A genuine change to the exclusion allow-list is a gate edit and an ADR.
 
-- **Enforced by:** `test:unit` (per-glob V8 thresholds), `lint`
-- **Proven by:** `gates:selftest` → "hook: lowering a coverage threshold is blocked"
+A pure-interface module (a repository port) needs no exclusion: it has zero executable
+statements and passes 0/0 vacuously. An exclusion for it would record a need that does
+not exist.
+
+- **Enforced by:** `test:unit` (per-glob V8 thresholds), `coverage:policy`
+- **Proven by:** `gates:selftest` → "hook: lowering a coverage threshold is blocked",
+  "coverage: floors at 100 and reasoned exclusions pass", "coverage: a lowered threshold
+  fails", "coverage: an exclusion outside the allow-list fails", "coverage: an
+  allow-listed exclusion without its reason fails"
 
 ## §4 Security
 

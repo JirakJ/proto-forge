@@ -74,28 +74,46 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reporter: ["text", "json-summary"],
-      include: ["src/**/*.{ts,tsx}", "packages/proto-ui/src/**/*.{ts,tsx}"],
+      include: ["src/**/*.{ts,tsx}", "packages/proto-ui/src/**/*.{ts,tsx}", "packages/proto-ui/tokens.ts", "packages/proto-ui/providers/**/*.tsx"],
+      // LOCKED by scripts/coverage-policy.mjs: every entry must be on its allow-list
+      // and carry the reason stated there. A new kind of exclusion is a gate edit and
+      // an ADR, not a config tweak — the list is a record, not a dumping ground.
       exclude: [
+        // tests and their fixtures are not product code
         "**/*.test.*",
+        // tests and their fixtures are not product code
         "**/*.e2e.*",
+        // tests and their fixtures are not product code
         "**/__fixtures__/**",
+        // test infrastructure: the setup assertions and the fixture factory
         "src/test/**",
+        // bootstrap entry: renders <App/> into #root, covered end-to-end by e2e/shell
         "src/main.tsx",
-        // The harness is a fixture catalogue for screenshots and browser tests,
-        // never shipped UI.
+        // fixture catalogue for screenshots and browser tests, never in a production build
         "src/harness/**",
+        // declarations carry no executable code
         "src/i18n/resources.d.ts",
+        // declarations carry no executable code
         "**/*.d.ts",
       ],
-      // Layered thresholds by architectural boundary (BRS §3.1). A file below its
-      // layer's floor fails the gate. Waivers require an accepted ADR (adr-lint checks).
+      // 100 on every glob (BRS §3.1, revised by ADR 003): the layered floors
+      // under-protected the feature layer that carries the product logic, and a floor
+      // below 100 is a standing licence for untested branches. What keeps this honest
+      // rather than performative is the pair of gates around it: coverage:policy locks
+      // this list and the exclusions (a fourth exclusion fails), and test:mutation
+      // proves the assertions fire. A genuinely unreachable line is a design problem
+      // to fix, not a threshold problem to lower.
       thresholds: {
         "packages/proto-ui/src/**": { statements: 100, branches: 100, functions: 100, lines: 100 },
+        "packages/proto-ui/tokens.ts": { statements: 100, branches: 100, functions: 100, lines: 100 },
+        "packages/proto-ui/providers/**": { statements: 100, branches: 100, functions: 100, lines: 100 },
         "src/domain/**": { statements: 100, branches: 100, functions: 100, lines: 100 },
-        "src/infra/**": { statements: 100, branches: 95, functions: 100, lines: 100 },
-        "src/features/**": { statements: 85, branches: 80, functions: 85, lines: 85 },
-        "src/app/**": { statements: 80, branches: 75, functions: 80, lines: 80 },
-        "src/config/**": { statements: 80, branches: 75, functions: 80, lines: 80 },
+        "src/infra/**": { statements: 100, branches: 100, functions: 100, lines: 100 },
+        "src/features/**": { statements: 100, branches: 100, functions: 100, lines: 100 },
+        "src/app/**": { statements: 100, branches: 100, functions: 100, lines: 100 },
+        "src/config/**": { statements: 100, branches: 100, functions: 100, lines: 100 },
+        "src/shared/**": { statements: 100, branches: 100, functions: 100, lines: 100 },
+        "src/i18n/**": { statements: 100, branches: 100, functions: 100, lines: 100 },
       },
     },
   },
