@@ -11,7 +11,6 @@
     "docs/adr/009-mandatory-quality-gates.md",
     "docs/adr/010-note-domain.md",
     "docs/adr/020-component-library.md",
-    "docs/adr/021-provider-fallback.md",
     "docs/adr/022-persistence-adapter.md",
     "docs/adr/030-example-feature.md",
     "docs/adr/100-sanitized-html.md",
@@ -40,8 +39,30 @@
     "packages/proto-ui/src/Tabs.tsx",
     "packages/proto-ui/src/Toast.test.tsx",
     "packages/proto-ui/src/Toast.tsx",
+    "packages/proto-ui/src/Tooltip.test.tsx",
+    "packages/proto-ui/src/Tooltip.tsx",
     "packages/proto-ui/src/fieldParts.tsx",
     "packages/proto-ui/src/index.ts",
+    "packages/proto-ui/src/overlay/OverlayStack.test.tsx",
+    "packages/proto-ui/src/overlay/OverlayStack.tsx",
+    "packages/proto-ui/src/overlay/capabilities.test.ts",
+    "packages/proto-ui/src/overlay/capabilities.ts",
+    "packages/proto-ui/src/overlay/index.ts",
+    "packages/proto-ui/src/overlay/topLayer.test.ts",
+    "packages/proto-ui/src/overlay/topLayer.ts",
+    "packages/proto-ui/src/overlay/types.ts",
+    "packages/proto-ui/src/overlay/useAnchor.test.tsx",
+    "packages/proto-ui/src/overlay/useAnchor.ts",
+    "packages/proto-ui/src/overlay/useDismiss.test.tsx",
+    "packages/proto-ui/src/overlay/useDismiss.ts",
+    "packages/proto-ui/src/overlay/useFocusScope.test.tsx",
+    "packages/proto-ui/src/overlay/useFocusScope.ts",
+    "packages/proto-ui/src/overlay/useInertBackground.test.tsx",
+    "packages/proto-ui/src/overlay/useInertBackground.ts",
+    "packages/proto-ui/src/overlay/useScrollLock.test.tsx",
+    "packages/proto-ui/src/overlay/useScrollLock.ts",
+    "packages/proto-ui/src/providers.test.tsx",
+    "packages/proto-ui/src/tokens.test.ts",
     "packages/proto-ui/tokens.ts",
     "scripts/adr-lint.mjs",
     "scripts/budget.mjs",
@@ -144,7 +165,7 @@
     },
     {
       "id": 8,
-      "title": "One stacking scale, and every overlay through a portal",
+      "title": "Overlays live in the browser's top layer, ordered by when they opened",
       "status": "accepted"
     },
     {
@@ -159,12 +180,7 @@
     },
     {
       "id": 20,
-      "title": "Owned component library (@jj/proto-ui)",
-      "status": "accepted"
-    },
-    {
-      "id": 21,
-      "title": "Provider fallback (own | radix)",
+      "title": "Owned component library (@jj/proto-ui), one implementation",
       "status": "accepted"
     },
     {
@@ -189,13 +205,15 @@
     "Dialog",
     "Field",
     "Menu",
+    "OVERLAY_KINDS",
     "OVERLAY_ROOT_ID",
     "Portal",
     "ProtoUIProvider",
     "Select",
     "Table",
     "Tabs",
-    "ToastProvider"
+    "ToastProvider",
+    "Tooltip"
   ],
   "gates": [
     "config:check",

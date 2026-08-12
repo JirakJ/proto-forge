@@ -189,7 +189,7 @@ expect(
 
 // --- layer -------------------------------------------------------------------
 const TOKENS = `export const tokens = {
-  layer: { base: 0, raised: 10, sticky: 100, overlay: 1000, modal: 1010, popover: 1100, toast: 1200, tooltip: 1300 },
+  layer: { base: 0, raised: 10, sticky: 100, overlay: 1000 },
 } as const;
 `;
 const layerProject = (component) => ({
@@ -204,7 +204,7 @@ expect(
     `import { tokens } from "../../packages/proto-ui/tokens";
 export const P = () => (
   <Portal>
-    <div style={{ position: "fixed", zIndex: tokens.layer.modal }} />
+    <div style={{ position: "fixed", zIndex: tokens.layer.sticky }} />
   </Portal>
 );`,
   ),
@@ -236,21 +236,72 @@ expect(
   "layer-scan.mjs",
   layerProject(
     `import { tokens } from "../../packages/proto-ui/tokens";
-export const P = () => <div style={{ position: "fixed", zIndex: tokens.layer.modal }} />;`,
+export const P = () => <div style={{ position: "fixed", zIndex: tokens.layer.sticky }} />;`,
   ),
   { pass: false, matching: /without <Portal>/ },
 );
 
 expect(
-  "layer: a scale that puts toasts under modals fails",
+  "layer: a scale that grows a per-kind overlay entry fails",
   "layer-scan.mjs",
   {
-    "packages/proto-ui/tokens.ts": `export const tokens = {
-  layer: { base: 0, raised: 10, sticky: 100, overlay: 1000, modal: 1010, popover: 1100, toast: 5, tooltip: 1300 },
-} as const;
-`,
+    "packages/proto-ui/tokens.ts":
+      "export const tokens = {\n  layer: { base: 0, raised: 10, sticky: 100, overlay: 1000, modal: 1010 },\n} as const;\n",
   },
-  { pass: false, matching: /must sit above/ },
+  { pass: false, matching: /is back/ },
+);
+
+// --- layer rules 4-9: the composition IS the guarantee -------------------------
+const lib = (files) => ({ "packages/proto-ui/tokens.ts": TOKENS, ...files });
+
+expect(
+  "layer: a library surface without a slot fails (rule 4)",
+  "layer-scan.mjs",
+  lib({
+    "packages/proto-ui/src/Thing.tsx":
+      'import { promote } from "./overlay/index";\nexport const T = () => {\n  promote(document.body, { popover: true });\n  return null;\n};\n',
+  }),
+  { pass: false, matching: /without useOverlaySlot/ },
+);
+
+expect(
+  "layer: a second document keydown listener in the library fails (rule 5)",
+  "layer-scan.mjs",
+  lib({
+    "packages/proto-ui/src/Thing.tsx":
+      'export const T = () => {\n  document.addEventListener("keydown", () => {});\n  return null;\n};\n',
+  }),
+  { pass: false, matching: /document keydown listener/ },
+);
+
+expect(
+  "layer: reading the overlay base outside OverlayStack fails (rule 6)",
+  "layer-scan.mjs",
+  lib({
+    "packages/proto-ui/src/Thing.tsx":
+      'import { tokens } from "../tokens";\nexport const z = tokens.layer.overlay;\n',
+  }),
+  { pass: false, matching: /reads tokens\.layer\.overlay/ },
+);
+
+expect(
+  "layer: a platform top-layer call outside the adapter fails (rule 9)",
+  "layer-scan.mjs",
+  lib({
+    "packages/proto-ui/src/Thing.tsx":
+      'export const show = (el: HTMLElement) => {\n  el.showPopover();\n};\n',
+  }),
+  { pass: false, matching: /calls \.showPopover/ },
+);
+
+expect(
+  "layer: prose about showModal in a doc comment is not a call (rule 9)",
+  "layer-scan.mjs",
+  lib({
+    "packages/proto-ui/src/Thing.tsx":
+      '/** Documents `<dialog>.showModal()` without calling it. */\nexport const T = 1;\n',
+  }),
+  { pass: true },
 );
 
 // --- testid ------------------------------------------------------------------

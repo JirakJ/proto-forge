@@ -10,6 +10,7 @@ import {
   Table,
   Tabs,
   ToastProvider,
+  Tooltip,
   tokens,
   useToast,
 } from "@jj/proto-ui";
@@ -281,6 +282,20 @@ export const cases: GalleryCase[] = [
     name: "escapes-stacking-trap",
     note: "The portal proven: the modal escapes an ancestor with transform + overflow:hidden, and draws over a sticky header.",
     render: () => <StackingTrapDemo />,
+  },
+  {
+    id: "tooltip-open",
+    component: "Tooltip",
+    name: "open",
+    note: "Describes the control it wraps, never takes focus, and never intercepts the pointer.",
+    clickTestid: "gallery-tooltip-control",
+    render: () => (
+      <Tooltip label="Deletes the note permanently" data-testid="gallery-tooltip">
+        <Button data-testid="gallery-tooltip-control" variant="danger">
+          Delete
+        </Button>
+      </Tooltip>
+    ),
   },
   {
     id: "toast-info",

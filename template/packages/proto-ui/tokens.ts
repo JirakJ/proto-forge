@@ -24,26 +24,25 @@ export const tokens = {
   },
   focusRing: "0 0 0 3px rgba(29, 78, 216, 0.5)",
 
-  // The single stacking scale (BR-16). Every positioned element draws its zIndex
-  // from here — `layer:scan` fails the build on a numeric literal anywhere else.
-  // Ordering is load-bearing and reads bottom-up:
-  //   sticky   app chrome (headers, toolbars) — below every popup
-  //   overlay  the modal scrim
-  //   modal    the dialog surface, above its own scrim
-  //   popover  menus/listboxes — ABOVE modal, so a menu opened inside a dialog wins
-  //   toast    transient notifications — above every blocking surface
-  //   tooltip  the last word; never blocks input
-  // Overlays additionally render through <Portal> into a body-level root, so no
-  // ancestor transform/filter/overflow can trap or clip them.
+  // The stacking scale for IN-FLOW chrome, plus one base for the overlay fallback.
+  //
+  // There is deliberately no per-kind overlay entry any more (BR-16, ADR 008). A scale
+  // with `popover` ranked above `modal` is correct for one modal and inverted for two:
+  // a menu belonging to dialog A would paint above a dialog B opened later, and no
+  // choice of offsets repairs it because the kind term dominates. Surfaces are ordered
+  // by WHEN THEY OPENED instead, which is what the browser's top layer does, so the
+  // fallback and the platform cannot disagree about who is on top.
+  //
+  //   base     ordinary content
+  //   raised   a card or a hovered row lifting off the page
+  //   sticky   app chrome — headers, toolbars, the skip link. Below every surface.
+  //   overlay  the base every surface is stacked from, ordinal * STEP above it.
+  //            Read by overlay/OverlayStack.tsx and by nothing else (layer:scan rule 6).
   layer: {
     base: 0,
     raised: 10,
     sticky: 100,
     overlay: 1000,
-    modal: 1010,
-    popover: 1100,
-    toast: 1200,
-    tooltip: 1300,
   },
 } as const;
 
