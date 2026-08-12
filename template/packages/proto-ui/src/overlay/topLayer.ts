@@ -15,8 +15,12 @@ import type { Capabilities } from "./capabilities";
 
 export type PromoteMode = "modal" | "popover" | "hint";
 
-/** The popover attribute value each mode uses. `hint` degrades to `manual` where unsupported. */
-const POPOVER_ATTR: Record<Exclude<PromoteMode, "modal">, string> = { popover: "auto", hint: "hint" };
+/**
+ * The popover attribute each non-modal mode uses. A conditional rather than a record
+ * lookup: an indexed read on a caller-supplied key is an object-injection sink, and a
+ * warning nobody can act on is a warning everybody learns to ignore.
+ */
+const popoverAttr = (mode: Exclude<PromoteMode, "modal">) => (mode === "hint" ? "hint" : "auto");
 
 type DialogLike = HTMLElement & { showModal?: () => void; close?: () => void; open?: boolean };
 type PopoverLike = HTMLElement & { showPopover?: () => void; hidePopover?: () => void };
@@ -39,7 +43,7 @@ export function promote(el: HTMLElement, mode: PromoteMode, caps: Capabilities):
   // The attribute has to be set before showPopover() or the call throws. Setting it
   // here rather than in JSX keeps the fallback markup free of an attribute that
   // would hide the element in a browser that half-supports the API.
-  if (el.getAttribute("popover") === null) el.setAttribute("popover", POPOVER_ATTR[mode]);
+  if (el.getAttribute("popover") === null) el.setAttribute("popover", popoverAttr(mode));
   popover.showPopover();
 }
 

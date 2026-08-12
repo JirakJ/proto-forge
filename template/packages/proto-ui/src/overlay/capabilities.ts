@@ -16,10 +16,21 @@ export type Capabilities = {
   cssAnchor: boolean;
 };
 
+/**
+ * Exactly the three members detection reads — not `Window`, which would be a promise
+ * about hundreds of others (ISP, NFR-23). A real `window` satisfies this structurally,
+ * and a test can hand over an object literal without casting away the type system.
+ */
+export type CapabilityView = {
+  HTMLDialogElement?: { prototype?: { showModal?: unknown } };
+  HTMLElement?: { prototype?: { showPopover?: unknown } };
+  CSS?: { supports?: (query: string) => unknown };
+};
+
 // `view` is required rather than defaulted to `window`: a default would put a branch
 // in here that no test running in a document can reach, and an unreachable branch is
 // how a 100% floor starts needing exemptions.
-export function detectCapabilities(view: Window): Capabilities {
+export function detectCapabilities(view: CapabilityView): Capabilities {
   return {
     topLayerDialog: typeof view.HTMLDialogElement?.prototype?.showModal === "function",
     popover: typeof view.HTMLElement?.prototype?.showPopover === "function",
