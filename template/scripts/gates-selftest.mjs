@@ -16,6 +16,9 @@ const results = [];
 function project(files) {
   const dir = mkdtempSync(join(tmpdir(), "proto-forge-gate-"));
   for (const [path, body] of Object.entries(files)) {
+    // An undefined body REMOVES a file a base fixture provided — the way a case says
+    // "like the passing project, but without its docs page".
+    if (body === undefined) continue;
     const full = join(dir, path);
     mkdirSync(dirname(full), { recursive: true });
     writeFileSync(full, typeof body === "string" ? body : JSON.stringify(body, null, 2));
@@ -613,6 +616,63 @@ hook(
   if (storage.includes("no-screenshot")) results.push("md-to-storage: HTML comments must not reach the page");
   if (!attachments.includes("open.png")) results.push("md-to-storage: image was not reported as an attachment");
 }
+
+// --- overlay:matrix ------------------------------------------------------------
+// The no-gaps gate: component × (unit test, harness case, browser test, docs). Each
+// cell has its own gate elsewhere; this is the one that asks per component, so a new
+// primitive cannot ship with three cells full and one quietly empty.
+const MATRIX_PROSE = "The Button primitive takes a variant and a required testid. ".repeat(5);
+const matrixBase = (over = {}) => ({
+  "packages/proto-ui/src/index.ts": 'export { Button } from "./Button";\n',
+  "packages/proto-ui/src/Button.tsx": "export function Button() {\n  return null;\n}\n",
+  "packages/proto-ui/src/Button.test.tsx": 'import { Button } from "./Button";\nit("renders", () => Button());\n',
+  "src/harness/cases.ts":
+    'export const cases = [\n  {\n    id: "button-variants",\n    component: "Button",\n    kind: "visual",\n    state: "variants",\n    note: "The variants.",\n  },\n];\n',
+  "src/harness/mounts.tsx": 'export const mounts = {\n  "button-variants": () => null,\n};\n',
+  "e2e/component-library.e2e.ts": 'import { cases } from "../src/harness/cases";\nexport const n = cases.length;\n',
+  "docs/components/Button/README.md": `# Button\n\n${MATRIX_PROSE}\n\n![variants](./variants.png)\n`,
+  ...over,
+});
+
+expect("matrix: a complete row passes", "overlay-matrix.mjs", matrixBase(), { pass: true });
+
+expect("matrix: an exported component with no case fails as unclassified", "overlay-matrix.mjs", matrixBase({
+  "src/harness/cases.ts": "export const cases = [];\n",
+  "src/harness/mounts.tsx": "export const mounts = {};\n",
+}), { pass: false, matching: /classify/ });
+
+expect("matrix: a renderable case with no mount fails", "overlay-matrix.mjs", matrixBase({
+  "src/harness/mounts.tsx": "export const mounts = {};\n",
+}), { pass: false, matching: /no mount/ });
+
+expect("matrix: a component no unit test exercises fails", "overlay-matrix.mjs", matrixBase({
+  "packages/proto-ui/src/Button.test.tsx": 'it("tests something else entirely", () => {});\n',
+}), { pass: false, matching: /unit test/ });
+
+expect("matrix: a surface with no topmost case fails", "overlay-matrix.mjs", matrixBase({
+  "src/harness/cases.ts":
+    'export const cases = [\n  {\n    id: "button-variants",\n    component: "Button",\n    kind: "surface",\n    state: "open",\n    note: "A surface.",\n  },\n];\n',
+}), { pass: false, matching: /topmost/ });
+
+expect("matrix: an undocumented component fails", "overlay-matrix.mjs", matrixBase({
+  "docs/components/Button/README.md": undefined,
+}), { pass: false, matching: /not documented/ });
+
+expect("matrix: a structural component with a mount fails", "overlay-matrix.mjs", matrixBase({
+  "src/harness/cases.ts":
+    'export const cases = [\n  {\n    id: "button-none",\n    component: "Button",\n    kind: "structural",\n    state: "none",\n    note: "Renders nothing.",\n  },\n];\n',
+  "src/harness/mounts.tsx": 'export const mounts = {\n  "button-none": () => null,\n};\n',
+  "docs/components/Button/README.md": `# Button\n\n${MATRIX_PROSE}\n\n<!-- no-screenshot: renders no markup of its own -->\n`,
+}), { pass: false, matching: /picture of its child/ });
+
+expect("matrix: a browser suite that stops reading the registry empties every cell", "overlay-matrix.mjs", matrixBase({
+  "e2e/component-library.e2e.ts": 'export const n = 0;\n',
+}), { pass: false, matching: /browser cell/ });
+
+expect("matrix: a case for a component the library does not export fails", "overlay-matrix.mjs", matrixBase({
+  "src/harness/cases.ts":
+    'export const cases = [\n  {\n    id: "button-variants",\n    component: "Button",\n    kind: "visual",\n    state: "variants",\n    note: "The variants.",\n  },\n  {\n    id: "ghost-open",\n    component: "Ghost",\n    kind: "visual",\n    state: "open",\n    note: "Documents nothing real.",\n  },\n];\n',
+}), { pass: false, matching: /does not export/ });
 
 // --- docs:verify -------------------------------------------------------------
 // Nine gates below had no self-test at all, while AGENTS.md claimed this command
