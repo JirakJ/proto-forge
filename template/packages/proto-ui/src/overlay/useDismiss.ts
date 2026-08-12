@@ -39,12 +39,24 @@ type Latest = {
 const entries = new Map<string, RefObject<Latest>>();
 let listening = false;
 
-/** The surface Escape belongs to: the one nothing is painted above. */
+/**
+ * The surface Escape belongs to: the one nothing is painted above.
+ *
+ * An entry can be at ordinal -1 for one render: it registers here in its first effect,
+ * and the stack assigns its number a re-render later. An event landing in that window —
+ * a browser test proved it does, by pressing Escape straight after opening a second
+ * dialog and closing the FIRST one — must still hit the newest surface. Within this
+ * map, -1 therefore means "just opened", which is newer than everything already
+ * numbered, and among several it is the latest-registered one: the map's insertion
+ * order IS open order, which is the same fact the stack formalises one render later.
+ */
 function topmost(): Latest | undefined {
   let best: Latest | undefined;
   for (const entry of entries.values()) {
     const current = entry.current;
-    if (best === undefined || current.ordinal > best.ordinal) best = current;
+    if (best === undefined || current.ordinal === -1 || (best.ordinal !== -1 && current.ordinal > best.ordinal)) {
+      best = current;
+    }
   }
   return best;
 }

@@ -116,6 +116,172 @@ function ToastOverModalDemo() {
   );
 }
 
+// A sibling holding the largest z-index CSS accepts. Any scale-based overlay loses to
+// this by definition; a top-layer surface does not compete with it at all.
+function HostileZIndexDemo() {
+  const [open, setOpen] = useState(true);
+  return (
+    <div>
+      <div
+        data-testid="harness-hostile-sibling"
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 2147483647,
+          background: "rgba(200, 30, 30, 0.35)",
+          display: "grid",
+          placeItems: "end center",
+        }}
+      >
+        <p style={{ color: tokens.color.fg, background: tokens.color.bg, padding: tokens.space.sm }}>
+          Hostile app-code layer at z-index 2147483647
+        </p>
+      </div>
+      <Dialog open={open} onClose={() => setOpen(false)} title="Still on top" data-testid="harness-hostile-dialog">
+        <p>The hostile sibling holds the largest z-index CSS accepts.</p>
+      </Dialog>
+    </div>
+  );
+}
+
+// One fixture, three layering questions: dialog B above dialog A, Escape closing only
+// the topmost, and the scroll lock and focus surviving the stack unwinding.
+function DialogOverDialogDemo() {
+  const [aOpen, setAOpen] = useState(true);
+  const [bOpen, setBOpen] = useState(false);
+  return (
+    <>
+      <Dialog open={aOpen} onClose={() => setAOpen(false)} title="First" data-testid="harness-dialog-a">
+        <p>The first dialog.</p>
+        <Button data-testid="harness-open-b" onClick={() => setBOpen(true)}>
+          Open the second
+        </Button>
+      </Dialog>
+      <Dialog open={bOpen} onClose={() => setBOpen(false)} title="Second" data-testid="harness-dialog-b">
+        <p data-testid="harness-dialog-b-body">The second dialog, above the first.</p>
+      </Dialog>
+    </>
+  );
+}
+
+// The case a per-kind scale cannot express: the menu belongs to dialog A, so a dialog B
+// opened LATER must paint above the menu — popover-above-modal must not be global.
+function MenuThenDialogDemo() {
+  const [bOpen, setBOpen] = useState(false);
+  return (
+    <>
+      <Dialog open onClose={() => {}} title="First" data-testid="harness-mtd-dialog-a">
+        <Menu
+          label="Actions in the first dialog"
+          data-testid="harness-mtd-menu"
+          items={[{ id: "noop", label: "Do nothing", onSelect: () => {} }]}
+        />
+        <Button data-testid="harness-mtd-open-b" onClick={() => setBOpen(true)}>
+          Open the second
+        </Button>
+      </Dialog>
+      <Dialog open={bOpen} onClose={() => setBOpen(false)} title="Second" data-testid="harness-mtd-dialog-b">
+        <p>Opened after the menu, so it paints above it.</p>
+      </Dialog>
+    </>
+  );
+}
+
+// Order is what the user did, not what the kinds are: the toast was raised first, the
+// tooltip asked for later, so the tooltip wins. Clicking the control focuses it, and
+// focus shows the tooltip — which is what lets a click-driven tool photograph a hover
+// surface at all.
+function TooltipOverToastDemo() {
+  const { notify } = useToast();
+  return (
+    <div style={{ display: "flex", gap: tokens.space.md }}>
+      <Button data-testid="harness-tot-fire" onClick={() => notify("Saved", "info")}>
+        Fire a toast
+      </Button>
+      <Tooltip label="Shown after the toast, so it paints above it" data-testid="harness-tot-tip">
+        <Button data-testid="harness-tot-control">Focus me</Button>
+      </Tooltip>
+    </div>
+  );
+}
+
+function TooltipOverToastMount() {
+  return (
+    <ToastProvider label="Notifications" duration={60_000}>
+      <TooltipOverToastDemo />
+    </ToastProvider>
+  );
+}
+
+// Three nested ancestors, each creating containment a z-index cannot escape:
+// contain: paint clips and isolates, content-visibility: auto adds containment of its
+// own, and filter creates a stacking context. A surface in the top layer ignores all
+// three; an in-place one would be clipped to an 80px box.
+function PaintContainedDemo() {
+  const [open, setOpen] = useState(true);
+  return (
+    <div data-testid="harness-contain-outer" style={{ contain: "paint", blockSize: "120px" }}>
+      <div style={{ contentVisibility: "auto", blockSize: "100px" }}>
+        <div data-testid="harness-contain-inner" style={{ filter: "saturate(1)", overflow: "hidden", blockSize: "80px" }}>
+          <Dialog
+            open={open}
+            onClose={() => setOpen(false)}
+            title="Not contained"
+            data-testid="harness-contained-dialog"
+          >
+            <p>Rendered from inside contain:paint, content-visibility:auto and a filter.</p>
+          </Dialog>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// A menu whose trigger lives inside a small scrollable box. The surface must escape the
+// clip AND track the trigger when the box scrolls — the case where an in-place popup is
+// both cropped and left behind.
+function MenuInScrollerDemo() {
+  return (
+    <div
+      data-testid="harness-scroller"
+      style={{
+        overflow: "auto",
+        blockSize: "120px",
+        border: `1px solid ${tokens.color.border}`,
+        padding: tokens.space.sm,
+      }}
+    >
+      <p>Scroll me.</p>
+      <Menu
+        label="Anchored actions"
+        data-testid="harness-scroller-menu"
+        items={[{ id: "noop", label: "Do nothing", onSelect: () => {} }]}
+      />
+      <div style={{ blockSize: "400px" }}>
+        <p>Tall content below the trigger.</p>
+      </div>
+    </div>
+  );
+}
+
+// The modal must actually be modal: with the dialog open, the counter button in the
+// page behind it must be unreachable by click AND by Tab, and stay at zero.
+function InertBackgroundDemo() {
+  const [open, setOpen] = useState(true);
+  const [clicks, setClicks] = useState(0);
+  return (
+    <div>
+      <Button data-testid="harness-behind-button" onClick={() => setClicks((n) => n + 1)}>
+        Clicked {String(clicks)} times
+      </Button>
+      <p data-testid="harness-behind-count">{String(clicks)}</p>
+      <Dialog open={open} onClose={() => setOpen(false)} title="Blocking" data-testid="harness-inert-dialog">
+        <Button data-testid="harness-inert-inner">The only reachable control</Button>
+      </Dialog>
+    </div>
+  );
+}
+
 /** Every case's markup, keyed by `Case.id`. Structural components have no mount. */
 export const mounts: Record<string, () => ReactNode> = {
   "button-variants": () => (
@@ -224,4 +390,12 @@ export const mounts: Record<string, () => ReactNode> = {
       <ToastOverModalDemo />
     </ToastProvider>
   ),
+
+  "dialog-hostile-z": () => <HostileZIndexDemo />,
+  "dialog-over-dialog": () => <DialogOverDialogDemo />,
+  "dialog-menu-then-dialog": () => <MenuThenDialogDemo />,
+  "tooltip-over-toast": () => <TooltipOverToastMount />,
+  "dialog-paint-contained": () => <PaintContainedDemo />,
+  "menu-in-scroller": () => <MenuInScrollerDemo />,
+  "dialog-inert-background": () => <InertBackgroundDemo />,
 };
