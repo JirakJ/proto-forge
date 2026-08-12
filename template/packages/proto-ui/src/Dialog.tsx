@@ -9,6 +9,7 @@ import {
   useInertBackground,
   useOverlaySlot,
   useScrollLock,
+  type OverlaySlot,
 } from "./overlay/index";
 
 export type DialogProps = {
@@ -48,6 +49,31 @@ export type DialogProps = {
 // The fallback path (no Popover API) renders the same element with its own scrim and its
 // own layer from the stack. Same markup, same testids, same behaviour, so one test
 // contract covers both (NFR-24).
+// Style construction lives outside the component: the render function's lines should
+// be behaviour, and NFR-20's per-function ceiling is what keeps it that way. The
+// factories take the SLOT, not a number, so the z-index expression at the style site
+// stays `slot.fallbackZIndex` — the exact shape layer:scan rule 1 admits.
+const scrimStyle = (slot: OverlaySlot) =>
+  ({ position: "fixed", inset: 0, zIndex: slot.fallbackZIndex, background: tokens.color.scrim }) as const;
+
+const surfaceStyle = (platformOwnsLayering: boolean, slot: OverlaySlot) =>
+  platformOwnsLayering
+    ? ({ background: tokens.color.bg, color: tokens.color.fg, padding: tokens.space.lg } as const)
+    : ({
+        position: "fixed",
+        zIndex: slot.fallbackZIndex + 1,
+        insetBlockStart: "50%",
+        insetInlineStart: "50%",
+        transform: "translate(-50%, -50%)",
+        margin: 0,
+        border: 0,
+        background: tokens.color.bg,
+        color: tokens.color.fg,
+        padding: tokens.space.lg,
+        borderRadius: tokens.radius.md,
+        minWidth: "280px",
+      } as const);
+
 export function Dialog({ open, onClose, title, children, "data-testid": testid }: DialogProps) {
   const surfaceRef = useRef<HTMLDivElement>(null);
   const slot = useOverlaySlot("modal", open);
@@ -85,16 +111,7 @@ export function Dialog({ open, onClose, title, children, "data-testid": testid }
   return (
     <Portal>
       {platformOwnsLayering ? null : (
-        <div
-          data-testid={`${testid}-scrim`}
-          onClick={onClose}
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: slot.fallbackZIndex,
-            background: tokens.color.scrim,
-          }}
-        />
+        <div data-testid={`${testid}-scrim`} onClick={onClose} style={scrimStyle(slot)} />
       )}
       <div
         ref={surfaceRef}
@@ -105,24 +122,7 @@ export function Dialog({ open, onClose, title, children, "data-testid": testid }
         tabIndex={-1}
         data-testid={testid}
         onClick={(event) => event.stopPropagation()}
-        style={
-          platformOwnsLayering
-            ? { background: tokens.color.bg, color: tokens.color.fg, padding: tokens.space.lg }
-            : {
-                position: "fixed",
-                zIndex: slot.fallbackZIndex + 1,
-                insetBlockStart: "50%",
-                insetInlineStart: "50%",
-                transform: "translate(-50%, -50%)",
-                margin: 0,
-                border: 0,
-                background: tokens.color.bg,
-                color: tokens.color.fg,
-                padding: tokens.space.lg,
-                borderRadius: tokens.radius.md,
-                minWidth: "280px",
-              }
-        }
+        style={surfaceStyle(platformOwnsLayering, slot)}
       >
         <h2 data-testid={`${testid}-title`} style={{ fontSize: tokens.font.sizeLg, marginBlockStart: 0 }}>
           {title}

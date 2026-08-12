@@ -222,6 +222,15 @@ export default tseslint.config(
       "react/no-danger": "error", // raw HTML only via <SafeHtml> (BRS §4.1)
       "local/require-testid": "error",
       "local/unique-testid": "error",
+      // SRP with numbers instead of adjectives (NFR-20). A module that outgrows these
+      // is doing two jobs; the fix is a split, never a taller ceiling. Where these
+      // bite hardest is exactly where they should: an overlay primitive that tries to
+      // re-absorb the hooks it composes runs out of lines before it succeeds.
+      "max-lines": ["error", { max: 200, skipBlankLines: true, skipComments: true }],
+      "max-lines-per-function": ["error", { max: 60, skipBlankLines: true, skipComments: true }],
+      complexity: ["error", 8],
+      "max-depth": ["error", 3],
+      "max-params": ["error", 3],
       // DDD import boundaries (NFR-04). External deps (react, zod, …) are not elements.
       "boundaries/element-types": [
         "error",
@@ -278,6 +287,11 @@ export default tseslint.config(
   {
     files: ["**/*.test.{ts,tsx}", "**/*.e2e.ts", "**/__fixtures__/**", "src/harness/**"],
     rules: {
+      // A thorough test file is long by design and a describe() block is one
+      // "function"; the length ceilings would punish coverage. The COMPLEXITY
+      // ceiling stays: a convoluted test is a convoluted test.
+      "max-lines": "off",
+      "max-lines-per-function": "off",
       "i18next/no-literal-string": "off",
       "local/no-user-facing-literal": "off",
       "local/require-testid": "off",

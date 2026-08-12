@@ -2,10 +2,38 @@ import { useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Button, Field, tokens } from "@jj/proto-ui";
 import { useNotes } from "../hooks/useNotes";
+import type { Note } from "@/domain/note/model";
 
 // @adr 030 - notes example feature
 // ponytail: demo feature — the self-verifying reference slice. Removed on real
 // generation; real features replace it (same per-feature DoD).
+
+// The list, split out so NotesFeature's lines are the feature's behaviour (NFR-20).
+function NotesList({ notes, onRemove }: { notes: Note[]; onRemove: (id: string) => void }) {
+  const { t } = useTranslation();
+  return (
+    <ul data-testid="notes-list" style={{ listStyle: "none", padding: 0, marginBlockStart: tokens.space.md }}>
+      {notes.map((note) => (
+        <li
+          key={note.id}
+          data-testid={`note-item-${note.id}`}
+          style={{ display: "flex", justifyContent: "space-between", gap: tokens.space.md, marginBlockEnd: tokens.space.sm }}
+        >
+          <span data-testid={`note-text-${note.id}`}>{note.text}</span>
+          <Button
+            variant="danger"
+            data-testid={`note-delete-${note.id}`}
+            aria-label={t("example.item.delete")}
+            onClick={() => onRemove(note.id)}
+          >
+            {t("example.item.delete")}
+          </Button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export function NotesFeature() {
   const { t } = useTranslation();
   const { notes, add, remove } = useNotes();
@@ -51,25 +79,7 @@ export function NotesFeature() {
           {t("example.empty")}
         </p>
       ) : (
-        <ul data-testid="notes-list" style={{ listStyle: "none", padding: 0, marginBlockStart: tokens.space.md }}>
-          {notes.map((note) => (
-            <li
-              key={note.id}
-              data-testid={`note-item-${note.id}`}
-              style={{ display: "flex", justifyContent: "space-between", gap: tokens.space.md, marginBlockEnd: tokens.space.sm }}
-            >
-              <span data-testid={`note-text-${note.id}`}>{note.text}</span>
-              <Button
-                variant="danger"
-                data-testid={`note-delete-${note.id}`}
-                aria-label={t("example.item.delete")}
-                onClick={() => void remove(note.id)}
-              >
-                {t("example.item.delete")}
-              </Button>
-            </li>
-          ))}
-        </ul>
+        <NotesList notes={notes} onRemove={(id) => void remove(id)} />
       )}
     </section>
   );

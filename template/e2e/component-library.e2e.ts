@@ -32,6 +32,12 @@ async function mount(page: import("@playwright/test").Page, c: Case) {
   for (const key of c.interactions?.press ?? []) await page.keyboard.press(key);
 }
 
+/** One readable line per blocking violation: the rule id, then every offending node. */
+const describeViolations = (violations: Awaited<ReturnType<AxeBuilder["analyze"]>>["violations"]) =>
+  violations
+    .filter((v) => v.impact === "serious" || v.impact === "critical")
+    .map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`);
+
 for (const c of renderable) {
   test.describe(c.id, () => {
     test("mounts clean and passes axe with zero serious or critical violations", async ({ page }) => {
@@ -40,10 +46,7 @@ for (const c of renderable) {
 
       test.skip(c.axe?.skip !== undefined, c.axe?.skip ?? "");
       const { violations } = await new AxeBuilder({ page }).analyze();
-      const blocking = violations.filter((v) => v.impact === "serious" || v.impact === "critical");
-      expect(
-        blocking.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`),
-      ).toEqual([]);
+      expect(describeViolations(violations)).toEqual([]);
       expect(errors()).toEqual([]);
     });
 
@@ -55,39 +58,51 @@ for (const c of renderable) {
       }
     });
 
-    if (c.assert?.topmost !== undefined) {
-      const target = c.assert.topmost;
-      test(`the surface wins the hit test at its centre and corners (${target})`, async ({ page }) => {
-        await mount(page, c);
-        await page.getByTestId(target).waitFor({ state: "visible" });
-        expect(await isTopmost(page, target)).toBe(true);
-      });
-    }
+    registerTopmostTest(c);
+    registerNotClippedTest(c);
+    registerFocusOrderTest(c);
+    registerFocusReturnTest(c);
+  });
+}
 
-    if (c.assert?.notClipped !== undefined) {
-      const target = c.assert.notClipped;
-      test(`the surface escapes its clipping ancestor (${target})`, async ({ page }) => {
-        await mount(page, c);
-        expect(await exceedsClippingAncestor(page, target)).toBe(true);
-      });
-    }
+// One registrar per declared assertion, outside the describe so its arrow stays under
+// the complexity ceiling. Each guards on its own field: a case that declares nothing
+// registers nothing.
+function registerTopmostTest(c: Case) {
+  const target = c.assert?.topmost;
+  if (target === undefined) return;
+  test(`the surface wins the hit test at its centre and corners (${target})`, async ({ page }) => {
+    await mount(page, c);
+    await page.getByTestId(target).waitFor({ state: "visible" });
+    expect(await isTopmost(page, target)).toBe(true);
+  });
+}
 
-    if (c.assert?.focusOrder !== undefined) {
-      const order = c.assert.focusOrder;
-      test("Tab visits the declared stops in order", async ({ page }) => {
-        await mount(page, c);
-        const visited = await tabOrder(page, order.length + 4);
-        expect(visited.filter((id) => order.includes(id))).toEqual([...order]);
-      });
-    }
+function registerNotClippedTest(c: Case) {
+  const target = c.assert?.notClipped;
+  if (target === undefined) return;
+  test(`the surface escapes its clipping ancestor (${target})`, async ({ page }) => {
+    await mount(page, c);
+    expect(await exceedsClippingAncestor(page, target)).toBe(true);
+  });
+}
 
-    if (c.assert?.focusReturnsTo !== undefined) {
-      const home = c.assert.focusReturnsTo;
-      test(`Escape returns focus to ${home}`, async ({ page }) => {
-        await mount(page, c);
-        await page.keyboard.press("Escape");
-        expect(await focusedTestid(page)).toBe(home);
-      });
-    }
+function registerFocusOrderTest(c: Case) {
+  const order = c.assert?.focusOrder;
+  if (order === undefined) return;
+  test("Tab visits the declared stops in order", async ({ page }) => {
+    await mount(page, c);
+    const visited = await tabOrder(page, order.length + 4);
+    expect(visited.filter((id) => order.includes(id))).toEqual([...order]);
+  });
+}
+
+function registerFocusReturnTest(c: Case) {
+  const home = c.assert?.focusReturnsTo;
+  if (home === undefined) return;
+  test(`Escape returns focus to ${home}`, async ({ page }) => {
+    await mount(page, c);
+    await page.keyboard.press("Escape");
+    expect(await focusedTestid(page)).toBe(home);
   });
 }

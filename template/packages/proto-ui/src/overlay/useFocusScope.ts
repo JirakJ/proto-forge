@@ -21,6 +21,20 @@ import { useEffect, type RefObject } from "react";
 const FOCUSABLE =
   'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
 
+/**
+ * Where Tab must WRAP to, or null where the browser's own order is already right:
+ * Shift+Tab at the first focusable (or on the surface itself) wraps to the last,
+ * Tab at the last wraps to the first, everything in between is left alone.
+ */
+function wrapTarget(shiftKey: boolean, items: HTMLElement[], surface: HTMLElement): HTMLElement | null {
+  const first = items[0]!;
+  const last = items[items.length - 1]!;
+  const at = document.activeElement;
+  if (shiftKey && (at === first || at === surface)) return last;
+  if (!shiftKey && at === last) return first;
+  return null;
+}
+
 // No module-scoped opener stack: each activation captures its own opener in the
 // effect's closure, and that already composes. A menu opened inside a dialog captures
 // something inside the dialog, so closing the menu returns focus there and closing the
@@ -64,15 +78,10 @@ export function useFocusScope({ ref, active, trap, initialFocus = "container" }:
         surface.focus();
         return;
       }
-      const first = items[0]!;
-      const last = items[items.length - 1]!;
-      const at = document.activeElement;
-      if (event.shiftKey && (at === first || at === surface)) {
+      const wrapTo = wrapTarget(event.shiftKey, items, surface);
+      if (wrapTo !== null) {
         event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && at === last) {
-        event.preventDefault();
-        first.focus();
+        wrapTo.focus();
       }
     };
 

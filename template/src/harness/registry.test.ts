@@ -9,6 +9,16 @@ import { OVERLAY_KINDS } from "@jj/proto-ui";
 // someone deleting this file.
 
 const renderable = cases.filter((c) => c.kind !== "structural");
+
+/** Every testid a case points at, whichever field it points from. */
+const referencedTestids = (c: Case): string[] =>
+  [
+    ...(c.interactions?.click ?? []),
+    ...(c.assert?.focusOrder ?? []),
+    c.assert?.topmost,
+    c.assert?.notClipped,
+    c.assert?.focusReturnsTo,
+  ].filter((v): v is string => v !== undefined);
 const structural = cases.filter((c) => c.kind === "structural");
 
 describe("harness registry parity", () => {
@@ -70,14 +80,7 @@ describe("harness registry parity", () => {
     // the browser suite. Explicit beats clever here.
     const LIBRARY_IDS = new Set(["toast-region"]);
     for (const c of cases) {
-      const referenced = [
-        ...(c.interactions?.click ?? []),
-        ...(c.assert?.focusOrder ?? []),
-        c.assert?.topmost,
-        c.assert?.notClipped,
-        c.assert?.focusReturnsTo,
-      ].filter((v): v is string => v !== undefined);
-      for (const id of referenced) {
+      for (const id of referencedTestids(c)) {
         expect(id.startsWith("harness-") || LIBRARY_IDS.has(id), `case ${c.id} references "${id}"`).toBe(true);
       }
     }

@@ -18,6 +18,45 @@ export type MenuProps = { label: string; items: MenuItem[]; "data-testid": strin
 // promote/demote for the platform call, useAnchor for tracking the trigger in viewport
 // coordinates (a portalled surface shares no offset parent with it), useFocusScope for
 // entry and return, useDismiss for Escape and outside pointers — topmost only.
+// Styles and the per-item row live outside Menu so its lines are behaviour (NFR-20).
+const triggerStyle = {
+  padding: `${tokens.space.sm} ${tokens.space.md}`,
+  border: `1px solid ${tokens.color.border}`,
+  borderRadius: tokens.radius.sm,
+  background: tokens.color.bg,
+  color: tokens.color.fg,
+  cursor: "pointer",
+} as const;
+
+const itemStyle = {
+  display: "block",
+  inlineSize: "100%",
+  textAlign: "start",
+  padding: tokens.space.sm,
+  border: "none",
+  background: "none",
+  cursor: "pointer",
+  color: tokens.color.fg,
+} as const;
+
+function MenuEntry({ item, testid, onPick }: { item: MenuItem; testid: string; onPick: () => void }) {
+  return (
+    <li role="none" data-testid={`${testid}-option-${item.id}`}>
+      <button
+        role="menuitem"
+        data-testid={`${testid}-item-${item.id}`}
+        onClick={() => {
+          item.onSelect();
+          onPick();
+        }}
+        style={itemStyle}
+      >
+        {item.label}
+      </button>
+    </li>
+  );
+}
+
 export function Menu({ label, items, "data-testid": testid }: MenuProps) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -47,14 +86,7 @@ export function Menu({ label, items, "data-testid": testid }: MenuProps) {
         aria-expanded={open}
         data-testid={`${testid}-trigger`}
         onClick={() => setOpen((current) => !current)}
-        style={{
-          padding: `${tokens.space.sm} ${tokens.space.md}`,
-          border: `1px solid ${tokens.color.border}`,
-          borderRadius: tokens.radius.sm,
-          background: tokens.color.bg,
-          color: tokens.color.fg,
-          cursor: "pointer",
-        }}
+        style={triggerStyle}
       >
         {label}
       </button>
@@ -81,28 +113,7 @@ export function Menu({ label, items, "data-testid": testid }: MenuProps) {
             }}
           >
             {items.map((item) => (
-              <li key={item.id} role="none" data-testid={`${testid}-option-${item.id}`}>
-                <button
-                  role="menuitem"
-                  data-testid={`${testid}-item-${item.id}`}
-                  onClick={() => {
-                    item.onSelect();
-                    close();
-                  }}
-                  style={{
-                    display: "block",
-                    inlineSize: "100%",
-                    textAlign: "start",
-                    padding: tokens.space.sm,
-                    border: "none",
-                    background: "none",
-                    cursor: "pointer",
-                    color: tokens.color.fg,
-                  }}
-                >
-                  {item.label}
-                </button>
-              </li>
+              <MenuEntry key={item.id} item={item} testid={testid} onPick={close} />
             ))}
           </ul>
         </Portal>

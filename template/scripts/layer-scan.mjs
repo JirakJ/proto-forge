@@ -54,10 +54,13 @@ function enclosingObject(src, index) {
   return null;
 }
 
-const files = [
-  ...walk("src", (p) => isCode(p) && !/\.(test|e2e)\./.test(p)),
-  ...walk("packages", (p) => isCode(p) && !/\.(test|e2e)\./.test(p)),
-];
+// src/harness/** is excluded BY DESIGN, not for convenience: the adversarial fixtures
+// exist to violate these rules — a sibling at z-index 2147483647, unportalled fixed
+// surfaces — so the browser suite can prove the library survives them. The catalogue
+// never enters a production build (vite adds harness.html only under VITE_HARNESS=1),
+// so nothing it does can reach a user.
+const scannable = (p) => isCode(p) && !/\.(test|e2e)\./.test(p) && !p.startsWith("src/harness/");
+const files = [...walk("src", scannable), ...walk("packages", scannable)];
 
 for (const file of files) {
   const src = read(file);
