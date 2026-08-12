@@ -232,14 +232,30 @@ the fallback branch.
 
 ### 4.4 Testing the two paths honestly
 
-jsdom 26 implements `<dialog>.showModal()` but not the Popover API and not `inert` semantics. Both
-paths are therefore real code, each verified where the capability exists:
+**Corrected during implementation.** This section originally claimed jsdom 26 implements
+`<dialog>.showModal()`. It does not: jsdom 26.1.0 implements **none** of `showModal`,
+`showPopover` or `CSS.supports`, and throws a `DOMException` on a `:popover-open` selector.
+Established by probing the installed version rather than assumed.
 
-- **fallback path** — exercised by Vitest in jsdom, because `capabilities()` reports no popover there;
-- **top-layer path** — exercised by Playwright in Chromium, where it is the only path taken.
+Taken at face value that would leave the *primary* overlay mechanism with zero unit
+coverage, and push a pile of `v8 ignore`s into `topLayer.ts`. The resolution is better than
+the original plan: **capabilities are injected, and each platform call is guarded on the
+element itself** (`typeof el.showModal === "function"`). Both directions then become
+reachable from jsdom — an element that has the method, and one that does not:
 
-Nothing is mocked. What cannot be reached from jsdom is confined to `topLayer.ts` and
-`capabilities.ts` and carries a reasoned ignore naming the Playwright case that covers it (§7.2).
+- **fallback path** — Vitest, with capabilities reporting nothing supported;
+- **top-layer path** — Vitest, with capabilities reporting support and the two or three
+  methods jsdom omits defined on a real element; **and** Playwright in Chromium, which is
+  what proves the paint order and the light dismiss actually happen.
+
+Nothing is mocked. The element, its attributes and its selector matching are jsdom's; only
+the platform methods jsdom lacks are supplied, and a stand-in for a browser is what jsdom
+already is. `capabilities.ts` and `topLayer.ts` reach 100 % with **no ignores at all**,
+which is the outcome this design was chosen for.
+
+`detectCapabilities(view)` takes its view as a **required** parameter for the same reason: a
+default of `window` would add a branch no test running in a document can reach, and an
+unreachable branch is how a 100 % floor starts needing exemptions.
 
 ### 4.5 CSS
 
