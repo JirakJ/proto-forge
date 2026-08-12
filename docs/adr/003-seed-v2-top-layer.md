@@ -48,6 +48,11 @@ stack and publishing the design tokens as CSS custom properties.
 **`Tooltip` is added**, which is also why `tokens.layer.tooltip` had existed with no
 consumer.
 
+**The library's test fixtures become schema-checked.** `src/__fixtures__/rows.ts` joins
+the seed: Table's test rows are declared once, parsed through a zod schema by
+`defineFactory`, and deterministic. Part of the same fixture-factory decision recorded in
+the template's rewritten ADR 003.
+
 **A dismissal race found by the browser suite is fixed as part of this seed.** A surface
 registers for dismissal in its first effect and receives its stack ordinal a re-render
 later; an Escape landing in that one-render window resolved "topmost" against the stale

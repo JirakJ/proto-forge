@@ -99,11 +99,50 @@ A pure-interface module (a repository port) needs no exclusion: it has zero exec
 statements and passes 0/0 vacuously. An exclusion for it would record a need that does
 not exist.
 
-- **Enforced by:** `test:unit` (per-glob V8 thresholds), `coverage:policy`
+The third door is the `v8 ignore` comment, and it is guarded the same way: the current
+population is **zero**, an ignore must state a reason of substance and name the harness
+case covering the branch in a real browser (`[covered-by: <case-id>]`), and the total
+count is pinned in the committed snapshot — growing it is a reviewed diff, never a
+drive-by statistic.
+
+- **Enforced by:** `test:unit` (per-glob V8 thresholds), `coverage:policy`, `ignores`
 - **Proven by:** `gates:selftest` → "hook: lowering a coverage threshold is blocked",
   "coverage: floors at 100 and reasoned exclusions pass", "coverage: a lowered threshold
   fails", "coverage: an exclusion outside the allow-list fails", "coverage: an
-  allow-listed exclusion without its reason fails"
+  allow-listed exclusion without its reason fails", "ignores: a clean tree with a
+  matching pin passes", "ignores: a well-formed, evidenced ignore with a matching pin
+  passes", "ignores: a bare ignore with no reason fails", "ignores: a reasoned ignore
+  naming no browser evidence fails", "ignores: evidence that does not exist is not
+  evidence", "ignores: a population that grew past its pin fails"
+
+### §3.2 Mutation testing: the assertions must fire, not merely execute
+
+100 % coverage proves every line ran; it does not prove any assertion would notice the
+line changing. `test:mutation` (Stryker, `break: 90`) is the mechanical proof: each
+mutant edits one expression, and a mutant that survives the whole suite marks a test
+that executes code without asserting its effect.
+
+**The mutated scope is the behavioural core** — `packages/proto-ui/src/overlay/**`,
+`packages/proto-ui/tokens.ts`, `src/domain/**` — and that is a deliberate narrowing of
+the original design, recorded here rather than hidden in a config file. The first full
+run over all of `packages/proto-ui/src/**` scored 74 %, and reading the survivors showed
+why: the bulk were mutations of **presentational literals** — `padding: "8px"` → `""`,
+style objects, hook dependency arrays — which a behaviour-first suite deliberately does
+not pin (§3: tests assert behaviour, never implementation). Appearance has a different
+oracle: the browser suite's geometry, hit tests, axe and screenshots. Counting
+unassertable mutants in the denominator would have made the score a measure of how much
+styling a file contains, not of how strong its tests are.
+
+The run also earned its keep immediately: three surviving mutants in the core were real
+assertion gaps (an author-set-attribute test using the same bytes the code would write;
+a hollow-constructor case missing from capability detection; a capability guard
+observable only through jsdom's own `:popover-open` exception), all fixed by
+strengthening the tests, lifting `capabilities.ts` and `topLayer.ts` to 100 %.
+
+- **Enforced by:** `test:mutation`
+- **Proven by:** the gate's own `break` threshold — see §19.7 for why a
+  `gates:selftest` fixture is impractical here
+- **Decided in:** ADR 003
 
 ## §4 Security
 
@@ -817,7 +856,18 @@ corrected to state what is enforced (anchors, statuses, prompt-log links) rather
 implementing a check that would assert nothing. Band allocation remains a rule of the
 pipeline, verified in review.
 
-### §19.7 `BR-11` describes a tension, not a mechanism
+### §19.7 `test:mutation` has no throwaway-project selftest
+
+Every other gate is proven by `gates:selftest` building a broken fixture and asserting
+the exit code. A Stryker fixture would need a full dependency install per case, which
+turns a seconds-long selftest into minutes of network I/O. The gate's failure mode is
+instead demonstrated by its own `break` threshold — it exited non-zero on this
+repository's first run at 74 % — and its wiring is covered by `citations` check 5,
+which fails if the script exists with no rule behind it. Stated per NFR-25's own
+escape: a limit is recorded here, not papered over with a fixture that proves only
+that `pnpm` is absent.
+
+### §19.8 `BR-11` describes a tension, not a mechanism
 
 Its evidence (ADR 021, the provider selector) states a goal — do not re-invent
 accessibility primitives, do not hard-depend on a third party — and a mechanism chosen

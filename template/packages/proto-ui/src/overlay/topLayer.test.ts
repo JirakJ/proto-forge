@@ -57,10 +57,12 @@ describe("promote / demote", () => {
   });
 
   it("leaves an author-set popover attribute alone", () => {
+    // "auto", deliberately NOT the value promote would write: an unconditional
+    // setAttribute would overwrite it, and a same-bytes fixture cannot see that.
     const { el } = elementWithPopover();
-    el.setAttribute("popover", "manual");
+    el.setAttribute("popover", "auto");
     promote(el, CAPABLE);
-    expect(el.getAttribute("popover")).toBe("manual");
+    expect(el.getAttribute("popover")).toBe("auto");
   });
 
   it("is a no-op without the Popover API, and reports not promoted", () => {
@@ -79,5 +81,13 @@ describe("promote / demote", () => {
     document.body.append(el);
     expect(() => promote(el, CAPABLE)).not.toThrow();
     expect(() => demote(el, CAPABLE)).not.toThrow();
+  });
+
+  it("answers isPromoted without touching :popover-open when the capability is absent", () => {
+    // A REAL jsdom element: its matches() throws on :popover-open, so this only passes
+    // while the capability guard short-circuits first. The guard is the test subject.
+    const el = document.createElement("div");
+    document.body.append(el);
+    expect(isPromoted(el, INCAPABLE)).toBe(false);
   });
 });

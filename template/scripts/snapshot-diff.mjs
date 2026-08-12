@@ -38,6 +38,14 @@ function buildSnapshot() {
 
   const components = exportedNames(read("packages/proto-ui/src/index.ts"));
 
+  // The coverage-ignore population, pinned so it can only change as a reviewed diff
+  // (ignore-registry.mjs compares the live count against this).
+  const prodFile = (f) => /\.(ts|tsx)$/.test(f) && !/\.(test|e2e)\./.test(f);
+  const ignores = [...walk("src", prodFile), ...walk("packages", prodFile)].reduce(
+    (n, f) => n + (read(f).match(/v8 ignore/g)?.length ?? 0),
+    0,
+  );
+
   const pkg = JSON.parse(read("package.json"));
   const protoPkg = JSON.parse(read("packages/proto-ui/package.json"));
   // Read the gate list off `verify` itself rather than pattern-matching script
@@ -48,7 +56,7 @@ function buildSnapshot() {
   // verify is fail-fast, so it is part of the contract.
   const gates = [...(pkg.scripts.verify ?? "").matchAll(/pnpm run ([\w:-]+)/g)].map((m) => m[1]);
 
-  return { fileTree, adrSet, components, gates, templateVersion: pkg.version, protoUiVersion: protoPkg.version };
+  return { fileTree, adrSet, components, gates, ignores, templateVersion: pkg.version, protoUiVersion: protoPkg.version };
 }
 
 const snap = buildSnapshot();
@@ -99,7 +107,7 @@ if (process.argv.includes("--write")) {
   // ADR titles are prose (LLM-varied); structural determinism (BRS §8, BR-14) compares
   // the decision SET — ids + statuses — not the titles. Titles stay in the file for humans.
   const structuralAdr = (set) => (set ?? []).map((a) => ({ id: a.id, status: a.status }));
-  for (const key of ["fileTree", "components", "gates", "templateVersion", "protoUiVersion"]) {
+  for (const key of ["fileTree", "components", "gates", "ignores", "templateVersion", "protoUiVersion"]) {
     if (JSON.stringify(committed[key]) !== JSON.stringify(snap[key])) diffs.push(`${key} drifted from committed snapshot`);
   }
   if (JSON.stringify(structuralAdr(committed.adrSet)) !== JSON.stringify(structuralAdr(snap.adrSet))) {

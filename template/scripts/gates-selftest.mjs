@@ -617,6 +617,47 @@ hook(
   if (!attachments.includes("open.png")) results.push("md-to-storage: image was not reported as an attachment");
 }
 
+// --- ignore-registry ---------------------------------------------------------------
+// The v8-ignore population is currently ZERO; this gate keeps it from eroding one
+// "harmless" ignore at a time. An ignore must state a reason, name the harness case
+// that covers the branch in a real browser, and change the pinned count in the
+// snapshot -- a reviewed diff, never a drive-by.
+const CASES_TS = 'export const cases = [\n  { id: "dialog-open", component: "Dialog", kind: "surface", state: "open", note: "x" },\n];\n';
+const ignoreProject = (source, pinned) => ({
+  "src/harness/cases.ts": CASES_TS,
+  "src/features/f.ts": source,
+  ".proto-forge/snapshot.json": { ignores: pinned },
+});
+
+expect("ignores: a clean tree with a matching pin passes", "ignore-registry.mjs",
+  ignoreProject("export const f = () => 1;\n", 0), { pass: true });
+
+expect("ignores: a well-formed, evidenced ignore with a matching pin passes", "ignore-registry.mjs",
+  ignoreProject(
+    "/* v8 ignore next -- jsdom has no top layer to promote into [covered-by: dialog-open] */\nexport const f = () => 1;\n",
+    1,
+  ), { pass: true });
+
+expect("ignores: a bare ignore with no reason fails", "ignore-registry.mjs",
+  ignoreProject("/* v8 ignore next */\nexport const f = () => 1;\n", 1),
+  { pass: false, matching: /covered-by/ });
+
+expect("ignores: a reasoned ignore naming no browser evidence fails", "ignore-registry.mjs",
+  ignoreProject("/* v8 ignore next -- jsdom cannot reach this branch at all */\nexport const f = () => 1;\n", 1),
+  { pass: false, matching: /covered-by/ });
+
+expect("ignores: evidence that does not exist is not evidence", "ignore-registry.mjs",
+  ignoreProject(
+    "/* v8 ignore next -- jsdom has no top layer to promote into [covered-by: invented-case] */\nexport const f = () => 1;\n",
+    1,
+  ), { pass: false, matching: /does not declare/ });
+
+expect("ignores: a population that grew past its pin fails", "ignore-registry.mjs",
+  ignoreProject(
+    "/* v8 ignore next -- jsdom has no top layer to promote into [covered-by: dialog-open] */\nexport const f = () => 1;\n",
+    0,
+  ), { pass: false, matching: /pins 0/ });
+
 // --- coverage:policy -------------------------------------------------------------
 // 100% is only meaningful while nobody lowers a threshold and nobody adds an
 // exclusion. A hook blocks both locally; this gate is the same promise in CI.
