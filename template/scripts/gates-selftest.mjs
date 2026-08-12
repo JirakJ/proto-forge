@@ -617,6 +617,41 @@ hook(
   if (!attachments.includes("open.png")) results.push("md-to-storage: image was not reported as an attachment");
 }
 
+// --- coverage:policy -------------------------------------------------------------
+// 100% is only meaningful while nobody lowers a threshold and nobody adds an
+// exclusion. A hook blocks both locally; this gate is the same promise in CI.
+const VITE = (thresholds, exclude) => `export default {
+  test: {
+    coverage: {
+      exclude: [
+${exclude}
+      ],
+      thresholds: {
+${thresholds}
+      },
+    },
+  },
+};
+`;
+const GOOD_THRESHOLDS = '        "src/**": { statements: 100, branches: 100, functions: 100, lines: 100 },';
+const GOOD_EXCLUDE = '        // tests and their fixtures are not product code\n        "**/*.test.*",';
+
+expect("coverage: floors at 100 and reasoned exclusions pass", "coverage-policy.mjs", {
+  "vite.config.ts": VITE(GOOD_THRESHOLDS, GOOD_EXCLUDE),
+}, { pass: true });
+
+expect("coverage: a lowered threshold fails", "coverage-policy.mjs", {
+  "vite.config.ts": VITE('        "src/**": { statements: 100, branches: 85, functions: 100, lines: 100 },', GOOD_EXCLUDE),
+}, { pass: false, matching: /branches threshold is 85/ });
+
+expect("coverage: an exclusion outside the allow-list fails", "coverage-policy.mjs", {
+  "vite.config.ts": VITE(GOOD_THRESHOLDS, GOOD_EXCLUDE + '\n        // convenient\n        "src/features/**",'),
+}, { pass: false, matching: /not on the allow-list/ });
+
+expect("coverage: an allow-listed exclusion without its reason fails", "coverage-policy.mjs", {
+  "vite.config.ts": VITE(GOOD_THRESHOLDS, '        "**/*.test.*",'),
+}, { pass: false, matching: /no reason comment/ });
+
 // --- overlay:matrix ------------------------------------------------------------
 // The no-gaps gate: component × (unit test, harness case, browser test, docs). Each
 // cell has its own gate elsewhere; this is the one that asks per component, so a new

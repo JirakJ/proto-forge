@@ -28,6 +28,7 @@ export const MANDATORY_GATES = [
   "consistency",
   "snapshot",
   "overlay",
+  "coverage",
 ];
 
 const MODES = ["error", "warn", "off"];
@@ -56,6 +57,7 @@ export const DEFAULTS = {
     consistency: { mode: "error" },
     snapshot: { mode: "error" },
     overlay: { mode: "error" },
+    coverage: { mode: "error" },
     budget: { mode: "error" },
     dup: { mode: "error" },
     adr: { mode: "error" },
