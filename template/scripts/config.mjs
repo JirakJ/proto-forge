@@ -29,6 +29,8 @@ export const MANDATORY_GATES = [
   "snapshot",
   "overlay",
   "coverage",
+  "ignores",
+  "mutation",
 ];
 
 const MODES = ["error", "warn", "off"];
@@ -58,6 +60,8 @@ export const DEFAULTS = {
     snapshot: { mode: "error" },
     overlay: { mode: "error" },
     coverage: { mode: "error" },
+    ignores: { mode: "error" },
+    mutation: { mode: "error" },
     budget: { mode: "error" },
     dup: { mode: "error" },
     adr: { mode: "error" },

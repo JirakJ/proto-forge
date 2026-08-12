@@ -10,3 +10,4 @@ test-results/
 *.local
 .env
 .DS_Store
+.stryker-tmp/

@@ -49,6 +49,10 @@ describe("detectCapabilities", () => {
     expect(
       detectCapabilities(view({ HTMLDialogElement: { prototype: {} }, HTMLElement: {}, CSS: {} })),
     ).toEqual<Capabilities>({ topLayerDialog: false, popover: false, cssAnchor: false });
+    // A constructor with NO prototype at all — every ?. after the first is load-bearing.
+    expect(
+      detectCapabilities(view({ HTMLDialogElement: {}, HTMLElement: { prototype: {} } })),
+    ).toEqual<Capabilities>({ topLayerDialog: false, popover: false, cssAnchor: false });
   });
 
   it("passes the anchor-name probe to CSS.supports rather than guessing from a UA string", () => {

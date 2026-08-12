@@ -43,6 +43,7 @@
     "packages/proto-ui/src/Toast.tsx",
     "packages/proto-ui/src/Tooltip.test.tsx",
     "packages/proto-ui/src/Tooltip.tsx",
+    "packages/proto-ui/src/__fixtures__/rows.ts",
     "packages/proto-ui/src/fieldParts.tsx",
     "packages/proto-ui/src/index.ts",
     "packages/proto-ui/src/overlay/OverlayStack.test.tsx",
@@ -73,6 +74,7 @@
     "scripts/config-cli.mjs",
     "scripts/config.mjs",
     "scripts/consistency.mjs",
+    "scripts/coverage-policy.mjs",
     "scripts/docs-lib.mjs",
     "scripts/docs-shots.mjs",
     "scripts/docs-verify.mjs",
@@ -83,6 +85,7 @@
     "scripts/hooks/scan-touched.mjs",
     "scripts/hooks/stop-gate.mjs",
     "scripts/i18n-verify.mjs",
+    "scripts/ignore-registry.mjs",
     "scripts/layer-scan.mjs",
     "scripts/lib.mjs",
     "scripts/md-to-storage.mjs",
@@ -105,6 +108,7 @@
     "src/app/routes.ts",
     "src/config/env.test.ts",
     "src/config/env.ts",
+    "src/domain/note/__fixtures__/note.ts",
     "src/domain/note/model.ts",
     "src/domain/note/note.test.ts",
     "src/domain/note/repository.ts",
@@ -129,6 +133,8 @@
     "src/main.tsx",
     "src/shared/SafeHtml.test.tsx",
     "src/shared/SafeHtml.tsx",
+    "src/test/factory.test.ts",
+    "src/test/factory.ts",
     "src/test/setup.ts",
     "src/vite-env.d.ts"
   ],
@@ -225,6 +231,8 @@
     "gates:selftest",
     "lint",
     "typecheck",
+    "coverage:policy",
+    "ignores",
     "test:unit",
     "build",
     "budget",
@@ -242,6 +250,7 @@
     "snapshot:diff",
     "test:e2e"
   ],
+  "ignores": 0,
   "templateVersion": "0.1.0",
   "protoUiVersion": "0.3.0"
 }
