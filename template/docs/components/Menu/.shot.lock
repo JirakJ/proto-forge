@@ -1,6 +1,10 @@
 {
-  "source": "4853e18055513559ff37c44b950de3959d5a07f08d45b4681a6ae41e1cf1c52e",
+  "source": "ef37f7f6009c64c57e90b59526d71a15a6c236cf69465e91b48e8e29d6f5f356",
   "shots": [
+    {
+      "file": "in-scroll-container.png",
+      "note": "The trigger lives in a 120px overflow:auto box; the surface escapes the clip and re-anchors when the box scrolls."
+    },
     {
       "file": "open.png",
       "note": "The surface is promoted into the top layer and anchored to the trigger in viewport coordinates."

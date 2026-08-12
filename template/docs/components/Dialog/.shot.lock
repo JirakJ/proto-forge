@@ -1,17 +1,37 @@
 {
-  "source": "b346aafee0b6a0488fb3a370f59607c6c5f5240f2241ea030585c2b84647faaf",
+  "source": "91edb2060a722c8380301ec2e2d6645a092cdfe82e1ea6d9551492b560309b91",
   "shots": [
+    {
+      "file": "escapes-paint-containment.png",
+      "note": "Escapes contain:paint, content-visibility:auto and a filter ancestor — three containments no z-index survives."
+    },
     {
       "file": "escapes-stacking-trap.png",
       "note": "The top layer proven: the modal escapes an ancestor with transform + overflow:hidden, and draws over a sticky header."
+    },
+    {
+      "file": "hostile-z-index.png",
+      "note": "A sibling holds z-index 2147483647 — the largest CSS accepts — and still loses: the top layer does not compete with stacking contexts."
+    },
+    {
+      "file": "inert-background.png",
+      "note": "With the modal open, the page behind it is inert: the counter button cannot be clicked or reached by Tab."
     },
     {
       "file": "menu-over-modal.png",
       "note": "The layering guarantee, visible: a menu opened inside a modal draws above it."
     },
     {
+      "file": "menu-under-later-dialog.png",
+      "note": "A menu belonging to the first dialog stays UNDER a second dialog opened later — the case a per-kind scale inverts."
+    },
+    {
       "file": "open.png",
       "note": "A modal in the top layer, with the browser painting its backdrop."
+    },
+    {
+      "file": "over-dialog.png",
+      "note": "The second dialog paints above the first, and Escape closes only the topmost."
     }
   ],
   "capturedBy": "docs:shots"

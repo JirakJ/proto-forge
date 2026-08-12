@@ -41,7 +41,7 @@ export function Harness() {
                 data-component={c.component}
                 data-name={c.state}
                 data-note={c.note}
-                data-click={c.interactions?.click?.[0] ?? ""}
+                data-click={(c.interactions?.click ?? []).join(",")}
               >
                 <a href={`#/${c.id}`} data-testid={`harness-anchor-${c.id}`}>
                   {c.component} — {c.state}

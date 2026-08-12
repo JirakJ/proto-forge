@@ -48,6 +48,15 @@ stack and publishing the design tokens as CSS custom properties.
 **`Tooltip` is added**, which is also why `tokens.layer.tooltip` had existed with no
 consumer.
 
+**A dismissal race found by the browser suite is fixed as part of this seed.** A surface
+registers for dismissal in its first effect and receives its stack ordinal a re-render
+later; an Escape landing in that one-render window resolved "topmost" against the stale
+`-1` and closed the dialog **under** the new one. The sixteen-case layering suite caught it
+(case 12 — the identical flow had passed elsewhere only because two extra assertions
+bridged the window), and the fix is in `useDismiss`: within its registry, `-1` means "just
+opened", which is newer than everything already numbered — the registry's insertion order
+is open order, the same fact the stack formalises one render later.
+
 **`layer:scan` grows rules 4 to 9**, moving the composition from convention to requirement:
 a surface must claim a slot; exactly one `document` keydown listener may exist in the
 library; exactly one module may read the overlay base; fixed surfaces belong to `overlay/`;

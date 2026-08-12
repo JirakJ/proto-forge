@@ -69,9 +69,11 @@ for (const c of manifest) {
   await page.goto(`${BASE}/harness.html#/${c.id}`);
   const frame = page.getByTestId("harness-case");
   await frame.waitFor({ state: "visible" });
-  if (c.click !== "") {
-    await page.getByTestId(c.click).click();
-    // The overlay animates in from a portal; wait for it rather than sleeping.
+  // data-click is comma-joined: a fixture may need two interactions to reach the state
+  // worth photographing (fire a toast, then focus the tooltip's control).
+  for (const clickId of c.click.split(",").filter((v) => v !== "")) {
+    await page.getByTestId(clickId).click();
+    // The overlay renders into a portal; wait for it rather than sleeping.
     await page.locator("#proto-ui-overlay-root *").first().waitFor({ state: "visible" });
   }
   // Overlays live outside the case frame, so those cases are shot full-page —
