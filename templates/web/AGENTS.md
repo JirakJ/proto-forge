@@ -53,6 +53,10 @@ Fix the code first — that is the answer roughly always. If the floor itself is
 
 Without a live waiver the setting is ignored and the gate runs at `error` anyway. With one, every `verify` prints the relaxation, and it ends by itself on the expiry date.
 
+## When verify is red: `pnpm heal`
+
+`pnpm heal` works a red `pnpm verify` in three bounded tiers. Tier 1 (default on, 2 passes) replays the deterministic regenerations from the healing registry — screenshots, the STATUS block, the derived client, a stale mutation cache, the derived docs table — derivations only, never a floor, a snapshot or a waiver. Tier 2 dispatches a bounded agent pass and runs **only** with `selfHealing.agent.enabled: true` in the committed config: committing that flag is the operator's standing, reviewed consent, exactly like `autoPropagate`. Tier 3 prints a blocked report and exits 1. Hard-stop gates (secrets, high/critical audit) never enter any tier, and every pass writes a `.prompts/` entry before it acts.
+
 ## Commands
 
 | Command | What it does |
@@ -66,6 +70,7 @@ Without a live waiver the setting is ignored and the gate runs at `error` anyway
 | `pnpm deploy:verify` | Offline deploy-surface lint: Dockerfile digest pins, compose healthchecks, the securityContext contract, exposure ⇔ cluster type; renders and validates with helm/kubeconform/hadolint/docker when present (mandatory in CI) |
 | `pnpm gates:selftest` | Proves each gate still rejects what it claims to |
 | `pnpm doctor` | Fresh-machine pre-flight: toolchain pins, husky wiring, installed tree vs lockfile, stale mutation cache, ports, browsers, `.env` — every ✗ prints its fix |
+| `pnpm heal` | Tiered self-healing for a red `verify`: mechanical regenerations first, a consent-gated agent pass second, escalation third — bounded, hard-stop gates excluded, every pass prompt-logged before it acts |
 | `pnpm quality:report` · `pnpm status:verify` | Regenerate / verify the measured quality facts (`.proto-forge/quality.json` ≡ `docs/STATUS.md` ≡ the enforcing configs) |
 | `pnpm sync:jira` · `pnpm sync:confluence` | Show what *would* be sent. `--commit` to actually send; every sent object gets an MDX record in `docs/external/`. |
 | `pnpm sync:pull --page <id> [--affects a,b]` | Fetch a Confluence page into a `pull` record. `affectedFiles` is yours to declare. |

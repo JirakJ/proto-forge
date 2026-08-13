@@ -9,6 +9,25 @@ below is the explanation and `doctor` is the executable half. If `pnpm verify`
 is red and none of these match, read the first failing gate's message — every
 gate names what broke and what to run.
 
+## When verify is red
+
+Work the tiers in order — each is cheaper than the next:
+
+1. **`pnpm heal`** — the mechanical tier replays the deterministic
+   regenerations for the failing gate: stale screenshots (`docs:shots`), a
+   stale STATUS block (`quality:report`), a drifted typed client
+   (`contract:client:generate`), a stale mutation cache (clears
+   `.stryker-tmp`), a drifted DEPLOYMENT.md table (`env-verify --write`). It
+   never touches a decision — no snapshot or seed write, no threshold, no
+   waiver, no `identical-ok` entry — and **hard-stop gates (secrets,
+   high/critical audit) never enter any tier**. With
+   `selfHealing.agent.enabled: true` committed, a bounded agent tier follows;
+   otherwise heal stops and prints a blocked report. Every pass writes a
+   `.prompts/` entry before it acts.
+2. **`pnpm doctor`** — the machine preconditions above; every ✗ prints its fix.
+3. **The table below, then the gate's own message** — every gate names what
+   broke and what to run; the manual fix is always a command, never advice.
+
 | Symptom | Cause | Fix |
 | --- | --- | --- |
 | Mutation score drops (or flatters) right after editing tests or sources; `test:mutation` disagrees with a clean machine | Stale incremental cache: `.stryker-tmp/incremental.json` memoises a previous tree | `rm -rf .stryker-tmp` then `pnpm test:mutation` |

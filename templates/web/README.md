@@ -53,4 +53,4 @@ e2e/                   Playwright specs (+ axe, + the overlay layering proofs)
 
 ## Gates
 
-Every gate is a `pnpm` script, so local and CI runs are identical (CI just runs `pnpm verify`). `pnpm gates:selftest` builds a throwaway project per failure mode and proves each gate still rejects what it claims to. See `package.json`, `AGENTS.md` and `docs/ARCHITECTURE.md`.
+Every gate is a `pnpm` script, so local and CI runs are identical (CI just runs `pnpm verify`). `pnpm gates:selftest` builds a throwaway project per failure mode and proves each gate still rejects what it claims to. When `verify` is red, `pnpm heal` works it in tiers — mechanical regenerations first, a consent-gated agent pass second, escalation third, every pass prompt-logged (`docs/TROUBLESHOOTING.md`). See `package.json`, `AGENTS.md` and `docs/ARCHITECTURE.md`.

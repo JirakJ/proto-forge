@@ -180,6 +180,59 @@
         }
       }
     },
+    "selfHealing": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Tiered self-healing for a red `pnpm verify` (NFR-19): layered, bounded and on the record. `pnpm heal` regenerates derivations from the healing registry first (tier 1), dispatches a bounded agent pass second (tier 2, consent-gated below), and escalates third. Hard-stop gates (secrets, high/critical audit) never enter any tier, and every pass writes a .prompts/ entry before it acts.",
+      "properties": {
+        "mechanical": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Tier 1: deterministic regenerations of what is derived — captured docs examples, the STATUS block, the committed OpenAPI spec (a locked derivation of the route registry; contract:breaking still gates majors). Derivations only; no floor moves and no consent act runs."
+            },
+            "maxPasses": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 5,
+              "description": "Upper bound on mechanical passes per heal run. A healing loop without a bound is a loop."
+            }
+          }
+        },
+        "agent": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Standing, reviewed consent for the UNATTENDED agent tier — the heal analogue of integrations.*.autoPropagate: committing true here IS the approval, visible in review, unlike a flag typed once. It consents to the bounded fix loop and nothing else: hard-stop gates never enter, guard hooks keep freezing floors, and the gate-failure rules ride along in every dispatched prompt."
+            },
+            "maxPasses": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 5,
+              "description": "Upper bound on agent passes per heal run. A healing loop without a bound is a loop."
+            },
+            "commandEnv": {
+              "type": "string",
+              "description": "Name of the env var holding the agent runner executable (default PROTO_FORGE_HEAL_AGENT; when the var is unset heal falls back to `claude -p … --permission-mode acceptEdits`). Never a command string in this file — the tokenEnv pattern."
+            }
+          }
+        },
+        "ci": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Consent for heal.yml to run after a red verify in CI (tier 1 only there — the workflow exports no agent env). The workflow additionally requires the repository variable HEAL_ENABLED == 'true'; both doors are explicit acts."
+            }
+          }
+        }
+      }
+    },
     "waivers": {
       "type": "array",
       "description": "The only way to relax a mandatory gate. Each entry expires; after that the gate enforces again on its own.",

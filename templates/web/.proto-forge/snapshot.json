@@ -95,6 +95,7 @@
     "scripts/external-verify.mjs",
     "scripts/external.mjs",
     "scripts/gates-selftest.mjs",
+    "scripts/heal.mjs",
     "scripts/hooks/guard-bash.mjs",
     "scripts/hooks/guard-write.mjs",
     "scripts/hooks/hook-lib.mjs",
