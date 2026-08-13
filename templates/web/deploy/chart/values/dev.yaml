@@ -1,0 +1,10 @@
+# dev — the only environment the template ships enabled. Enabling another
+# environment = flipping it in .proto-forge/config.json AND adding its file
+# here; env:verify holds the two in lockstep.
+environment: dev
+
+expose:
+  kind: ingress
+  # Set to the dev hostname once the cluster is known; empty serves every host.
+  host: ""
+  tlsSecret: ""

@@ -14,6 +14,9 @@
     "docs/adr/022-persistence-adapter.md",
     "docs/adr/030-example-feature.md",
     "docs/adr/100-sanitized-html.md",
+    "docs/adr/200-multi-environment-delivery.md",
+    "docs/adr/201-container-and-helm-baseline.md",
+    "docs/adr/202-pipeline-security.md",
     "e2e/component-library.e2e.ts",
     "e2e/notes.e2e.ts",
     "e2e/overlay-layering.e2e.ts",
@@ -77,9 +80,11 @@
     "scripts/config.mjs",
     "scripts/consistency.mjs",
     "scripts/coverage-policy.mjs",
+    "scripts/deploy-verify.mjs",
     "scripts/docs-lib.mjs",
     "scripts/docs-shots.mjs",
     "scripts/docs-verify.mjs",
+    "scripts/env-verify.mjs",
     "scripts/external-verify.mjs",
     "scripts/external.mjs",
     "scripts/gates-selftest.mjs",
@@ -216,6 +221,21 @@
       "id": 100,
       "title": "Single sanitized-HTML entry point + CSP posture",
       "status": "accepted"
+    },
+    {
+      "id": 200,
+      "title": "Multi-environment delivery is one declaration, progressively enabled",
+      "status": "accepted"
+    },
+    {
+      "id": 201,
+      "title": "One non-root image, one chart, values per environment",
+      "status": "accepted"
+    },
+    {
+      "id": 202,
+      "title": "The pipeline scans, signs and verifies — and verify stays offline",
+      "status": "accepted"
     }
   ],
   "components": [
@@ -236,6 +256,7 @@
   ],
   "gates": [
     "config:check",
+    "env:verify",
     "gates:selftest",
     "lint",
     "typecheck",
@@ -244,6 +265,7 @@
     "test:unit",
     "test:mutation",
     "build",
+    "deploy:verify",
     "budget",
     "i18n:verify",
     "layer:scan",

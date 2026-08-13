@@ -1,0 +1,23 @@
+# Keep the build context to what `pnpm install` + `pnpm build` actually read.
+# e2e/ stays IN: tsconfig.json includes it, so tsc inside the image needs it.
+node_modules
+dist
+coverage
+test-results
+playwright-report
+.stryker-tmp
+.git
+.github
+.husky
+.claude
+.prompts
+docs
+deploy/compose
+deploy/chart
+deploy/schemas
+deploy/smoke.mjs
+*.local
+.env
+.DS_Store
+Dockerfile
+.dockerignore

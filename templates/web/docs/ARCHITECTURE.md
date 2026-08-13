@@ -25,6 +25,12 @@ A single-page React 19 + TypeScript app with strict DDD layering. Dependencies p
 
 The consistency gate asserts no second definition of any of these exists.
 
+## Delivery
+
+- **Environments** are a single declaration: `.proto-forge/config.json` `environments{}` (fixed chain `local, dev → sit → uat → test → prod`, only `dev` enabled out of the box). Values files, the `docs/DEPLOYMENT.md` table and the CD plan are derived from it, and `env:verify` fails any drift (ADR 200).
+- **One image, one chart**: a digest-pinned, non-root, arbitrary-UID-safe nginx image (built once, promoted by digest) and one Helm chart with per-environment values under `deploy/chart/values/` (ADR 201). Compose (`deploy/compose/`) is the single-host simple mode.
+- **Offline-verify doctrine**: `pnpm verify` never opens a socket. `deploy:verify` proves the committed deploy surface — Dockerfile pins, compose healthchecks, the securityContext contract, rendered manifests against schemas vendored in `deploy/schemas/` — with external tools enforced when present, noted when absent locally, mandatory in CI. Cluster-touching steps (build, scan, sign, push, deploy, smoke) are named CI stages, never gates (ADR 202).
+
 ## Governance
 
 - **ADRs** in `docs/adr/` with in-code `// @adr NNN` anchors; one accepted ADR = one commit.

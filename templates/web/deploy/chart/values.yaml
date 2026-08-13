@@ -1,0 +1,65 @@
+# Base values — the environment-independent contract. Per-environment files
+# under values/ override ONLY what genuinely differs (exposure, host, replicas);
+# a values file exists exactly for the environments enabled in
+# .proto-forge/config.json, and env:verify fails on any mismatch.
+
+replicas: 1
+
+image:
+  # The committed default is the locally built tag (what deploy/compose builds),
+  # so offline rendering works without a registry. The delivery pipeline
+  # overrides repository and digest at deploy time — a digest, not a tag, is
+  # what actually rolls out.
+  repository: proto-forge-prototype
+  tag: dev
+  digest: ""
+
+# The environment name, surfaced to the pod via the ConfigMap (APP_ENV).
+environment: dev
+
+port: 8080
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 250m
+    memory: 128Mi
+
+probes:
+  readiness:
+    path: /version.json
+    initialDelaySeconds: 2
+    periodSeconds: 5
+  liveness:
+    path: /version.json
+    initialDelaySeconds: 5
+    periodSeconds: 10
+
+# The securityContext contract, asserted by deploy:verify in these values AND in
+# the rendered manifests: non-root without naming a UID (OpenShift assigns an
+# arbitrary one — a hardcoded runAsUser would fight the SCC and is deliberately
+# absent), no privilege escalation, no capabilities, default seccomp, read-only
+# root filesystem with emptyDirs over the paths nginx writes.
+securityContext:
+  runAsNonRoot: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: ["ALL"]
+  seccompProfile:
+    type: RuntimeDefault
+  readOnlyRootFilesystem: true
+
+# How the service is reached from outside the cluster. kind is cross-checked
+# against the environment's cluster.type by deploy:verify: route is
+# OpenShift-only, and an OpenShift environment uses route or none, not ingress.
+expose:
+  kind: none # ingress | route | none
+  host: ""
+  tlsSecret: ""
+
+# Names of Secrets (created by the platform team, never by this repository) the
+# pod loads via envFrom. Secret VALUES exist only in the cluster — the secrets
+# contract in docs/DEPLOYMENT.md says who provides each name.
+envFromSecrets: []
