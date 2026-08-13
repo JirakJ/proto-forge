@@ -1,0 +1,13 @@
+title = "proto-forge secret scan config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Test fixtures and example locale strings are not real secrets (BR-12)."
+paths = [
+  '''.*\.test\.(ts|tsx)$''',
+  '''.*\.e2e\.ts$''',
+  '''.*__fixtures__/.*''',
+  '''src/i18n/locales/.*''',
+]

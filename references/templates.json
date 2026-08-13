@@ -12,6 +12,18 @@
         "sync:jira", "sync:confluence", "sync:pull", "sync:status", "sync:auto",
         "test:e2e"
       ]
+    },
+    {
+      "id": "api-node",
+      "dir": "templates/api-node",
+      "kind": "backend",
+      "stack": "node",
+      "notAGate": [
+        "dev", "start", "build", "verify", "prepare",
+        "config:show", "snapshot", "seed:lock", "sbom",
+        "sync:jira", "sync:confluence", "sync:pull", "sync:status", "sync:auto",
+        "test:e2e", "contract:generate", "docs:examples", "db:migrate"
+      ]
     }
   ]
 }

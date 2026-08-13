@@ -690,7 +690,9 @@ against the last released contract requires a contract major bump plus an ADR.
   consumer who trusted the spec finds out in production. A locked derivation cannot
   drift: either the code changed and the lock proves it, or nothing changed.
 - **Scope:** backend
-- **Enforced by:** `contract:verify`; `contract:breaking` with a pinned `oasdiff`
+- **Enforced by:** `contract:verify`; `contract:breaking` (a dependency-free structural
+  diff against the last released contract: removed paths/methods/operations, narrowed
+  responses, new required request fields)
 - **Proven by:** `gates:selftest` → "contract: a committed spec matching the
   regeneration passes", "contract: code drift from the committed spec fails",
   "contract: a stale contract.lock fails", "contract: a breaking change without a

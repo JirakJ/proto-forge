@@ -1,0 +1,1153 @@
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, dirname, resolve } from "node:path";
+import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
+import { fail, ok } from "./lib.mjs";
+
+// @adr 009 - the gates are the product, so the gates get tested
+// A gate nobody has seen fail is a gate nobody knows works. This builds a throwaway
+// project per case, breaks exactly one thing, and asserts the gate's exit code.
+// Run it after touching any scan script: `pnpm gates:selftest`.
+
+const SCRIPTS = resolve(dirname(new URL(import.meta.url).pathname));
+const results = [];
+
+function project(files) {
+  const dir = mkdtempSync(join(tmpdir(), "proto-forge-gate-"));
+  for (const [path, body] of Object.entries(files)) {
+    // An undefined body REMOVES a file a base fixture provided — the way a case says
+    // "like the passing project, but without its docs page".
+    if (body === undefined) continue;
+    const full = join(dir, path);
+    mkdirSync(dirname(full), { recursive: true });
+    writeFileSync(full, typeof body === "string" ? body : JSON.stringify(body, null, 2));
+  }
+  return dir;
+}
+
+function run(gate, dir, args = [], env = {}) {
+  // HOME is redirected so an operator's ~/.config/proto-forge/config.json cannot
+  // change the outcome of a self-test.
+  const r = spawnSync(process.execPath, [join(SCRIPTS, gate), ...args], {
+    cwd: dir,
+    encoding: "utf8",
+    env: { ...process.env, HOME: dir, PROTO_FORGE_TODAY: "2026-08-11", ...env },
+  });
+  return { code: r.status, out: `${r.stdout}${r.stderr}` };
+}
+
+/**
+ * `prepare` runs after the files are written and before the gate does, with the
+ * throwaway dir as its argument. Gates whose passing case requires a lock only the
+ * gate itself can compute (snapshot:diff, migration:verify, docs:examples) use it
+ * to write the baseline the way an operator would.
+ * `env` overrides the child environment — sec:scan's CI hard-stop is only
+ * observable with an empty PATH, and the emitter/capture seams are env vars.
+ */
+function expect(name, gate, files, { pass, matching, args = [], env = {}, prepare }) {
+  const dir = project(files);
+  try {
+    if (prepare !== undefined) prepare(dir);
+    const { code, out } = run(gate, dir, args, env);
+    const passed = code === 0;
+    if (passed !== pass) {
+      results.push(`${name}: expected ${pass ? "PASS" : "FAIL"}, got ${passed ? "PASS" : "FAIL"} — ${out.trim()}`);
+    } else if (matching !== undefined && !matching.test(out)) {
+      results.push(`${name}: correct verdict but the message never mentions ${matching} — got ${out.trim()}`);
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+// --- config ------------------------------------------------------------------
+const withConfig = (config, extra = {}) => ({
+  ".proto-forge/config.json": config,
+  "docs/adr/150-logging-pilot.md": "# ADR 150: Logging pilot\n\n- Status: accepted\n",
+  ...extra,
+});
+
+expect("config: the strict default passes", "config-cli.mjs", withConfig({}), { pass: true });
+
+expect(
+  "config: relaxing a mandatory gate without a waiver fails",
+  "config-cli.mjs",
+  withConfig({ gates: { log: { mode: "warn" } } }),
+  { pass: false, matching: /mandatory/ },
+);
+
+expect(
+  "config: a complete waiver passes and is reported",
+  "config-cli.mjs",
+  withConfig({
+    gates: { log: { mode: "warn" } },
+    waivers: [{ gate: "log", reason: "noisy-logger pilot for the September demo", adr: 150, expires: "2026-12-31" }],
+  }),
+  { pass: true, matching: /waived/i },
+);
+
+expect(
+  "config: a waiver citing an ADR that does not exist fails",
+  "config-cli.mjs",
+  withConfig({
+    gates: { log: { mode: "warn" } },
+    waivers: [{ gate: "log", reason: "noisy-logger pilot for the September demo", adr: 999, expires: "2026-12-31" }],
+  }),
+  { pass: false, matching: /does not exist/ },
+);
+
+expect(
+  "config: a waiver with no real justification fails",
+  "config-cli.mjs",
+  withConfig({
+    gates: { log: { mode: "warn" } },
+    waivers: [{ gate: "log", reason: "later", adr: 150, expires: "2026-12-31" }],
+  }),
+  { pass: false, matching: /explain/ },
+);
+
+expect(
+  "config: a waiver for a gate that is not relaxed fails as dead paperwork",
+  "config-cli.mjs",
+  withConfig({
+    waivers: [{ gate: "log", reason: "noisy-logger pilot for the September demo", adr: 150, expires: "2026-12-31" }],
+  }),
+  { pass: false, matching: /stale waiver/ },
+);
+
+// An expired waiver must not merely warn: the gate has to be enforcing again.
+// The fixture needs a bare console call for log:scan to reject; assembled in two
+// pieces so this meta-file never carries the debug-call byte pattern itself.
+const CONSOLE_CALL = ["console", "log("].join(".");
+const NOISY = `export const f = () => ${CONSOLE_CALL}"boom");\n`;
+{
+  const dir = project(
+    withConfig(
+      {
+        gates: { log: { mode: "off" } },
+        waivers: [{ gate: "log", reason: "noisy-logger pilot for the September demo", adr: 150, expires: "2026-01-01" }],
+      },
+      { "src/application/f.ts": NOISY },
+    ),
+  );
+  try {
+    const { code, out } = run("log-scan.mjs", dir);
+    if (code === 0) results.push(`config: an expired waiver must stop disabling the gate — log:scan passed anyway: ${out.trim()}`);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+// A live waiver really does downgrade the same failure to a warning.
+{
+  const dir = project(
+    withConfig(
+      {
+        gates: { log: { mode: "warn" } },
+        waivers: [{ gate: "log", reason: "noisy-logger pilot for the September demo", adr: 150, expires: "2026-12-31" }],
+      },
+      { "src/application/f.ts": NOISY },
+    ),
+  );
+  try {
+    const { code, out } = run("log-scan.mjs", dir);
+    if (code !== 0) results.push(`config: a live waiver should downgrade log:scan to a warning — it still failed: ${out.trim()}`);
+    else if (!/WARNED/.test(out)) results.push(`config: a waived gate must still say so out loud — got: ${out.trim()}`);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+// --- integrations ------------------------------------------------------------
+// The important property is the boring one: with the defaults, nothing is sent
+// and nothing is even staged.
+for (const [name, script] of [
+  ["jira", "sync-jira.mjs"],
+  ["confluence", "sync-confluence.mjs"],
+]) {
+  expect(`${name}: disabled by default, stages nothing`, script, withConfig({}), {
+    pass: true,
+    matching: /disabled/,
+  });
+
+  // Enabled but still in dry-run: payloads land in the outbox, nothing is sent.
+  const dir = project(
+    withConfig({
+      integrations: { [name]: { enabled: true, dryRun: true, baseUrl: "https://acme.atlassian.net", projectKey: "PF", spaceKey: "PF" } },
+    }),
+  );
+  try {
+    const { code, out } = run(script, dir);
+    if (code !== 0) results.push(`${name}: dry-run should succeed without contacting anything — ${out.trim()}`);
+    if (/--commit/.test(out) === false && /nothing to (file|publish)/.test(out) === false) {
+      results.push(`${name}: dry-run must say how to proceed, or that there is nothing to do — got ${out.trim()}`);
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+// --commit with the network guardrail still closed must refuse.
+expect(
+  "integrations: --commit is refused while the network guardrail is closed",
+  "sync-jira.mjs",
+  withConfig(
+    {
+      integrations: { jira: { enabled: true, dryRun: false, baseUrl: "https://acme.atlassian.net", projectKey: "PF", createFor: ["adr"] } },
+      guardrails: { network: { allow: false } },
+    },
+    { "docs/adr/010-thing.md": "# ADR 010: Thing\n\n- Status: accepted\n" },
+  ),
+  { pass: false, matching: /network access is disabled/, args: ["--commit", "--approve"] },
+);
+
+// autoPropagate is standing consent for exactly one thing: the per-run --approve.
+// The credential check sits AFTER the approval check, so "fails asking for the
+// token" proves the approval was satisfied — without contacting anything.
+const autoPropagateConfig = (over = {}) =>
+  withConfig({
+    integrations: {
+      jira: {
+        enabled: true,
+        dryRun: false,
+        autoPropagate: true,
+        baseUrl: "https://acme.atlassian.net",
+        projectKey: "PF",
+        createFor: ["adr"],
+        ...over,
+      },
+    },
+    guardrails: { network: { allow: true, allowedHosts: ["acme.atlassian.net"] } },
+  });
+
+expect(
+  "integrations: autoPropagate stands in for --approve",
+  "sync-jira.mjs",
+  autoPropagateConfig(),
+  { pass: false, matching: /JIRA_API_TOKEN is not set/, args: ["--commit"], env: { JIRA_API_TOKEN: "", JIRA_USER_EMAIL: "" } },
+);
+
+expect(
+  "integrations: without autoPropagate the same --commit still demands --approve",
+  "sync-jira.mjs",
+  autoPropagateConfig({ autoPropagate: false }),
+  { pass: false, matching: /requires explicit approval/, args: ["--commit"], env: { JIRA_API_TOKEN: "", JIRA_USER_EMAIL: "" } },
+);
+
+expect(
+  "integrations: autoPropagate does not bypass dry-run",
+  "sync-jira.mjs",
+  autoPropagateConfig({ dryRun: true }),
+  { pass: false, matching: /dry-run/, args: ["--commit"] },
+);
+
+expect(
+  "integrations: autoPropagate does not open the network guardrail",
+  "sync-jira.mjs",
+  withConfig({
+    integrations: {
+      jira: { enabled: true, dryRun: false, autoPropagate: true, baseUrl: "https://acme.atlassian.net", projectKey: "PF", createFor: ["adr"] },
+    },
+    guardrails: { network: { allow: false } },
+  }),
+  { pass: false, matching: /network access is disabled/, args: ["--commit"] },
+);
+
+// --- guardrail hooks ----------------------------------------------------------
+function hook(name, script, payload, files, { blocked, matching }) {
+  const dir = project(files);
+  try {
+    const r = spawnSync(process.execPath, [join(SCRIPTS, "hooks", script)], {
+      cwd: dir,
+      encoding: "utf8",
+      input: JSON.stringify({ cwd: dir, ...payload }),
+      env: { ...process.env, HOME: dir, PROTO_FORGE_TODAY: "2026-08-11" },
+    });
+    const didBlock = r.status === 2;
+    const out = `${r.stdout}${r.stderr}`;
+    if (didBlock !== blocked) {
+      results.push(`${name}: expected ${blocked ? "BLOCK" : "ALLOW"}, got ${didBlock ? "BLOCK" : "ALLOW"} — ${out.trim()}`);
+    } else if (matching !== undefined && !matching.test(out)) {
+      results.push(`${name}: correct verdict but the message never mentions ${matching} — got ${out.trim()}`);
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+const seedFile = "src/platform/logger.ts";
+
+hook(
+  "hook: editing the byte-pinned seed is blocked",
+  "guard-write.mjs",
+  { tool_name: "Edit", tool_input: { file_path: seedFile, new_string: "x" } },
+  { [seedFile]: "export const logger = null;", ".proto-forge/config.json": {} },
+  { blocked: true, matching: /byte-pinned/ },
+);
+
+hook(
+  "hook: an ordinary feature edit is allowed",
+  "guard-write.mjs",
+  { tool_name: "Edit", tool_input: { file_path: "src/application/notes.ts", new_string: "x" } },
+  { "src/application/notes.ts": "export const notes = [];", ".proto-forge/config.json": {} },
+  { blocked: false },
+);
+
+hook(
+  "hook: rewriting an existing prompt-log entry is blocked",
+  "guard-write.mjs",
+  { tool_name: "Edit", tool_input: { file_path: ".prompts/0001-scaffold.md", new_string: "x" } },
+  { ".prompts/0001-scaffold.md": "# scaffold", ".proto-forge/config.json": {} },
+  { blocked: true, matching: /append-only/ },
+);
+
+hook(
+  "hook: adding a NEW prompt-log entry is allowed",
+  "guard-write.mjs",
+  { tool_name: "Write", tool_input: { file_path: ".prompts/0003-fix.md", content: "# fix" } },
+  { ".proto-forge/config.json": {} },
+  { blocked: false },
+);
+
+hook(
+  "hook: lowering a coverage threshold is blocked",
+  "guard-write.mjs",
+  { tool_name: "Edit", tool_input: { file_path: "vitest.config.ts", new_string: "statements: 40," } },
+  { "vitest.config.ts": "export default {};", ".proto-forge/config.json": {} },
+  { blocked: true, matching: /coverage threshold/ },
+);
+
+hook(
+  "hook: switching a gate to warn in the config is blocked",
+  "guard-write.mjs",
+  { tool_name: "Edit", tool_input: { file_path: ".proto-forge/config.json", new_string: '"mode": "warn"' } },
+  { ".proto-forge/config.json": {} },
+  { blocked: true, matching: /gate mode/ },
+);
+
+hook(
+  "hook: lowering the mutation-score floor is blocked",
+  "guard-write.mjs",
+  { tool_name: "Edit", tool_input: { file_path: "stryker.config.json", new_string: '"break": 40,' } },
+  { ".proto-forge/config.json": {} },
+  { blocked: true, matching: /mutation-score floor/ },
+);
+
+hook(
+  "hook: narrowing the mutation scope is blocked",
+  "guard-write.mjs",
+  { tool_name: "Write", tool_input: { file_path: "stryker.config.json", content: '{ "mutate": ["src/one.ts"] }' } },
+  { ".proto-forge/config.json": {} },
+  { blocked: true, matching: /mutation scope/ },
+);
+
+hook(
+  "hook: raising the duplication threshold is blocked",
+  "guard-write.mjs",
+  { tool_name: "Edit", tool_input: { file_path: ".jscpd.json", new_string: '"threshold": 3,' } },
+  { ".proto-forge/config.json": {} },
+  { blocked: true, matching: /duplication threshold/ },
+);
+
+hook(
+  "hook: widening the duplication ignore list is blocked",
+  "guard-write.mjs",
+  { tool_name: "Edit", tool_input: { file_path: ".jscpd.json", new_string: '"ignore": ["src/**"]' } },
+  { ".proto-forge/config.json": {} },
+  { blocked: true, matching: /duplication ignore/ },
+);
+
+hook(
+  "hook: --no-verify is blocked",
+  "guard-bash.mjs",
+  { tool_name: "Bash", tool_input: { command: "git commit -m x --no-verify" } },
+  { ".proto-forge/config.json": {} },
+  { blocked: true, matching: /skips the commit-msg/ },
+);
+
+hook(
+  "hook: an ordinary command is allowed",
+  "guard-bash.mjs",
+  { tool_name: "Bash", tool_input: { command: "pnpm verify" } },
+  { ".proto-forge/config.json": {} },
+  { blocked: false },
+);
+
+hook(
+  "hook: curl is blocked while the network guardrail is closed",
+  "guard-bash.mjs",
+  { tool_name: "Bash", tool_input: { command: "curl https://acme.atlassian.net/rest/api/2/issue" } },
+  { ".proto-forge/config.json": {} },
+  { blocked: true, matching: /network access is disabled/ },
+);
+
+hook(
+  "hook: a host outside the allowlist is blocked even when the network is open",
+  "guard-bash.mjs",
+  { tool_name: "Bash", tool_input: { command: "curl https://evil.example.com/x" } },
+  { ".proto-forge/config.json": { guardrails: { network: { allow: true, allowedHosts: ["acme.atlassian.net"] } } } },
+  { blocked: true, matching: /allowedHosts/ },
+);
+
+// --- markdown → Confluence storage --------------------------------------------
+{
+  const { mdToStorage } = await import("./md-to-storage.mjs");
+  const { storage, attachments } = mdToStorage(
+    [
+      "<!-- no-example: nothing to show -->",
+      "# Title",
+      "",
+      "Text with `code`, **bold** and a [link](https://example.com).",
+      "",
+      "![A shot](open.png)",
+      "",
+      "| A | B |",
+      "| --- | --- |",
+      "| 1 | 2 |",
+      "",
+      "- one",
+      "- two",
+      "",
+      "```ts",
+      "const x = 1 < 2;",
+      "```",
+    ].join("\n"),
+  );
+  const must = [
+    ["<h1>Title</h1>", "heading"],
+    ["<code>code</code>", "inline code"],
+    ["<strong>bold</strong>", "bold"],
+    ['<a href="https://example.com">link</a>', "link"],
+    ['<ri:attachment ri:filename="open.png" />', "image as attachment"],
+    ["<table><tbody><tr><th>A</th>", "table"],
+    ["<ul><li>one</li><li>two</li></ul>", "list"],
+    ["<![CDATA[const x = 1 < 2;]]>", "code block, unescaped inside CDATA"],
+  ];
+  for (const [needle, what] of must) {
+    if (!storage.includes(needle)) results.push(`md-to-storage: ${what} missing — expected ${needle}`);
+  }
+  if (storage.includes("no-example")) results.push("md-to-storage: HTML comments must not reach the page");
+  if (!attachments.includes("open.png")) results.push("md-to-storage: image was not reported as an attachment");
+}
+
+// --- ignore-registry ---------------------------------------------------------------
+// The v8-ignore population is currently ZERO; this gate keeps it from eroding one
+// "harmless" ignore at a time. An ignore must state a reason, name the harness case
+// that covers the branch in the e2e conformance run, and change the pinned count in
+// the snapshot -- a reviewed diff, never a drive-by.
+const CASES_TS = 'export const cases = [\n  { id: "note-get-missing", operationId: "note-get", expect: "note-not-found", note: "x" },\n];\n';
+const ignoreProject = (source, pinned) => ({
+  "src/harness/cases.ts": CASES_TS,
+  "src/application/f.ts": source,
+  ".proto-forge/snapshot.json": { ignores: pinned },
+});
+
+expect("ignores: a clean tree with a matching pin passes", "ignore-registry.mjs",
+  ignoreProject("export const f = () => 1;\n", 0), { pass: true });
+
+expect("ignores: a well-formed, evidenced ignore with a matching pin passes", "ignore-registry.mjs",
+  ignoreProject(
+    "/* v8 ignore next -- the pool error path needs a real broken socket [covered-by: note-get-missing] */\nexport const f = () => 1;\n",
+    1,
+  ), { pass: true });
+
+expect("ignores: a bare ignore with no reason fails", "ignore-registry.mjs",
+  ignoreProject("/* v8 ignore next */\nexport const f = () => 1;\n", 1),
+  { pass: false, matching: /covered-by/ });
+
+expect("ignores: a reasoned ignore naming no browser evidence fails", "ignore-registry.mjs",
+  ignoreProject("/* v8 ignore next -- unit tests cannot reach this branch at all */\nexport const f = () => 1;\n", 1),
+  { pass: false, matching: /covered-by/ });
+
+expect("ignores: evidence that does not exist is not evidence", "ignore-registry.mjs",
+  ignoreProject(
+    "/* v8 ignore next -- the pool error path needs a real broken socket [covered-by: invented-case] */\nexport const f = () => 1;\n",
+    1,
+  ), { pass: false, matching: /does not declare/ });
+
+expect("ignores: a population that grew past its pin fails", "ignore-registry.mjs",
+  ignoreProject(
+    "/* v8 ignore next -- the pool error path needs a real broken socket [covered-by: note-get-missing] */\nexport const f = () => 1;\n",
+    0,
+  ), { pass: false, matching: /pins 0/ });
+
+// --- external:verify ---------------------------------------------------------------
+// A record in docs/external/** is provenance for a remote object. Every field the
+// claim needs is required, and the emptiest one is the reason the gate exists:
+// affectedFiles=[] asserts "this object concerns nothing here".
+const RECORD = (over = "") => `---
+source: "confluence"
+id: "123"
+url: "https://acme.atlassian.net/wiki/pages/123"
+title: "Architecture"
+remoteVersion: 4
+remoteUpdatedAt: "2026-08-12T10:00:00Z"
+syncedAt: "2026-08-12T10:05:00Z"
+direction: "push"
+affectedFiles:
+  - "docs/ARCHITECTURE.md"
+${over}---
+
+Pushed from this repository.
+`;
+const externalProject = (record, over = {}) => ({
+  "docs/external/confluence/architecture.mdx": record,
+  "docs/ARCHITECTURE.md": "# Architecture\n",
+  ...over,
+});
+
+expect("external: a complete record passes", "external-verify.mjs", externalProject(RECORD()), { pass: true });
+
+expect("external: a record with no url fails", "external-verify.mjs",
+  externalProject(RECORD().replace('url: "https://acme.atlassian.net/wiki/pages/123"\n', "")),
+  { pass: false, matching: /missing required frontmatter "url"/ });
+
+expect("external: a url on the wrong host fails when the integration is configured", "external-verify.mjs",
+  externalProject(RECORD().replace("acme.atlassian.net", "evil.example.com"), {
+    ".proto-forge/config.json": {
+      integrations: { confluence: { enabled: false, baseUrl: "https://acme.atlassian.net" } },
+    },
+  }),
+  { pass: false, matching: /not the configured confluence host/ });
+
+expect("external: a non-ISO remoteUpdatedAt fails", "external-verify.mjs",
+  externalProject(RECORD().replace('remoteUpdatedAt: "2026-08-12T10:00:00Z"', 'remoteUpdatedAt: "yesterday"')),
+  { pass: false, matching: /not an ISO-8601 instant/ });
+
+expect("external: an affected file that does not exist fails", "external-verify.mjs",
+  externalProject(RECORD().replace('"docs/ARCHITECTURE.md"', '"docs/GONE.md"')),
+  { pass: false, matching: /does not exist/ });
+
+expect("external: an empty affectedFiles fails — it asserts the object concerns nothing", "external-verify.mjs",
+  externalProject(RECORD().replace('affectedFiles:\n  - "docs/ARCHITECTURE.md"\n', "affectedFiles: []\n")),
+  { pass: false, matching: /affects nothing/ });
+
+expect("external: a Confluence record without a remoteVersion fails", "external-verify.mjs",
+  externalProject(RECORD().replace("remoteVersion: 4\n", "")),
+  { pass: false, matching: /remoteVersion is required/ });
+
+// --- coverage:policy -------------------------------------------------------------
+// 100% is only meaningful while nobody lowers a threshold and nobody adds an
+// exclusion. A hook blocks both locally; this gate is the same promise in CI.
+const VITEST = (thresholds, exclude) => `export default {
+  test: {
+    coverage: {
+      exclude: [
+${exclude}
+      ],
+      thresholds: {
+${thresholds}
+      },
+    },
+  },
+};
+`;
+const GOOD_THRESHOLDS = '        "src/**": { statements: 100, branches: 100, functions: 100, lines: 100 },';
+const GOOD_EXCLUDE = '        // tests and their fixtures are not product code\n        "**/*.test.*",';
+
+expect("coverage: floors at 100 and reasoned exclusions pass", "coverage-policy.mjs", {
+  "vitest.config.ts": VITEST(GOOD_THRESHOLDS, GOOD_EXCLUDE),
+}, { pass: true });
+
+expect("coverage: a lowered threshold fails", "coverage-policy.mjs", {
+  "vitest.config.ts": VITEST('        "src/**": { statements: 100, branches: 85, functions: 100, lines: 100 },', GOOD_EXCLUDE),
+}, { pass: false, matching: /branches threshold is 85/ });
+
+expect("coverage: an exclusion outside the allow-list fails", "coverage-policy.mjs", {
+  "vitest.config.ts": VITEST(GOOD_THRESHOLDS, GOOD_EXCLUDE + '\n        // convenient\n        "src/application/**",'),
+}, { pass: false, matching: /not on the allow-list/ });
+
+expect("coverage: an allow-listed exclusion without its reason fails", "coverage-policy.mjs", {
+  "vitest.config.ts": VITEST(GOOD_THRESHOLDS, '        "**/*.test.*",'),
+}, { pass: false, matching: /no reason comment/ });
+
+// The tamper-guard must not be blinded by the tamper it guards against: a glob with a
+// character class contains "]", and a scan anchored on the FIRST "]" would truncate
+// there, letting every entry after it escape the allow-list unseen.
+expect("coverage: a character-class glob cannot truncate the exclude scan", "coverage-policy.mjs", {
+  "vitest.config.ts": VITEST(GOOD_THRESHOLDS, GOOD_EXCLUDE + '\n        // convenient\n        "src/[a-z]*/**",'),
+}, { pass: false, matching: /"src\/\[a-z\]\*\/\*\*" is not on the allow-list/ });
+
+// --- stub:scan ---------------------------------------------------------------
+expect("stub: clean production code passes", "stub-scan.mjs", {
+  "src/application/f.ts": "export const f = () => 1;\n",
+}, { pass: true });
+
+expect("stub: a banned marker in production code fails", "stub-scan.mjs", {
+  "src/application/f.ts": "// TODO: finish this\nexport const f = () => 1;\n",
+}, { pass: false, matching: /banned marker/ });
+
+expect("stub: 'not implemented' in production code fails", "stub-scan.mjs", {
+  "src/application/f.ts": 'export const f = () => {\n  throw new Error("not implemented");\n};\n',
+}, { pass: false, matching: /banned marker/ });
+
+expect("stub: mocking a first-party module fails", "stub-scan.mjs", {
+  "src/application/f.test.ts": 'vi.mock("../domain/note/repository.js");\n',
+}, { pass: false, matching: /first-party/ });
+
+expect("stub: pulling __fixtures__ into production code fails", "stub-scan.mjs", {
+  "src/application/f.ts": 'import { makeNote } from "./__fixtures__/note.js";\nexport const f = () => makeNote();\n',
+}, { pass: false, matching: /__fixtures__/ });
+
+expect("stub: a fixture built with defineFactory passes", "stub-scan.mjs", {
+  "src/domain/note/__fixtures__/note.ts":
+    'import { z } from "zod";\nimport { defineFactory } from "../../../test/factory.js";\n' +
+    'export const NoteSchema = z.object({ id: z.string() });\n' +
+    'export const makeNote = defineFactory(NoteSchema, (seq) => ({ id: String(seq) }));\n' +
+    'export type Note = z.output<typeof NoteSchema>;\n',
+}, { pass: true });
+
+expect("stub: a fixture exporting a bare literal fails", "stub-scan.mjs", {
+  "src/domain/note/__fixtures__/note.ts":
+    'export const notes = [{ id: "1", text: "hand-written" }];\n',
+}, { pass: false, matching: /defineFactory/ });
+
+// BR-21/NFR-12 have no eslint-disable escape hatch: a disable comment for a gated rule
+// is a shortcut marker, exactly like TODO.
+expect("stub: disabling a gated lint rule inline fails", "stub-scan.mjs", {
+  "src/application/f.ts": "// eslint-disable-next-line no-console\nexport const f = () => 1;\n",
+}, { pass: false, matching: /no escape hatch/ });
+
+expect("stub: a disable for an ungated rule is not this gate's business", "stub-scan.mjs", {
+  "src/application/f.ts": "// eslint-disable-next-line max-params\nexport const f = () => 1;\n",
+}, { pass: true });
+
+// --- adr:lint ----------------------------------------------------------------
+const adr = (num, status, extra = "") =>
+  `# ADR ${num}: A decision\n\n- Status: ${status}\n- Date: 2026-08-12\n${extra}\n## Context\n\nx\n`;
+const promptEntry = "---\nid: 0001\ntimestamp: 2026-08-12T00:00:00Z\nphase: 1\n---\n\n## Prompt\n\nx\n";
+
+expect("adr: an anchored, accepted, prompt-linked ADR passes", "adr-lint.mjs", {
+  "docs/adr/010-a-decision.md": adr("010", "accepted", "- Prompt-log: .prompts/0001-x.md\n"),
+  ".prompts/0001-x.md": promptEntry,
+  "src/domain/note/model.ts": "// @adr 010 - the note domain\nexport type Note = { id: string };\n",
+}, { pass: true });
+
+expect("adr: an anchor to an ADR that does not exist fails", "adr-lint.mjs", {
+  "src/domain/note/model.ts": "// @adr 777 - invented\nexport type Note = { id: string };\n",
+}, { pass: false, matching: /no ADR file/ });
+
+expect("adr: an anchor to a proposed ADR fails", "adr-lint.mjs", {
+  "docs/adr/010-a-decision.md": adr("010", "proposed", "- Prompt-log: .prompts/0001-x.md\n"),
+  ".prompts/0001-x.md": promptEntry,
+  "src/domain/note/model.ts": "// @adr 010 - the note domain\nexport type Note = { id: string };\n",
+}, { pass: false, matching: /proposed ADR/ });
+
+expect("adr: an accepted ADR nobody anchored fails", "adr-lint.mjs", {
+  "docs/adr/010-a-decision.md": adr("010", "accepted", "- Prompt-log: .prompts/0001-x.md\n"),
+  ".prompts/0001-x.md": promptEntry,
+  "src/domain/note/model.ts": "export type Note = { id: string };\n",
+}, { pass: false, matching: /never anchored/ });
+
+expect("adr: an accepted ADR with no prompt-log back-reference fails", "adr-lint.mjs", {
+  "docs/adr/010-a-decision.md": adr("010", "accepted"),
+  "src/domain/note/model.ts": "// @adr 010 - the note domain\nexport type Note = { id: string };\n",
+}, { pass: false, matching: /Prompt-log/ });
+
+expect("adr: a prompt-log reference pointing at nothing fails", "adr-lint.mjs", {
+  "docs/adr/010-a-decision.md": adr("010", "accepted", "- Prompt-log: .prompts/0009-absent.md\n"),
+  "src/domain/note/model.ts": "// @adr 010 - the note domain\nexport type Note = { id: string };\n",
+}, { pass: false, matching: /does not exist/ });
+
+// Two files sharing a number would shadow each other in every by-number lookup, and a
+// generator allocating "the low end of the band" next to a pre-written ADR is exactly
+// how it happens. An error, never last-write-wins.
+expect("adr: the same number on two files fails", "adr-lint.mjs", {
+  "docs/adr/010-a-decision.md": adr("010", "accepted", "- Prompt-log: .prompts/0001-x.md\n"),
+  "docs/adr/010-a-rival.md": adr("010", "accepted", "- Prompt-log: .prompts/0001-x.md\n"),
+  ".prompts/0001-x.md": promptEntry,
+  "src/domain/note/model.ts": "// @adr 010 - the note domain\nexport type Note = { id: string };\n",
+}, { pass: false, matching: /used twice/ });
+
+// --- prompt:lint -------------------------------------------------------------
+expect("prompt: well-formed, strictly increasing entries pass", "prompt-log-lint.mjs", {
+  ".prompts/0001-scaffold.md": promptEntry,
+  ".prompts/0002-brief.md": promptEntry.replace("id: 0001", "id: 0002"),
+}, { pass: true });
+
+expect("prompt: an empty log fails", "prompt-log-lint.mjs", {
+  "src/a.ts": "export const a = 1;\n",
+}, { pass: false, matching: /no prompt-log entries/ });
+
+expect("prompt: a filename that is not NNNN-slug.md fails", "prompt-log-lint.mjs", {
+  ".prompts/1-scaffold.md": promptEntry,
+}, { pass: false, matching: /NNNN-slug/ });
+
+expect("prompt: an id that disagrees with the filename fails", "prompt-log-lint.mjs", {
+  ".prompts/0001-scaffold.md": promptEntry.replace("id: 0001", "id: 0002"),
+}, { pass: false, matching: /!=/ });
+
+expect("prompt: an entry with no ## Prompt section fails", "prompt-log-lint.mjs", {
+  ".prompts/0001-scaffold.md": "---\nid: 0001\ntimestamp: 2026-08-12T00:00:00Z\nphase: 1\n---\n\n## Outcome\n\nx\n",
+}, { pass: false, matching: /## Prompt/ });
+
+// Two entries sharing a number is the only way to reach the ordering check:
+// ids are validated against the filename, and filenames sort ascending, so a
+// duplicated prefix is what a botched "append" actually looks like.
+expect("prompt: ids that do not strictly increase fail", "prompt-log-lint.mjs", {
+  ".prompts/0001-a.md": promptEntry,
+  ".prompts/0001-b.md": promptEntry,
+}, { pass: false, matching: /strictly increasing/ });
+
+// --- commit-lint ---------------------------------------------------------------
+// The message half is testable anywhere; the diff half (BR-06: one accepted ADR = one
+// commit, and the diff must agree with the trailer) needs real staged changes, so
+// `prepare` builds a throwaway git repository around the fixture files. HOME points
+// at the fixture so an operator's ~/.gitconfig cannot change the outcome.
+const stageAll = (dir) => {
+  const git = (...args) => spawnSync("git", args, { cwd: dir, env: { ...process.env, HOME: dir } });
+  git("init", "-q");
+  git("add", "-A");
+};
+const MSG_OK = "feat: accept the note domain decision\n\nADR: 010\nPrompt-Log: .prompts/0001-x.md\n";
+
+expect("commit: a trailer matching the one staged acceptance passes", "commit-lint.mjs", {
+  "msg.txt": MSG_OK,
+  "docs/adr/010-a-decision.md": adr("010", "accepted"),
+}, { pass: true, args: ["msg.txt"], prepare: stageAll });
+
+expect("commit: a non-conventional subject fails", "commit-lint.mjs", {
+  "msg.txt": "accepted some stuff\n\nADR: 010\nPrompt-Log: .prompts/0001-x.md\n",
+  "docs/adr/010-a-decision.md": adr("010", "accepted"),
+}, { pass: false, matching: /Conventional Commits/, args: ["msg.txt"], prepare: stageAll });
+
+expect("commit: staging two acceptances under one trailer fails", "commit-lint.mjs", {
+  "msg.txt": MSG_OK,
+  "docs/adr/010-a-decision.md": adr("010", "accepted"),
+  "docs/adr/011-a-rival.md": adr("011", "accepted"),
+}, { pass: false, matching: /one decision, one commit/, args: ["msg.txt"], prepare: stageAll });
+
+expect("commit: a trailer naming a different ADR than the diff accepts fails", "commit-lint.mjs", {
+  "msg.txt": "feat: accept the note domain decision\n\nADR: 011\nPrompt-Log: .prompts/0001-x.md\n",
+  "docs/adr/010-a-decision.md": adr("010", "accepted"),
+  "docs/adr/011-a-rival.md": adr("011", "proposed"),
+}, { pass: false, matching: /trailer names ADR 011 but the staged diff accepts ADR 010/, args: ["msg.txt"], prepare: stageAll });
+
+// --- consistency -------------------------------------------------------------
+const PROBLEMS_MIN = 'export const problems = {\n  "internal": { code: "internal", status: 500, title: "Unexpected failure" },\n} as const;\n';
+const consistencyBase = (over = {}) => ({
+  "src/config/env.ts": "const EnvSchema = z.object({});\nexport const env = EnvSchema.parse({});\n",
+  "src/platform/problems.ts": PROBLEMS_MIN,
+  "src/adapters/in/http/routes.ts": "export const routes = [] as const;\n",
+  ...over,
+});
+
+expect("consistency: one definition per single-source registry passes", "consistency.mjs", consistencyBase(), {
+  pass: true,
+});
+
+expect("consistency: a problem catalogue defined twice fails", "consistency.mjs", consistencyBase({
+  "src/application/problems.ts": "export const problems = {} as const;\n",
+}), { pass: false, matching: /defined 2x/ });
+
+expect("consistency: two accepted ADRs sharing a title fails", "consistency.mjs", consistencyBase({
+  "docs/adr/010-a.md": adr("010", "accepted"),
+  "docs/adr/011-b.md": adr("011", "accepted"),
+}), { pass: false, matching: /duplicate accepted ADR title/ });
+
+expect("consistency: a non-English script in code fails", "consistency.mjs", consistencyBase({
+  "src/application/f.ts": 'export const label = "Привет";\n',
+}), { pass: false, matching: /non-English/ });
+
+// BR-12's dead-weight corollary: a runtime dependency nothing imports ships attack
+// surface for no behaviour. Scoped to `dependencies` — devDependencies are wired
+// through configs and CLIs, where "is it used?" has no cheap mechanical answer.
+expect("consistency: a runtime dependency nothing imports fails", "consistency.mjs", consistencyBase({
+  "package.json": { dependencies: { "left-pad": "^1.3.0" } },
+}), { pass: false, matching: /"left-pad" is imported by nothing/ });
+
+expect("consistency: an imported runtime dependency passes", "consistency.mjs", consistencyBase({
+  "package.json": { dependencies: { zod: "^4.1.5" } },
+  "src/application/uses.ts": 'import { z } from "zod";\nexport const S = z.string();\n',
+}), { pass: true });
+
+// --- snapshot:diff -----------------------------------------------------------
+// The passing case needs a seed.lock holding a hash only the gate can compute, so
+// `prepare` writes the baseline the way an operator would. The seed here is TWO
+// trees hashed as one digest: the platform kernel and (in a real checkout) the
+// gate corpus.
+const snapshotBase = (over = {}) => ({
+  "package.json": { version: "0.1.0", scripts: { verify: "pnpm run lint && pnpm run test:unit" } },
+  "src/platform/logger.ts": 'import pino from "pino";\nexport const logger = pino();\n',
+  "src/domain/note/model.ts": "export type Note = { id: string };\n",
+  // The generated locks live here, and neither --write-seed nor --write creates
+  // the directory: a prototype always has it, because the template ships it.
+  ".proto-forge/config.json": { policy: "strict" },
+  ...over,
+});
+const writeBaseline = (dir) => {
+  run("snapshot-diff.mjs", dir, ["--write-seed"]);
+  run("snapshot-diff.mjs", dir, ["--write"]);
+};
+
+expect("snapshot: a tree matching its committed baseline passes", "snapshot-diff.mjs", snapshotBase(), {
+  pass: true,
+  prepare: writeBaseline,
+});
+
+expect("snapshot: a missing seed.lock fails", "snapshot-diff.mjs", snapshotBase(), {
+  pass: false,
+  matching: /seed\.lock missing/,
+});
+
+expect("snapshot: a vendored seed that differs from seed.lock fails", "snapshot-diff.mjs", snapshotBase({
+  ".proto-forge/seed.lock": {
+    seed: ["scripts", "src/platform"],
+    version: "0.1.0",
+    sha256: "0000000000000000000000000000000000000000000000000000000000000000",
+  },
+}), { pass: false, matching: /seed integrity/ });
+
+expect("snapshot: a file added after the baseline fails", "snapshot-diff.mjs", snapshotBase(), {
+  pass: false,
+  matching: /fileTree drifted/,
+  prepare: (dir) => {
+    writeBaseline(dir);
+    writeFileSync(join(dir, "src", "domain", "unexpected.ts"), "export const x = 1;\n");
+  },
+});
+
+expect("snapshot: a gate removed from verify after the baseline fails", "snapshot-diff.mjs", snapshotBase(), {
+  pass: false,
+  matching: /gates drifted/,
+  prepare: (dir) => {
+    writeBaseline(dir);
+    writeFileSync(
+      join(dir, "package.json"),
+      JSON.stringify({ version: "0.1.0", scripts: { verify: "pnpm run lint" } }, null, 2),
+    );
+  },
+});
+
+// --- sec:scan ----------------------------------------------------------------
+// Only the deterministic half is self-testable: that the secret scan cannot be
+// silently skipped in CI. `pnpm audit` needs a registry, so its behaviour is
+// asserted by CI running the real gate, not here — recorded in
+// references/requirements.md §19 rather than papered over.
+expect("security: the secret scan cannot be skipped in CI", "sec-scan.mjs", {}, {
+  pass: false,
+  matching: /mandatory/,
+  env: { CI: "1", PATH: "" },
+});
+
+// --- arch:verify (BR-21) -----------------------------------------------------
+// The style is a pure function of the facets (T15-T17): the record, the lint
+// profile and the actual imports all have to agree with the derivation.
+const FACETS_LAYERED = {
+  facetsVersion: 2,
+  entities: [{ name: "Note", fields: [{ name: "text", type: "string", required: true }] }],
+  flows: [{ name: "manage-notes", actor: "user", steps: ["list notes", "create a note", "delete a note"] }],
+  roles: ["user"],
+  persistence: "api",
+  locales: ["en"],
+  nonFunctional: { offlineCapable: false, realtime: false },
+  backend: { stack: "node", externalSystems: [], persistence: "postgres", messaging: "none", authModel: "none" },
+};
+const ARCH_LAYERED = { style: "layered", inputs: { E: 1, X: 0, C: 1, flags: { messaging: "none", realtime: false } } };
+const HEX_SYSTEMS = [
+  { name: "Billing", kind: "rest", direction: "outbound" },
+  { name: "Mailer", kind: "email", direction: "outbound" },
+  { name: "Ledger", kind: "rest", direction: "outbound" },
+];
+const FACETS_HEX = { ...FACETS_LAYERED, backend: { ...FACETS_LAYERED.backend, externalSystems: HEX_SYSTEMS } };
+const ARCH_HEX = { style: "hexagonal", inputs: { E: 1, X: 3, C: 1, flags: { messaging: "none", realtime: false } } };
+// A stand-in with the live config's load-bearing properties: it reads the record
+// and defines an edge table per style — which is exactly what the gate asserts.
+const ESLINT_STUB = `import { readFileSync } from "node:fs";
+const architecture = JSON.parse(readFileSync(".proto-forge/architecture.json", "utf8"));
+const EDGES = {
+  layered: [],
+  modular: [],
+  hexagonal: [],
+};
+export default EDGES[architecture.style];
+`;
+const archBase = (over = {}) => ({
+  ".proto-forge/facets.json": FACETS_LAYERED,
+  ".proto-forge/architecture.json": ARCH_LAYERED,
+  "eslint.config.js": ESLINT_STUB,
+  "src/domain/note/model.ts": 'import { z } from "zod";\nexport const NoteSchema = z.object({ id: z.string() });\n',
+  "src/application/notes.ts": 'import { NoteSchema } from "../domain/note/model.js";\nexport const create = () => NoteSchema;\n',
+  "src/adapters/in/http/routes.ts": 'import { create } from "../../../application/notes.js";\nexport const routes = [create];\n',
+  ...over,
+});
+
+expect("arch: the derived style matching architecture.json passes", "arch-verify.mjs", archBase(), { pass: true });
+
+expect("arch: a domain module importing a framework fails", "arch-verify.mjs", archBase({
+  "src/domain/note/model.ts": 'import fastify from "fastify";\nexport const x = fastify;\n',
+}), { pass: false, matching: /framework-free/ });
+
+expect("arch: an adapter importing another adapter's internals fails", "arch-verify.mjs", archBase({
+  ".proto-forge/facets.json": FACETS_HEX,
+  ".proto-forge/architecture.json": ARCH_HEX,
+  "src/adapters/out/persistence/db.ts": "export const db = {};\n",
+  "src/adapters/in/http/handler.ts": 'import { db } from "../../out/persistence/db.js";\nexport const h = db;\n',
+}), { pass: false, matching: /does not allow that edge/ });
+
+expect("arch: a profile disagreeing with the derived style fails", "arch-verify.mjs", archBase({
+  ".proto-forge/facets.json": FACETS_HEX,
+}), { pass: false, matching: /derive "hexagonal"/ });
+
+// A missing derivation input is not a pass by absence.
+expect("arch: missing facets.json fails as underivable", "arch-verify.mjs", archBase({
+  ".proto-forge/facets.json": undefined,
+}), { pass: false, matching: /derivation has no input/ });
+
+// --- contract:verify (BR-22) -------------------------------------------------
+// Fixtures run without pnpm or tsx: PROTO_FORGE_CONTRACT_EMIT names a plain .mjs
+// emitter, printing the same canonical JSON the real emitter derives from the
+// route registry.
+const SPEC_JSON = JSON.stringify(
+  {
+    openapi: "3.1.0",
+    info: { title: "notes", version: "1.0.0" },
+    paths: { "/notes": { get: { operationId: "note-list", responses: { 200: { description: "ok" } } } } },
+  },
+  null,
+  2,
+) + "\n";
+const sha256 = (text) => createHash("sha256").update(text).digest("hex");
+const emitter = (body) => `process.stdout.write(${JSON.stringify(body)});\n`;
+const contractBase = (over = {}) => ({
+  "contract/openapi.json": SPEC_JSON,
+  "contract/contract.lock": { sha256: sha256(SPEC_JSON), contractVersion: "1.0.0" },
+  "emit.mjs": emitter(SPEC_JSON),
+  ...over,
+});
+const emitEnv = { PROTO_FORGE_CONTRACT_EMIT: "emit.mjs" };
+
+expect("contract: a committed spec matching the regeneration passes", "contract-verify.mjs", contractBase(), {
+  pass: true,
+  env: emitEnv,
+});
+
+expect("contract: code drift from the committed spec fails", "contract-verify.mjs", contractBase({
+  "emit.mjs": emitter(SPEC_JSON.replace('"version": "1.0.0"', '"version": "1.1.0"')),
+}), { pass: false, matching: /code drift from the committed spec/, env: emitEnv });
+
+expect("contract: a stale contract.lock fails", "contract-verify.mjs", contractBase({
+  "contract/contract.lock": {
+    sha256: "0000000000000000000000000000000000000000000000000000000000000000",
+    contractVersion: "1.0.0",
+  },
+}), { pass: false, matching: /stale contract\.lock/, env: emitEnv });
+
+// --- contract:breaking (BR-22) -----------------------------------------------
+const RELEASED = {
+  openapi: "3.1.0",
+  info: { title: "notes", version: "1.0.0" },
+  paths: {
+    "/notes": { get: { operationId: "note-list", responses: { 200: { description: "ok" } } } },
+    "/notes/{id}": { get: { operationId: "note-get", responses: { 200: { description: "ok" } } } },
+  },
+};
+const CURRENT_BREAKING = {
+  ...RELEASED,
+  paths: { "/notes": RELEASED.paths["/notes"] },
+};
+const CURRENT_ADDITIVE = {
+  ...RELEASED,
+  paths: {
+    ...RELEASED.paths,
+    "/health": { get: { operationId: "health-check", responses: { 200: { description: "ok" } } } },
+  },
+};
+
+expect("contract: a breaking change without a major bump fails", "contract-breaking.mjs", {
+  "contract/released/openapi.json": RELEASED,
+  "contract/openapi.json": CURRENT_BREAKING,
+  "contract/contract.lock": { sha256: "x", contractVersion: "1.1.0" },
+}, { pass: false, matching: /a breaking change needs a contract major bump plus an ADR/ });
+
+expect("contract: an additive change without a bump passes", "contract-breaking.mjs", {
+  "contract/released/openapi.json": RELEASED,
+  "contract/openapi.json": CURRENT_ADDITIVE,
+  "contract/contract.lock": { sha256: "x", contractVersion: "1.1.0" },
+}, { pass: true });
+
+expect("contract: a breaking change under a major bump passes", "contract-breaking.mjs", {
+  "contract/released/openapi.json": RELEASED,
+  "contract/openapi.json": CURRENT_BREAKING,
+  "contract/contract.lock": { sha256: "x", contractVersion: "2.0.0" },
+}, { pass: true, matching: /covered by a contract major bump/ });
+
+expect("contract: no released baseline is a first-release pass", "contract-breaking.mjs", {
+  "contract/openapi.json": CURRENT_ADDITIVE,
+}, { pass: true, matching: /no released baseline yet/ });
+
+// --- error:catalog (BR-23) ---------------------------------------------------
+const catalogue = (entries) => `export const problems = {\n${entries}\n} as const;\n`;
+const GOOD_ENTRIES = `  "validation-failed": { code: "validation-failed", status: 400, title: "The request does not match the schema" },
+  "internal": { code: "internal", status: 500, title: "Unexpected failure" },
+  "note-not-found": { code: "note-not-found", status: 404, title: "No note exists under this id" },`;
+const errorsBase = (over = {}) => ({
+  "src/platform/problems.ts": catalogue(GOOD_ENTRIES),
+  "src/application/notes.ts":
+    'import { AppProblem } from "../platform/problems.js";\nexport const get = () => {\n  throw new AppProblem("note-not-found");\n};\n',
+  "src/adapters/in/http/noteRoutes.ts":
+    'export const noteRoutes = [\n  { operationId: "note-get", path: "/notes/:id", problems: ["validation-failed", "note-not-found"] },\n];\n',
+  "docs/api/problems.md": "# Problem catalogue\n\nvalidation-failed, internal, note-not-found — each is an RFC 9457 problem type.\n",
+  ...over,
+});
+
+expect("errors: a registered problem type passes", "error-catalog.mjs", errorsBase(), { pass: true });
+
+expect("errors: an unregistered error shape fails", "error-catalog.mjs", errorsBase({
+  "src/application/notes.ts":
+    'import { AppProblem } from "../platform/problems.js";\nexport const get = () => {\n  throw new AppProblem("ghost-error");\n};\n',
+}), { pass: false, matching: /unregistered error shape/ });
+
+expect("errors: a duplicate problem code fails", "error-catalog.mjs", errorsBase({
+  "src/platform/problems.ts": catalogue(
+    GOOD_ENTRIES + '\n  "note-not-found": { code: "note-not-found", status: 404, title: "A second registration" },',
+  ),
+}), { pass: false, matching: /duplicate problem code/ });
+
+expect("errors: a stale catalogue entry fails", "error-catalog.mjs", errorsBase({
+  "src/platform/problems.ts": catalogue(
+    GOOD_ENTRIES + '\n  "unused-thing": { code: "unused-thing", status: 410, title: "Nothing can emit this" },',
+  ),
+  "docs/api/problems.md": "# Problem catalogue\n\nvalidation-failed, internal, note-not-found, unused-thing.\n",
+}), { pass: false, matching: /stale catalogue entry/ });
+
+// --- opid:scan (BR-25) -------------------------------------------------------
+const opidBase = (over = {}) => ({
+  "src/adapters/in/http/routes.ts":
+    'export const routes = [\n  { operationId: "note-list", path: "/notes", problems: [] },\n  { operationId: "note-create", path: "/notes", problems: [] },\n];\n',
+  "src/adapters/in/http/app.ts":
+    'import { routes } from "./routes.js";\nexport const build = (app) => {\n  for (const r of routes) app.route({ ...r });\n};\n',
+  ...over,
+});
+
+expect("opid: unique deterministic operation ids pass", "opid-scan.mjs", opidBase(), { pass: true });
+
+expect("opid: a duplicate operation id fails", "opid-scan.mjs", opidBase({
+  "src/adapters/in/http/routes.ts":
+    'export const routes = [\n  { operationId: "note-list", path: "/notes", problems: [] },\n  { operationId: "note-list", path: "/notes/all", problems: [] },\n];\n',
+}), { pass: false, matching: /declared twice/ });
+
+expect("opid: a route path literal outside the registry fails", "opid-scan.mjs", opidBase({
+  "src/application/sneaky.ts": 'export const wire = (app) => app.get("/notes", () => []);\n',
+}), { pass: false, matching: /route path literal outside the registry/ });
+
+expect("opid: an id without a resource-verb hyphen fails", "opid-scan.mjs", opidBase({
+  "src/adapters/in/http/routes.ts":
+    'export const routes = [\n  { operationId: "notes", path: "/notes", problems: [] },\n];\n',
+}), { pass: false, matching: /kebab-case/ });
+
+// --- migration:verify (BR-24) ------------------------------------------------
+const MIG_SQL = "CREATE TABLE notes (\n  id uuid PRIMARY KEY,\n  text text NOT NULL\n);\n";
+const DB_TS =
+  'import { pgTable, text, uuid } from "drizzle-orm/pg-core";\n' +
+  'export const notes = pgTable("notes", {\n  id: uuid("id").primaryKey(),\n  text: text("text").notNull(),\n});\n';
+const migrationBase = (over = {}) => ({
+  "db/migrations/0001_create-notes.sql": MIG_SQL,
+  "src/adapters/out/persistence/db.ts": DB_TS,
+  ...over,
+});
+const writeLedger = (dir) => run("migration-verify.mjs", dir, ["--write"]);
+
+expect("migrations: an append-only history passes", "migration-verify.mjs", migrationBase(), {
+  pass: true,
+  prepare: writeLedger,
+});
+
+expect("migrations: a rewritten migration fails", "migration-verify.mjs", migrationBase(), {
+  pass: false,
+  matching: /a rewritten migration/,
+  prepare: (dir) => {
+    writeLedger(dir);
+    writeFileSync(join(dir, "db", "migrations", "0001_create-notes.sql"), MIG_SQL.replace("text NOT NULL", "text"));
+  },
+});
+
+expect("migrations: a model the migrations do not produce fails", "migration-verify.mjs", migrationBase({
+  "src/adapters/out/persistence/db.ts":
+    DB_TS + 'export const ghosts = pgTable("ghosts", {\n  id: uuid("id").primaryKey(),\n});\n',
+}), { pass: false, matching: /a model the migrations do not produce/, prepare: writeLedger });
+
+expect("migrations: a destructive statement without an ADR marker fails", "migration-verify.mjs", migrationBase({
+  "db/migrations/0002_drop-notes.sql": "DROP TABLE notes;\n",
+}), { pass: false, matching: /@adr/, prepare: writeLedger });
+
+// --- docs:verify + docs:examples (BR-26) -------------------------------------
+// The capture seam: PROTO_FORGE_CAPTURE names a plain .mjs stand-in for the tsx
+// capture harness. docs-examples runs it, then pins the handler-source hash.
+const DOCS_PROSE =
+  "The note-list operation returns every note, newest first. Errors are problem+json from the registered catalogue, and the capture below is replayed by the conformance suite. ".repeat(2);
+const CAPTURE_MJS = `import { mkdirSync, writeFileSync } from "node:fs";
+mkdirSync("docs/api/note-list/examples", { recursive: true });
+writeFileSync(
+  "docs/api/note-list/examples/note-list.json",
+  JSON.stringify({ request: { method: "GET", path: "/notes" }, response: { status: 200, body: [] } }, null, 2) + "\\n",
+);
+`;
+const docsBase = (over = {}) => ({
+  "src/adapters/in/http/routes.ts": 'export const routes = [{ operationId: "note-list", path: "/notes", problems: [] }];\n',
+  "src/application/notes.ts": "export const list = () => [];\n",
+  "docs/api/note-list/README.md": `# note-list\n\n${DOCS_PROSE}\n`,
+  "docs/api/problems.md": `# Problem catalogue\n\n${DOCS_PROSE}\n`,
+  "capture.mjs": CAPTURE_MJS,
+  ...over,
+});
+const captureExamples = (dir) => run("docs-examples.mjs", dir, [], { PROTO_FORGE_CAPTURE: "capture.mjs" });
+
+expect("docs: an endpoint with a current captured example passes", "docs-verify.mjs", docsBase(), {
+  pass: true,
+  prepare: captureExamples,
+});
+
+expect("docs: a handler edit invalidates its example until docs:examples reruns", "docs-verify.mjs", docsBase(), {
+  pass: false,
+  matching: /examples are stale/,
+  prepare: (dir) => {
+    captureExamples(dir);
+    writeFileSync(join(dir, "src", "application", "notes.ts"), "export const list = () => [1];\n");
+  },
+});
+
+expect("docs: an endpoint with no example and no stated reason fails", "docs-verify.mjs", docsBase(), {
+  pass: false,
+  matching: /no captured example and no stated reason/,
+});
+
+expect("docs: a stated no-example reason stands in for a capture", "docs-verify.mjs", docsBase({
+  "docs/api/note-list/README.md": `# note-list\n\n${DOCS_PROSE}\n\n<!-- no-example: a health probe has no meaningful exchange to capture -->\n`,
+}), { pass: true });
+
+// --- deps:budget (NFR-13) ----------------------------------------------------
+expect("deps: a runtime dependency set under the ceiling passes", "deps-budget.mjs", {
+  "package.json": { dependencies: { fastify: "^5.4.0", zod: "^4.1.5" } },
+}, { pass: true });
+
+expect("deps: a dependency past the ceiling fails without an ADR", "deps-budget.mjs", {
+  "package.json": { dependencies: { fastify: "^5.4.0", zod: "^4.1.5", express: "^4.19.0" } },
+}, { pass: false, matching: /a new runtime dependency is an ADR/ });
+
+// --- log:scan (NFR-12) -------------------------------------------------------
+const logBase = (over = {}) => ({
+  "src/platform/logger.ts": 'import pino from "pino";\nexport const logger = pino();\n',
+  "src/application/notes.ts":
+    'import { logger } from "../platform/logger.js";\nexport const create = (noteId) => logger.info({ noteId }, "note created");\n',
+  ...over,
+});
+
+expect("logs: structured logger calls pass", "log-scan.mjs", logBase(), { pass: true });
+
+expect("logs: a bare console/print in production code fails", "log-scan.mjs", logBase({
+  "src/application/notes.ts": `export const create = () => ${CONSOLE_CALL}"note created");\n`,
+}), { pass: false, matching: /bare console/ });
+
+expect("logs: a PII field name in a log call fails", "log-scan.mjs", logBase({
+  "src/application/notes.ts":
+    'import { logger } from "../platform/logger.js";\nexport const login = (password) => logger.info({ password }, "login attempt");\n',
+}), { pass: false, matching: /PII field name/ });
+
+expect("logs: pino imported outside the kernel fails", "log-scan.mjs", logBase({
+  "src/application/notes.ts": 'import pino from "pino";\nexport const logger = pino();\n',
+}), { pass: false, matching: /outside src\/platform/ });
+
+if (results.length) fail(`gates:selftest FAILED (${results.length})`, results);
+ok("gates:selftest: every gate, guardrail and converter rejects what it claims to reject");
