@@ -1,0 +1,24 @@
+{
+  "$comment": "The unit inventory (D1) — derived by fixed rules from the pinned sources; its sha256 is the discovery identity (discoveryHash). This shipped entry is the SAMPLE the intake step (D0) deletes, kept so the template verifies itself exactly like the main template's demo.",
+  "version": 1,
+  "units": [
+    {
+      "id": "sample-screen",
+      "kind": "screen",
+      "order": 1,
+      "sources": [
+        {
+          "type": "figma",
+          "fileKey": "SAMPLEFILEKEY123",
+          "nodeId": "1:2",
+          "fileVersion": "2000000000"
+        },
+        {
+          "type": "brief",
+          "path": ".inputs/brief.md",
+          "sha256": "d5809352fe7cbba41792440ca9809e9c1a8a7365fa0b8b09b4bc455aa56040a0"
+        }
+      ]
+    }
+  ]
+}

@@ -229,6 +229,39 @@ expect("citations: a restricted enforcer is not demanded outside its restriction
       'expect("lint: a case that exists", "x.mjs", {}, { pass: false });\nexpect("web: a web case", "x.mjs", {}, { pass: false });\n',
   }), { pass: true });
 
+// --- the discovery skill's citation namespaces (ADR 008) ------------------------
+// D-rows come from the discovery table, Q-ids from the questions register, both
+// matched in .md files only and both guarded: a fixture without the files (every
+// case above) simply has no D/Q namespace to violate.
+
+const DISCOVERY_TABLE = `# Discovery decision table
+
+| # | WHEN | THEN |
+| --- | --- | --- |
+| D1 | Sources ingested | Derive units |
+| D3 | Documents green | Regenerate the bridge |
+`;
+const QUESTIONS = { version: 1, questions: [{ id: "Q1" }, { id: "Q3" }] };
+
+expect("citations: resolving D-row and Q-id citations pass", "citations.mjs",
+  files({
+    "skills/discovery/references/discovery-table.md": DISCOVERY_TABLE,
+    "skills/discovery/template/.discovery/questions.json": QUESTIONS,
+    "SKILL.md": "Applies BR-01 per T1 and BRS §1. Units derive per D1; the walk asks Q1.\n",
+  }), { pass: true });
+
+expect("citations: a D-row citation with no table row fails", "citations.mjs",
+  files({
+    "skills/discovery/references/discovery-table.md": DISCOVERY_TABLE,
+    "SKILL.md": "Applies BR-01 per T1 and BRS §1. Derivation follows D2.\n",
+  }), { pass: false, matching: /D2/ });
+
+expect("citations: a Q-id citation the questions register does not define fails", "citations.mjs",
+  files({
+    "skills/discovery/template/.discovery/questions.json": QUESTIONS,
+    "SKILL.md": "Applies BR-01 per T1 and BRS §1. The walk asks Q2.\n",
+  }), { pass: false, matching: /Q2/ });
+
 expect("citations: a prose parenthetical after an enforcer narrows nothing", "citations.mjs",
   twoTemplates({
     "references/requirements.md": register(`### BR-01 — A rule that exists

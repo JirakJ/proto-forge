@@ -1,0 +1,9 @@
+{
+  "images/sample-list.png": {
+    "fileKey": "SAMPLEFILEKEY123",
+    "nodeId": "1:5",
+    "fileVersion": "2000000000",
+    "sha256": "cec1460b276a54e06f64599af3b08efebab3d501a9d11b527479b6cc9be41162",
+    "capturedAt": "2026-08-13T00:00:00Z"
+  }
+}

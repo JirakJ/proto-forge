@@ -771,6 +771,89 @@ artefact swapped: a picture of an API is a captured exchange.
   "docs: an endpoint with no example and no stated reason fails"
 - **Decided in:** ADR 009 (prototype namespace)
 
+### BR-30 — Every discovery gap names its element, its evidence and its default
+
+**MUST.** Every row of a discovery gap table names an element the document's Elements
+table lists, cites a Q-id the questions register defines, carries non-empty Evidence —
+what the pinned sources show, or the evidence of absence — and carries a non-empty
+Proposed default stating what will be assumed until the Answer cell overrides it.
+
+- **Why:** A gap that names no element is a vague worry nobody can act on; a
+  classification citing no evidence is a guess wearing a table row; and an open
+  question with no stated default means the builder will pick one silently anyway —
+  this rule makes the pick visible and reviewable instead.
+- **Scope:** plugin
+- **Enforced by:** `discovery:lint`
+- **Proven by:** `pnpm selftest` → "discovery: a gap naming an element the document
+  does not list fails", "discovery: empty evidence fails", "discovery: an empty
+  proposed default fails", "discovery: a gap citing an unknown Q-id fails"
+- **Decided in:** ADR 008 (plugin namespace)
+
+### BR-31 — Discovery testids are allocated deterministically and honored downstream
+
+**MUST.** Discovery reserves every element's `data-testid` by the fixed derivation in
+the discovery skill's `references/testid-derivation.md` — the grammar
+`^[a-z0-9]+(-[a-z0-9]+)*$`, byte-identical to BR-02's — unique across every document
+of the run. The bridge's `testids[]` are **reservations**: the main skill's Phase 4
+uses them verbatim for the elements discovery inventoried, and derives fresh names
+around them for new elements.
+
+- **Why:** The point of allocating testids before code exists is that tests, docs and
+  Figma discussions can address elements by name from day one — which only holds if
+  the generated code later answers to those names instead of inventing its own.
+- **Scope:** plugin
+- **Enforced by:** `discovery:lint` (grammar and cross-document uniqueness)
+- **Limit, stated:** the lint proves the grammar and uniqueness halves. That a
+  reserved name equals the derivation of its Figma layer name, and that Phase 4
+  honors the reservation, cannot be gated offline — replaying the derivation needs
+  the Figma tree, which verify never has — so both halves are review-verified, in
+  the spirit of §19.6.
+- **Proven by:** `pnpm selftest` → "discovery: a non-kebab testid fails",
+  "discovery: a testid duplicated across documents fails"
+- **Decided in:** ADR 008 (plugin namespace)
+
+### BR-32 — Every discovery document pins its sources
+
+**MUST.** A discovery document's frontmatter names every source it was derived from,
+with the pin its type requires: figma sources carry `fileKey` + `nodeId` +
+`fileVersion`; brief sources carry `path` + a 64-hex `sha256`; confluence sources
+carry `pageId` + `version` + `url`. Every referenced image exists on disk and matches
+the sha256 its `images.lock` records; an element without an image states why in a
+`<!-- no-image: reason -->` of substance.
+
+- **Why:** A gap analysis is an argument from evidence, and evidence that cannot be
+  located is not evidence. Figma moves under the analysis — only a recorded
+  `fileVersion` and image hash make "what was seen" a fact rather than a memory
+  (BR-19's screenshot discipline, with the design file as the subject).
+- **Scope:** plugin
+- **Enforced by:** `discovery:lint`
+- **Proven by:** `pnpm selftest` → "discovery: a figma source with no fileVersion pin
+  fails", "discovery: an image the document references but the disk lacks fails",
+  "discovery: an image whose bytes disagree with images.lock fails", "discovery: a
+  bare — image cell without a stated reason fails"
+- **Decided in:** ADR 008 (plugin namespace)
+
+### BR-33 — The bridge is regenerated from the documents and never disagrees with them
+
+**MUST.** `discovery.json` is a one-directional derivation of the discovery documents:
+its `discoveryHash` equals the sha256 of `inventory.json` as committed, and its
+`units[]`, `testids[]` and `gaps[]` equal what the documents yield — same units and
+kinds, same recomputed `gapsOpen`/`gapsTotal`, `status: answered` exactly when every
+Answer cell is filled, same reservations, same rows. Editing the bridge by hand, or
+editing a document without regenerating the bridge, is a failure.
+
+- **Why:** The bridge is what the main skill ingests; the documents are what the
+  customer signs off. If the two can disagree, the customer approved one thing and
+  the generator built another — the exact drift BR-22 bans between code and contract,
+  here between analysis and ingestion.
+- **Scope:** plugin
+- **Enforced by:** `discovery:lint`
+- **Proven by:** `pnpm selftest` → "discovery: a bridge that disagrees with its
+  documents fails", "discovery: frontmatter counts disagreeing with the gap table
+  fail", "discovery: status answered with an empty Answer cell fails", "discovery: a
+  unit in the inventory with no document fails"
+- **Decided in:** ADR 008 (plugin namespace)
+
 ### NFR-02 — No heavy runtime UI dependency
 
 **MUST.** The prototype ships no component-framework runtime beyond React. The owned
@@ -1181,6 +1264,42 @@ Backend gate selftests are two-tier: **Tier 1** fixture-directory cases run insi
 `pnpm verify` (seconds, no JVM/pip); **Tier 2** (`gates:selftest:native`) builds real
 throwaway Gradle/pytest projects and runs in CI only — the `verify-template`
 precedent, recorded per stack in §19.
+
+## §22 Requirements discovery
+
+`Scope: plugin` for this section.
+
+This section binds the discovery skill (`skills/discovery/`) and **every discovery
+output**: the directory a run writes next to a brief, or `docs/discovery/` inside a
+generated repo. A **conforming discovery run** is one where the copied
+`.discovery/lint.mjs` exits 0 over the output directory; the plugin itself conforms
+when the same implementation exits 0 over the shipped sample — that is the root
+`discovery:lint` gate, part of `pnpm verify`. The rules are BR-30 through BR-33; the
+deterministic core is the discovery skill's `references/discovery-table.md` (rows
+D1–D9, the discovery analogue of §11's decision table), and the fixed question
+taxonomy is `.discovery/questions.json` (Q1–Q24) — both are citation namespaces
+`scripts/citations.mjs` resolves, so a prose reference to a row or question that
+does not exist fails the build.
+
+**Determinism, with its limits stated honestly.** Pinned — same sources yield the
+same values: the unit tree and unit ids, their order, the testid reservations, the
+question walk and its answered/gap/omitted classification, the table shapes, and the
+counts. Not pinned: the prose inside SPIN and DAPA sections, which varies between
+runs exactly as §8 allows for titles and comments. Figma bytes are pinned **by
+record, not by reproduction**: `images.lock` fixes what was captured
+(fileKey, nodeId, fileVersion, sha256); nobody claims Figma would render the same
+pixels twice. Discovery documents are always English, whatever the brief's language
+— an operator decision recorded in ADR 008 (plugin namespace).
+
+**Timestamps are provenance, never inputs.** `capturedAt` in `images.lock` records
+when a capture happened; no discovery gate reads the clock, so a re-run's verdict
+cannot depend on the day it runs.
+
+**The bridge does not touch brief identity.** `discovery.json` seeds Phase 0's
+facet normalization and reserves Phase 4's testids, but the facet hash and BR-14
+are untouched: the brief wins every conflict, a conflict the brief does not settle
+escalates, and discovery provenance lives in the prompt log
+(`.prompts/0003-discovery.md`), never in the identity.
 
 ## §19 Reconstruction notes
 
