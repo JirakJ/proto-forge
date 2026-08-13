@@ -210,4 +210,36 @@ expect("citations: a registry entry without a package.json fails", "citations.mj
   files({ "references/templates.json": TWO_TEMPLATES }),
   { pass: false, matching: /api-x/ });
 
+// A parenthetical after an enforcer narrows it to a subset of the rule's scope:
+// an all-scoped rule may name a web-only gate `(web)` without demanding it in
+// backend templates — while prose parentheticals narrow nothing.
+expect("citations: a restricted enforcer is not demanded outside its restriction", "citations.mjs",
+  twoTemplates({
+    "references/requirements.md": register(`### BR-01 — A rule that exists
+
+**MUST.** Something is required.
+
+- **Why:** because.
+- **Scope:** all
+- **Enforced by:** \`lint\`, \`layer:scan\` (web)
+- **Proven by:** \`gates:selftest\` → "lint: a case that exists", "web: a web case" (web)
+`),
+    "templates/web/package.json": { scripts: { lint: "eslint .", "layer:scan": "node x.mjs" } },
+    "templates/web/scripts/gates-selftest.mjs":
+      'expect("lint: a case that exists", "x.mjs", {}, { pass: false });\nexpect("web: a web case", "x.mjs", {}, { pass: false });\n',
+  }), { pass: true });
+
+expect("citations: a prose parenthetical after an enforcer narrows nothing", "citations.mjs",
+  twoTemplates({
+    "references/requirements.md": register(`### BR-01 — A rule that exists
+
+**MUST.** Something is required.
+
+- **Why:** because.
+- **Scope:** all
+- **Enforced by:** \`missing:gate\` (the gate that should exist everywhere)
+- **Proven by:** \`gates:selftest\` → "lint: a case that exists"
+`),
+  }), { pass: false, matching: /missing:gate/ });
+
 report();

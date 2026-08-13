@@ -1076,9 +1076,14 @@ Migrations are **append-only** (BR-24): the migrations directory is history, and
 rewritten or deleted migration fails exactly as a rewritten prompt-log entry does.
 The schema derivable from the migrations must agree with the ORM/model layer, checked
 per stack (drizzle-kit diff / `flyway validate` + `ddl-auto=validate` / Alembic
-autogenerate-empty). Persistence tests run against a **real database** via
-Testcontainers — an in-memory reimplementation of Postgres is a mock of a first-party
-boundary and is banned by BR-12's reasoning.
+autogenerate-empty). Persistence tests run against a **real Postgres engine** — an
+in-memory reimplementation of Postgres is a mock of a first-party boundary and is
+banned by BR-12's reasoning. At verify time the engine is in-process (PGlite for
+node — actual Postgres compiled to WASM, running the shipped migrations), so `pnpm
+verify` stays offline and Docker-free on every machine; deployments speak to a served
+PostgreSQL through the same adapter, with only the injected driver differing. Where a
+stack has no in-process engine, the real-database tier is Testcontainers in CI,
+recorded per stack in §19.
 
 ## §16 Backend security baseline
 

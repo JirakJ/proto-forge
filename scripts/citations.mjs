@@ -172,23 +172,46 @@ const bullet = (block, label) => new RegExp(`^- \\*\\*${label}:\\*\\*([\\s\\S]*?
 const backticked = (text) => [...(text ?? "").matchAll(/`([^`]+)`/g)].map((m) => m[1]);
 const SCRIPT_SHAPED = /^[a-z][a-z0-9]*(:[a-z][a-z0-9-]*)*$/;
 
+/** Scope tokens (all | frontend | backend | <template id>) resolved to ids.
+ *  Returns null when any token is unrecognized — the caller decides whether that
+ *  is an error (a Scope bullet) or prose (a parenthetical after an enforcer). */
+function resolveScopeTokens(tokens) {
+  const ids = new Set();
+  for (const token of tokens) {
+    if (token === "all") for (const t of TEMPLATES) ids.add(t.id);
+    else if (token === "frontend" || token === "backend") {
+      for (const t of TEMPLATES) if (t.kind === token) ids.add(t.id);
+    } else if (templateIds.has(token)) ids.add(token);
+    else return null;
+  }
+  return [...ids];
+}
+
 /** A rule's `- **Scope:**` bullet resolved to the template ids it binds.
  *  Absent = web (the pre-registry corpus keeps its meaning); `plugin` = none —
  *  the rule is enforced by root package.json scripts alone. */
 function scopeTemplates(block, id) {
   const raw = bullet(block, "Scope");
   if (raw === undefined) return ["web"];
-  const tokens = raw.trim().split(/\s*[,|]\s*/).map((s) => s.trim()).filter(Boolean);
-  const ids = new Set();
-  for (const token of tokens) {
-    if (token === "plugin") continue;
-    if (token === "all") for (const t of TEMPLATES) ids.add(t.id);
-    else if (token === "frontend" || token === "backend") {
-      for (const t of TEMPLATES) if (t.kind === token) ids.add(t.id);
-    } else if (templateIds.has(token)) ids.add(token);
-    else errors.push(`${REGISTER}: ${id} has scope "${token}", which names no template, kind or "plugin"/"all"`);
+  const tokens = raw.trim().split(/\s*[,|]\s*/).map((s) => s.trim()).filter(Boolean)
+    .filter((t) => t !== "plugin");
+  const ids = resolveScopeTokens(tokens);
+  if (ids === null) {
+    errors.push(`${REGISTER}: ${id} has a scope token in "${raw.trim()}" naming no template, kind or "plugin"/"all"`);
+    return [];
   }
-  return [...ids];
+  return ids;
+}
+
+/** A parenthetical right after an enforcer token or a proven-by case narrows it to
+ *  a subset of the rule's scope: `layer:scan` (web) in an all-scoped rule demands
+ *  layer:scan only in web. A parenthetical whose tokens resolve to no known
+ *  scope is prose ("(the bypass that…)") and narrows nothing. */
+function restrict(scope, parenthetical) {
+  if (parenthetical === undefined) return scope;
+  const ids = resolveScopeTokens(parenthetical.split(/\s*,\s*/).map((s) => s.trim()).filter(Boolean));
+  if (ids === null) return scope;
+  return scope.filter((id) => ids.includes(id));
 }
 
 const templateScripts = new Map(
@@ -233,31 +256,34 @@ for (const [id, block] of blocks) {
   if (enforced === undefined || enforced.trim() === "") {
     errors.push(`${REGISTER}: ${id} names no enforcer — a rule nobody enforces reads as a guarantee`);
   } else {
-    for (const token of backticked(enforced)) {
+    for (const m of enforced.matchAll(/`([^`]+)`(?:\s*\(([^)]+)\))?/g)) {
+      const token = m[1];
       if (!SCRIPT_SHAPED.test(token)) continue; // prose enforcers (a hook path, "ADR review")
       if (pluginScripts.has(token)) {
         // A plugin-level gate may enforce a rule of any scope (citations itself does).
         continue;
       }
-      const missingIn = scope.filter((tid) => !templateScripts.get(tid)?.has(token));
+      const effective = restrict(scope, m[2]);
+      const missingIn = effective.filter((tid) => !templateScripts.get(tid)?.has(token));
       if (missingIn.length > 0) {
         errors.push(
           `${REGISTER}: ${id} is enforced by \`${token}\`, which is not a script in ` +
             missingIn.map((tid) => `${tid}'s package.json`).join(", "),
         );
       }
-      nameFor(scope, token);
+      nameFor(effective, token);
     }
   }
 
   const proven = bullet(block, "Proven by");
-  const cited = [...(proven ?? "").matchAll(/"([^"]+)"/g)].map((m) => m[1]);
   if (proven === undefined || proven.trim() === "") {
     errors.push(`${REGISTER}: ${id} has no selftest case — nobody has seen its gate fail`);
   }
-  for (const name of cited) {
+  for (const m of (proven ?? "").matchAll(/"([^"]+)"(?:\s*\(([^)]+)\))?/g)) {
+    const name = m[1];
     if (pluginCases.has(name)) continue;
-    const missingIn = scope.filter((tid) => !templateCases.get(tid)?.has(name));
+    const effective = restrict(scope, m[2]);
+    const missingIn = effective.filter((tid) => !templateCases.get(tid)?.has(name));
     if (missingIn.length > 0) {
       errors.push(
         `${REGISTER}: ${id} cites the selftest case "${name}", which ` +
