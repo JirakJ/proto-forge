@@ -1,5 +1,54 @@
 # Changelog
 
+## Unreleased (0.7.0)
+
+### Desktop applications (BR-37, §24, T24)
+
+- **`desktop-tauri` and `desktop-electron`** — the web template's UI half inside a
+  shell: owned component library (the proto-ui seed byte-identical to web's),
+  i18n, testids, layering, overlays, harness, documentation, coverage 100 and
+  mutation ~93 all carry unchanged, because it is the same product; only delivery
+  differs. The promotion chain is replaced by **packaging as a CI stage** — verify
+  never packages (NFR-16), the three-OS build matrix and the per-OS
+  signing/notarization requirements live in each template's DELIVERY.md.
+- **The shell is configuration under a gate.** Electron's isolation flags must
+  carry their safe values *literally* — a computed value fails, because a flag
+  whose value cannot be read is a flag nobody reviewed — with the CSP injected,
+  navigation locked to the app origin, the preload exposing only through
+  `contextBridge`, and the publish feed off. Tauri's capability allowlist is
+  minimal, every extra permission being a gate edit plus an ADR, with the updater
+  disabled or its endpoints and key pinned and `Cargo.lock` committed.
+- **The advisory ledger has an auditor.** The unmaintained GTK bindings Tauri's
+  Linux backend forces (17 advisories) live in a dated ignore ledger under the
+  same `reason:`/`until:` discipline `.trivyignore` gets — and `sec:scan` now
+  audits `Cargo.lock` against it, printing every accepted advisory with its reason
+  and expiry and failing on anything unlisted. One advisory carries different
+  identifiers in different namespaces (RUSTSEC to cargo-audit, GHSA to
+  osv-scanner), so an entry accepts every identifier it names; a ledger that knows
+  one namespace stops matching the day the scanner changes. Stated limit, recorded
+  rather than smoothed over: the e2e suite runs against the built assets, not the
+  packaged app.
+
+### CI that asks the repository, not a list
+
+- The root workflow's template matrix is **derived from `references/templates.json`**,
+  its per-stack setup from each entry's `stack`, its deploy toolchain from whether
+  the template actually ships `deploy-verify.mjs`, and its osv-scanner install from
+  whether that template's own `sec-scan.mjs` calls it. Three CI failures came from
+  one cause — a hand-maintained mirror that the delivery-surface port left behind —
+  and this is the shape that cannot drift again: new templates get their legs by
+  being registered.
+- **A gate that lied is fixed**: api-java reported "found known vulnerabilities"
+  while the scanner was printing "could not determine extractor suitable to this
+  file". An SBOM was being passed through the lockfile flag (newer scanners
+  auto-detect it, the CI-pinned one does not) and *any* non-zero exit was read as
+  a finding. The audit now reads the locked graph directly, and exit 1 means
+  vulnerabilities while anything else means the audit did not run — which is not
+  the same as a clean one.
+- log4j-api pinned to 2.25.5 in api-java (MODERATE GHSA-qv9r-c865-cp47, reachable
+  only through Boot's logging bridge — pinned anyway, because an advisory a scanner
+  can see is one a reviewer has to answer for).
+
 ## 0.6.0 — 2026-08-13
 
 From one template to a platform: backend services, multi-environment DevSecOps

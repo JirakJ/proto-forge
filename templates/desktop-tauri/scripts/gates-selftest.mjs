@@ -1614,5 +1614,43 @@ expect(
   { pass: false, matching: /a healing loop without a bound is a loop/ },
 );
 
+// --- the advisory ledger's auditing half -----------------------------------------
+// sec:scan subtracts src-tauri/audit.toml from what the scanner reports (BR-37).
+// The parsing and the subtraction are pure, so they are proven here directly —
+// no network, no scanner, which is what keeps this suite seconds long.
+{
+  const { acceptedAdvisories, triageReport } = await import("./audit-ledger.mjs");
+  const ledger = join(project({
+    "audit.toml": [
+      "[advisories]",
+      "ignore = [",
+      '  "RUSTSEC-2024-0429", # reason: glib unsoundness (GHSA-wrw7-89jp-8q8g, MODERATE) — no fix in this stack until: 2027-02-13',
+      "]",
+      "",
+    ].join("\n"),
+  }), "audit.toml");
+  const accepted = acceptedAdvisories(ledger);
+  const report = (id, aliases = []) => ({
+    results: [{ packages: [{ package: { name: "glib", version: "0.18.5" }, vulnerabilities: [{ id, aliases }] }] }],
+  });
+
+  inlineCase("shell: an advisory on no ledger entry fails");
+  if (triageReport(report("RUSTSEC-9999-0001"), accepted).open.length !== 1) {
+    results.push("shell: an advisory on no ledger entry fails — an unlisted advisory was not reported as open");
+  }
+
+  // One advisory, two namespaces: the entry names RUSTSEC, the scanner reports
+  // GHSA. A ledger that only matches its own namespace stops working silently.
+  inlineCase("shell: a ledger entry accepts the advisory's alias too");
+  const byAlias = triageReport(report("GHSA-wrw7-89jp-8q8g"), accepted);
+  const byId = triageReport(report("RUSTSEC-2024-0429", ["GHSA-wrw7-89jp-8q8g"]), accepted);
+  if (byAlias.open.length !== 0 || byAlias.suppressed.length !== 1) {
+    results.push("shell: a ledger entry accepts the advisory's alias too — the GHSA identifier was not matched");
+  }
+  if (byId.open.length !== 0) {
+    results.push("shell: a ledger entry accepts the advisory's alias too — the RUSTSEC identifier was not matched");
+  }
+}
+
 if (results.length) fail(`gates:selftest FAILED (${results.length})`, results);
 ok("gates:selftest: every gate, guardrail and converter rejects what it claims to reject");
