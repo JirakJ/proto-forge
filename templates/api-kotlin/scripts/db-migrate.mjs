@@ -4,7 +4,7 @@ import { fail, ok } from "./lib.mjs";
 // @adr 006 - the operator's migration runner (support tool, not a gate)
 //   DATABASE_URL=jdbc:postgresql://... pnpm db:migrate
 //
-// Delegates to `./gradlew dbMigrate` (app.MigrateMain): Flyway applies
+// Delegates to `./gradlew dbMigrate` (app.MigrateMainKt): Flyway applies
 // src/main/resources/db/migration in version order against the named database,
 // transactionally, recording applied versions in flyway_schema_history — a re-run
 // is idempotent and a failed migration rolls back. Verify-time schema testing

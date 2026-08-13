@@ -6,10 +6,10 @@ import { E2E_RESULTS } from "./quality-lib.mjs";
 
 // @adr 003 - the e2e conformance run (support tool; `test:e2e` is the last verify step)
 //
-// Boots the MockMvc slice (`./gradlew conformance` → ConformanceTest), replays
+// Boots the Ktor test application (`./gradlew conformance` → ConformanceTest), replays
 // every harness scenario against it and asserts each exchange conforms to the
 // route registry — status, shape and problem codes. This is the pass/fail gate
-// OUTSIDE the coverage percentage: the wiring, the registrar and the error advice
+// OUTSIDE the coverage percentage: the wiring, the registrar and the problem pages
 // are proven by exercising them, not by counting their lines.
 //
 // The runner's stdout is captured (and echoed) so the scenario count it prints

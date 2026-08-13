@@ -19,7 +19,7 @@ const COMPOSE = "deploy/compose/docker-compose.yml";
 const [command] = process.argv.slice(2);
 
 // ─── stack block — the ONLY section that differs between backend templates ───
-// api-java: the service listens on 8080. Seeding is printed guidance rather
+// api-kotlin: the service listens on 8080. Seeding is printed guidance rather
 // than an unattended run: the Flyway runner rides the Gradle wrapper, whose
 // first invocation may resolve the toolchain — that belongs in the operator's
 // terminal, not hidden behind a compose helper. The password default mirrors

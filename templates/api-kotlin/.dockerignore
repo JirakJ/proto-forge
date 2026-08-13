@@ -1,0 +1,23 @@
+# Keep the build context to what `./gradlew bootJar` actually reads: the build
+# scripts, the checksum-pinned wrapper, the lockfile and src/main. Everything
+# else is repo furniture.
+build
+.gradle
+bin
+node_modules
+coverage
+.git
+.github
+.husky
+.claude
+.prompts
+docs
+contract
+scripts
+deploy
+src/test
+*.local
+.env
+.DS_Store
+Dockerfile
+.dockerignore
