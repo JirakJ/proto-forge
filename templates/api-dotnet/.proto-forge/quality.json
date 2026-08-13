@@ -1,0 +1,64 @@
+{
+  "unit": {
+    "files": 1,
+    "tests": 28,
+    "passed": 28
+  },
+  "coverage": {
+    "lines": 100,
+    "branches": 100,
+    "methods": 100
+  },
+  "mutation": {
+    "score": 100,
+    "break": 85
+  },
+  "e2e": {
+    "tests": 9,
+    "passed": 9
+  },
+  "contract": {
+    "operations": 4,
+    "problems": 4
+  },
+  "gates": {
+    "count": 31,
+    "chain": [
+      "config:check",
+      "env:verify",
+      "gates:selftest",
+      "lint",
+      "typecheck",
+      "coverage:policy",
+      "ignores",
+      "test:unit",
+      "test:mutation",
+      "build",
+      "deploy:verify",
+      "deps:budget",
+      "arch:verify",
+      "opid:scan",
+      "log:scan",
+      "error:catalog",
+      "migration:verify",
+      "contract:verify",
+      "contract:breaking",
+      "docs:verify",
+      "external:verify",
+      "stub:scan",
+      "adr:lint",
+      "prompt:lint",
+      "dup:scan",
+      "consistency",
+      "sec:scan",
+      "snapshot:diff",
+      "test:e2e",
+      "quality:report",
+      "status:verify"
+    ]
+  },
+  "thresholds": {
+    "coverage": 100,
+    "mutation": 85
+  }
+}

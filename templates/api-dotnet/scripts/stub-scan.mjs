@@ -35,7 +35,7 @@ for (const f of allSource) {
 // rules (BRS §16), so it is a shortcut marker like TODO and is caught here for
 // the same reason. Plain style/IDE suppressions are the compiler's business, not
 // this gate's.
-const GATED_RULES = /\[SuppressMessage\(\s*"Security|#pragma warning disable\s+(?:SCS|SYSLIB003|CA5)/;
+const GATED_RULES = /\bSuppressMessage\(\s*"Security|#pragma warning disable\s+(?:SCS|SYSLIB003|CA5)/;
 for (const f of prod) {
   if (GATED_RULES.test(read(f))) {
     errors.push(`${f}: disables a gated lint rule inline — these rules have no escape hatch; fix the code (BR-21/NFR-12)`);

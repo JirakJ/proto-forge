@@ -23,7 +23,7 @@ Captured example (`examples/notes-get-happy-1.json`):
     "body": {
       "createdAt": "2025-01-01T12:00:00Z",
       "id": "11111111-1111-4111-8111-111111111111",
-      "text": "Seeded note: the api-java walking skeleton keeps one durable example."
+      "text": "Seeded note: the api-dotnet walking skeleton keeps one durable example."
     },
     "headers": {
       "content-type": "application/json"

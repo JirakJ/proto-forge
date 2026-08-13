@@ -1761,7 +1761,7 @@ which fails if the script exists with no rule behind it. Stated per NFR-25's own
 escape: a limit is recorded here, not papered over with a fixture that proves only
 that `pnpm` is absent.
 
-### §19.9 The JVM and CPython real-database tiers are Testcontainers in CI
+### §19.9 The JVM, CPython and .NET real-database tiers are Testcontainers in CI
 
 §15 wants the Postgres engine in-process at verify time, and for node it is
 (PGlite). The JVM and CPython have no maintained in-process Postgres, and an
@@ -1770,9 +1770,18 @@ api-python's real-database tier runs over Testcontainers Postgres — Flyway
 migrate + `ddl-auto=validate`, resp. `tests/integration` + `alembic check` — plus
 each stack's `gates:selftest:native` Tier-2 suite proving the native gates fire:
 mandatory in CI on a Docker-equipped runner, tool-gated locally with a printed
-skip note. The persistence adapter is excluded from unit coverage by one
-reasoned entry per stack; each template's ADR 003/006 records it. Mirrors
-§19.4/§19.7: the limit is stated, not papered over.
+skip note. api-dotnet's tier is `tests/App.Tests/Persistence` (xUnit
+`Category=native`, `pnpm test:native`): EF Core `Database.Migrate()` plus
+`HasPendingModelChanges()` against Testcontainers Postgres, with its
+`gates:selftest:native` suite proving ArchUnitNET, the coverlet threshold and the
+EF model-agreement check all fire.
+
+How the adapter stays out of the unit-coverage floor differs by stack, and the
+difference is worth stating rather than smoothing: api-java and api-python name a
+reasoned exclusion entry, while api-dotnet's gated scope is an *include* list
+(`[App]App.Domain.*,[App]App.Application.*`) — the adapter is outside it and the
+template ships **zero** exclusions. Each template's ADR 003/006 records its own
+mechanism. Mirrors §19.4/§19.7: the limit is stated, not papered over.
 
 ### §19.8 `BR-11` describes a tension, not a mechanism
 

@@ -18,7 +18,7 @@
   "locales": ["en"],
   "nonFunctional": { "offlineCapable": false, "realtime": false },
   "backend": {
-    "stack": "java",
+    "stack": "dotnet",
     "externalSystems": [],
     "persistence": "postgres",
     "messaging": "none",

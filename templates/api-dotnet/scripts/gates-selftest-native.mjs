@@ -1,39 +1,57 @@
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync, readFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, dirname, resolve } from "node:path";
-import { spawnSync, execSync } from "node:child_process";
+import { join, dirname } from "node:path";
+import { spawnSync } from "node:child_process";
 import { fail, ok, note } from "./lib.mjs";
 
 // @adr 003 - gates:selftest Tier 2: the NATIVE halves get a demonstrated failure too
 //
-// Tier 1 proves every .mjs gate on fixture directories. The claims the JVM
-// toolchain enforces — ArchUnit rejects an illegal import, the JaCoCo rule
-// rejects an uncovered branch, flyway validate rejects a drifted migration —
-// need a real Gradle build to fail, so this tier builds THROWAWAY Gradle
-// projects (driven by this template's own checksum-pinned wrapper via `-p`) and
-// asserts the exit codes. CI-only by placement (minutes, not seconds — the
-// verify-template precedent, BRS §18/§19); the flyway case additionally needs
+// Tier 1 proves every .mjs gate on fixture directories, toolchain-free. The
+// claims the .NET toolchain enforces - ArchUnitNET rejects an illegal namespace
+// dependency, coverlet's Threshold rejects an uncovered branch, EF Core rejects
+// a model the committed migrations never produced - need a real `dotnet` build
+// to fail, so this tier builds THROWAWAY projects outside the repository and
+// asserts the exit codes. CI-only by placement (minutes, not seconds - the
+// verify-template precedent, BRS §18/§19); the migration case additionally needs
 // Docker and is tool-gated locally exactly like the native test tier.
 
-const ROOT = resolve(dirname(new URL(import.meta.url).pathname), "..");
-const GRADLEW = join(ROOT, "gradlew");
 const results = [];
+const has = (cmd) => spawnSync("sh", ["-c", `command -v ${cmd}`], { stdio: "ignore" }).status === 0;
 
-const SETTINGS = 'rootProject.name = "native-fixture"\n';
-const BUILD_COMMON = `plugins {
-    java
-    jacoco
+if (!has("dotnet")) {
+  if (process.env.CI) {
+    fail("gates:selftest:native FAILED", ["dotnet is not installed in CI - Tier 2 is mandatory there"]);
+  }
+  note("gates:selftest:native SKIPPED - the .NET SDK is not installed (CI enforces)");
+  process.exit(0);
 }
-java { toolchain { languageVersion = JavaLanguageVersion.of(21) } }
-repositories { mavenCentral() }
-dependencies {
-    testImplementation(platform("org.junit:junit-bom:5.12.2"))
-    testImplementation("org.junit.jupiter:junit-jupiter")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
-%EXTRA_DEPS%
-}
-tasks.test { useJUnitPlatform() }
-%EXTRA_TASKS%
+
+// Package versions are the ones the template itself pins (App.Tests.csproj /
+// App.csproj): a fixture that proved a DIFFERENT toolchain would prove nothing
+// about this one.
+const XUNIT = "2.9.3";
+const XUNIT_RUNNER = "3.1.5";
+const TEST_SDK = "18.8.1";
+const COVERLET = "10.0.1";
+const ARCHUNIT = "0.13.3";
+const EF_POSTGRES = "10.0.3";
+const TESTCONTAINERS = "4.13.0";
+
+// The throwaway lives in the OS temp dir, so it inherits neither global.json nor
+// Directory.Build.props - the fixture states its own contract in full.
+const TEST_PROJECT = (packages, properties = "") => `<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+${properties}  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="${TEST_SDK}" />
+    <PackageReference Include="xunit" Version="${XUNIT}" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="${XUNIT_RUNNER}" PrivateAssets="all" />
+${packages}  </ItemGroup>
+</Project>
 `;
 
 function project(files) {
@@ -46,173 +64,198 @@ function project(files) {
   return dir;
 }
 
-function gradle(dir, args) {
-  const r = spawnSync(GRADLEW, ["-p", dir, "--console=plain", "-q", ...args], {
+function dotnet(dir, args) {
+  const r = spawnSync("dotnet", args, {
+    cwd: dir,
     encoding: "utf8",
-    env: process.env,
-    timeout: 15 * 60 * 1000,
+    env: { ...process.env, TZ: "UTC", DOTNET_CLI_TELEMETRY_OPTOUT: "1", DOTNET_NOLOGO: "1" },
+    timeout: 20 * 60 * 1000,
   });
-  return { code: r.status, out: `${r.stdout}${r.stderr}` };
+  return { code: r.status, out: `${r.stdout ?? ""}${r.stderr ?? ""}` };
 }
 
 function expectBuild(name, files, args, { pass, matching }) {
   const dir = project(files);
   try {
-    const { code, out } = gradle(dir, args);
+    const { code, out } = dotnet(dir, args);
     const passed = code === 0;
     if (passed !== pass) {
-      results.push(`${name}: expected ${pass ? "PASS" : "FAIL"}, got ${passed ? "PASS" : "FAIL"} — ${out.trim().slice(-800)}`);
-    } else if (matching !== undefined && !matching.test(out) && !reportsMatch(dir, matching)) {
-      results.push(`${name}: correct verdict but neither output nor test report mentions ${matching}`);
+      results.push(`${name}: expected ${pass ? "PASS" : "FAIL"}, got ${passed ? "PASS" : "FAIL"} - ${out.trim().slice(-800)}`);
+    } else if (matching !== undefined && !matching.test(out)) {
+      results.push(`${name}: correct verdict but the output does not mention ${matching} - ${out.trim().slice(-800)}`);
     }
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
 }
 
-function reportsMatch(dir, matching) {
-  const reports = join(dir, "build", "test-results", "test");
-  if (!existsSync(reports)) return false;
-  try {
-    for (const file of execSync(`ls ${reports}`, { encoding: "utf8" }).split("\n")) {
-      if (file.endsWith(".xml") && matching.test(readFileSync(join(reports, file), "utf8"))) return true;
-    }
-  } catch {
-    return false;
-  }
-  return false;
-}
-
-const build = (extraDeps = "", extraTasks = "") =>
-  BUILD_COMMON.replace("%EXTRA_DEPS%", extraDeps).replace("%EXTRA_TASKS%", extraTasks);
-
-// --- 1. ArchUnit fires: an illegal domain import fails the JVM build -----------
+// --- 1. ArchUnitNET fires: an illegal domain dependency fails the suite --------
 expectBuild(
-  "native-arch: a domain class importing a forbidden package fails the ArchUnit suite",
+  "native-arch: a domain class depending on a forbidden namespace fails the ArchUnitNET suite",
   {
-    "settings.gradle.kts": SETTINGS,
-    "build.gradle.kts": build('    testImplementation("com.tngtech.archunit:archunit:1.5.0")'),
-    "src/main/java/fixture/domain/Bad.java":
-      "package fixture.domain;\n\nimport java.sql.Connection;\n\npublic final class Bad {\n  Connection connection;\n}\n",
-    "src/test/java/fixture/ArchTest.java": `package fixture;
-
-import com.tngtech.archunit.core.importer.ClassFileImporter;
-import org.junit.jupiter.api.Test;
-
-import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
-
-class ArchTest {
-  @Test
-  void domainIsFrameworkFree() {
-    noClasses().that().resideInAPackage("fixture.domain..")
-        .should().dependOnClassesThat().resideInAnyPackage("java.sql..")
-        .check(new ClassFileImporter().importPackages("fixture"));
-  }
-}
-`,
-  },
-  ["test"],
-  { pass: false, matching: /Architecture Violation|java\.sql/ },
-);
-
-// --- 2. the JaCoCo rule fires: an uncovered branch fails the verification -----
-expectBuild(
-  "native-jacoco: an uncovered branch fails the 1.00 verification rule",
-  {
-    "settings.gradle.kts": SETTINGS,
-    "build.gradle.kts": build(
-      "",
-      `tasks.jacocoTestCoverageVerification {
-    dependsOn(tasks.test)
-    violationRules {
-        rule {
-            element = "PACKAGE"
-            includes = listOf("fixture", "fixture.*")
-            limit { counter = "BRANCH"; value = "COVEREDRATIO"; minimum = "1.00".toBigDecimal() }
-        }
-    }
-}
-`,
+    "Fixture.csproj": TEST_PROJECT(
+      `    <PackageReference Include="TngTech.ArchUnitNET.xUnit" Version="${ARCHUNIT}" />\n`,
     ),
-    "src/main/java/fixture/Half.java":
-      "package fixture;\n\npublic final class Half {\n  public static int f(boolean flag) {\n    return flag ? 1 : 2;\n  }\n}\n",
-    "src/test/java/fixture/HalfTest.java": `package fixture;
+    "Domain/Bad.cs":
+      "using System.Data.Common;\n\nnamespace Fixture.Domain;\n\npublic sealed class Bad\n{\n"
+      + "    public DbConnection? Connection { get; init; }\n}\n",
+    "ArchTest.cs": `using ArchUnitNET.Domain;
+using ArchUnitNET.Loader;
+using ArchUnitNET.xUnit;
+using Xunit;
+using static ArchUnitNET.Fluent.ArchRuleDefinition;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+namespace Fixture;
 
-import org.junit.jupiter.api.Test;
+public sealed class ArchTest
+{
+    private static readonly Architecture Architecture =
+        new ArchLoader().LoadAssembly(typeof(Fixture.Domain.Bad).Assembly).Build();
 
-class HalfTest {
-  @Test
-  void coversOnlyOneSide() {
-    assertEquals(1, Half.f(true));
-  }
+    [Fact]
+    public void DomainIsFrameworkFree()
+    {
+        Types().That().ResideInNamespaceMatching("^Fixture\\\\.Domain($|\\\\.)")
+            .Should().NotDependOnAnyTypesThat().ResideInNamespaceMatching("^System\\\\.Data($|\\\\.)")
+            .Check(Architecture);
+    }
 }
 `,
   },
-  ["jacocoTestCoverageVerification"],
-  { pass: false, matching: /Rule violated|jacocoTestCoverageVerification/ },
+  ["test", "--nologo"],
+  { pass: false, matching: /DomainIsFrameworkFree|System\.Data\.Common/ },
 );
 
-// --- 3. flyway validate fires: a drifted migration fails against a real engine -
+// --- 2. coverlet's Threshold fires: an uncovered branch fails the unit tier ----
+expectBuild(
+  "native-coverage: an uncovered branch fails the 100 coverlet threshold",
+  {
+    "Fixture.csproj": TEST_PROJECT(
+      `    <PackageReference Include="coverlet.msbuild" Version="${COVERLET}" PrivateAssets="all" />\n`,
+      "    <Include>[Fixture]Fixture.Core.*</Include>\n"
+        + "    <Threshold>100</Threshold>\n"
+        + "    <ThresholdType>line,branch,method</ThresholdType>\n"
+        + "    <ThresholdStat>total</ThresholdStat>\n",
+    ),
+    "Core/Branchy.cs":
+      "namespace Fixture.Core;\n\npublic static class Branchy\n{\n    public static int F(bool flag)\n    {\n"
+      + "        return flag ? 1 : 2;\n    }\n}\n",
+    "BranchyTest.cs": `using Fixture.Core;
+using Xunit;
+
+namespace Fixture;
+
+public sealed class BranchyTest
+{
+    [Fact]
+    public void CoversOnlyOneSide()
+    {
+        Assert.Equal(1, Branchy.F(true));
+    }
+}
+`,
+  },
+  ["test", "--nologo", "-p:CollectCoverage=true"],
+  { pass: false, matching: /threshold|branch/i },
+);
+
+// --- 3. EF Core fires: a drifted model fails against a real engine -------------
 // Needs Docker (a real Postgres, BRS §15). Tool-gated locally; mandatory in CI.
-const dockerReady = (() => {
-  try {
-    execSync("docker info", { stdio: "ignore" });
-    return true;
-  } catch {
-    return false;
-  }
-})();
+const dockerReady = has("docker") && spawnSync("docker", ["info"], { stdio: "ignore" }).status === 0;
 
 if (!dockerReady && !process.env.CI) {
-  note("native-flyway: Docker not available — skipping locally (CI runs this tier with Docker)");
-} else if (!dockerReady && process.env.CI) {
-  results.push("native-flyway: Docker not available in CI — the real-engine tier is mandatory there");
+  note("native-migrate: Docker not available - skipping locally (CI runs this tier with Docker)");
+} else if (!dockerReady) {
+  results.push("native-migrate: Docker not available in CI - the real-engine tier is mandatory there");
 } else {
   expectBuild(
-    "native-flyway: a migration whose bytes drifted after being applied fails flyway validate",
+    "native-migrate: a model the committed migrations never produced fails against a real Postgres",
     {
-      "settings.gradle.kts": SETTINGS,
-      "build.gradle.kts": build(
-        `    testImplementation("org.flywaydb:flyway-core:11.7.2")
-    testImplementation("org.flywaydb:flyway-database-postgresql:11.7.2")
-    testImplementation("org.testcontainers:postgresql:1.21.4")
-    testRuntimeOnly("org.postgresql:postgresql:42.7.12")`,
+      "Fixture.csproj": TEST_PROJECT(
+        `    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="${EF_POSTGRES}" />\n`
+          + `    <PackageReference Include="Testcontainers.PostgreSql" Version="${TESTCONTAINERS}" />\n`,
       ),
-      "applied/V0001__notes.sql": "CREATE TABLE notes (id uuid PRIMARY KEY, text text NOT NULL);\n",
-      "drifted/V0001__notes.sql": "CREATE TABLE notes (id uuid PRIMARY KEY, text text);\n",
-      "src/test/java/fixture/FlywayValidateTest.java": `package fixture;
+      // The context declares a column the single committed migration never
+      // creates - exactly the drift `dotnet ef migrations add` exists to prevent.
+      "NotesDbContext.cs": `using Microsoft.EntityFrameworkCore;
 
-import org.flywaydb.core.Flyway;
-import org.junit.jupiter.api.Test;
-import org.testcontainers.containers.PostgreSQLContainer;
+namespace Fixture;
 
-class FlywayValidateTest {
-  @Test
-  void validateRejectsADriftedMigration() {
-    try (PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine")) {
-      postgres.start();
-      Flyway.configure()
-          .dataSource(postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword())
-          .locations("filesystem:applied")
-          .load()
-          .migrate();
-      // The same version, different bytes: the history changed under the database.
-      Flyway.configure()
-          .dataSource(postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword())
-          .locations("filesystem:drifted")
-          .load()
-          .validate();
+public sealed class NoteRow
+{
+    public Guid Id { get; set; }
+    public string Text { get; set; } = "";
+    public string Author { get; set; } = "";
+}
+
+public sealed class NotesDbContext(DbContextOptions<NotesDbContext> options) : DbContext(options)
+{
+    public DbSet<NoteRow> Notes => Set<NoteRow>();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<NoteRow>().ToTable("notes");
     }
-  }
+}
+`,
+      "InitialMigration.cs": `using Microsoft.EntityFrameworkCore.Migrations;
+
+namespace Fixture;
+
+[Microsoft.EntityFrameworkCore.Migrations.Migration("00000000000001_Notes")]
+[Microsoft.EntityFrameworkCore.Infrastructure.DbContext(typeof(NotesDbContext))]
+public sealed class InitialMigration : Migration
+{
+    protected override void Up(MigrationBuilder migrationBuilder)
+    {
+        migrationBuilder.Sql("CREATE TABLE notes (id uuid PRIMARY KEY, text text NOT NULL);");
+    }
+
+    protected override void Down(MigrationBuilder migrationBuilder)
+    {
+        migrationBuilder.Sql("DROP TABLE notes;");
+    }
+}
+`,
+      "MigrateTest.cs": `using Microsoft.EntityFrameworkCore;
+using Testcontainers.PostgreSql;
+using Xunit;
+
+namespace Fixture;
+
+public sealed class MigrateTest : IAsyncLifetime
+{
+    private readonly PostgreSqlContainer postgres = new PostgreSqlBuilder("postgres:16-alpine").Build();
+
+    public Task InitializeAsync()
+    {
+        return postgres.StartAsync();
+    }
+
+    public Task DisposeAsync()
+    {
+        return postgres.DisposeAsync().AsTask();
+    }
+
+    [Fact]
+    public void TheModelMustBeWhatTheMigrationsProduce()
+    {
+        var options = new DbContextOptionsBuilder<NotesDbContext>()
+            .UseNpgsql(postgres.GetConnectionString())
+            .Options;
+        using var context = new NotesDbContext(options);
+        context.Database.Migrate();
+        // The history applied cleanly; the model still asks for a column no
+        // migration ever created, so the read against the real schema throws.
+        context.Notes.ToList();
+    }
 }
 `,
     },
-    ["test"],
-    { pass: false, matching: /Validate failed|checksum mismatch|FlywayValidateException/i },
+    ["test", "--nologo"],
+    { pass: false, matching: /42703|does not exist|PostgresException/i },
   );
 }
 
 if (results.length) fail(`gates:selftest:native FAILED (${results.length})`, results);
-ok("gates:selftest:native: ArchUnit, the JaCoCo rule and flyway validate each reject what they claim to reject");
+ok("gates:selftest:native: ArchUnitNET, the coverlet threshold and EF Core's model agreement each reject what they claim to reject");

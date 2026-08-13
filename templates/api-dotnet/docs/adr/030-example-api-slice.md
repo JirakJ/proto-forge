@@ -10,7 +10,7 @@ A template whose gates have never gated anything proves nothing. The template ne
 
 ## Decision
 
-The demo ships four operations (`notes-list`, `notes-get`, `notes-create`, `notes-delete`) as registry entries with shapes and problem lists, wired by the registrar-driven MVC stack, persisted through the JPA adapter, documented under `docs/api/` with captured examples, and replayed by the harness scenarios in the conformance run. The slice is a demo: on a real generation run the skill **removes** the Note domain, adapter, routes, docs and harness cases (ADRs 010/022/030 go with them) and builds the brief's operations under the same per-endpoint Definition of Done.
+The demo ships four operations (`notes-list`, `notes-get`, `notes-create`, `notes-delete`) as registry entries with shapes and problem lists, wired by the registrar-driven minimal-API stack, persisted through the EF Core adapter, documented under `docs/api/` with captured examples, and replayed by the harness scenarios in the conformance run. The slice is a demo: on a real generation run the skill **removes** the Note domain, adapter, routes, docs and harness cases (ADRs 010/022/030 go with them) and builds the brief's operations under the same per-endpoint Definition of Done.
 
 ## Consequences
 

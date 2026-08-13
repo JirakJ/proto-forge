@@ -10,7 +10,7 @@ import { z } from "zod";
 export const BackendFacetSchema = z.object({
   // Named in the brief or escalated — never guessed. There is no default stack,
   // because a defaulted stack would make two different intents hash identical.
-  stack: z.enum(["node", "java", "python"]),
+  stack: z.enum(["node", "java", "kotlin", "python", "dotnet"]),
   externalSystems: z
     .array(
       z.object({

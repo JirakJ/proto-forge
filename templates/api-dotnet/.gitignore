@@ -1,7 +1,10 @@
 node_modules/
 build/
-.gradle/
+# dotnet build output: bin/ is the compiled result, obj/ the intermediates —
+# obj/ additionally carries machine-absolute NuGet paths, so a committed copy
+# would ship one workstation's package cache to every clone.
 bin/
+obj/
 .env
 .proto-forge/outbox/
 # raw machine output — quality:report distils it into .proto-forge/quality.json

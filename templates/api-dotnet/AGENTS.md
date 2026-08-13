@@ -6,21 +6,25 @@ Run `pnpm config:show` to see which gates are in force and whether any is curren
 
 ## The four rules that catch people out
 
-**1. Every client-visible error is a registered problem type.** The catalogue in `src/main/java/app/platform/Problems.java` is the only error surface: `AppProblem` resolves only registered codes, every route declares the codes it can emit, and `docs/api/problems.md` documents each one. `pnpm error:catalog` fails an unregistered shape, a duplicate code, and a catalogue entry nothing can emit. Responses are RFC 9457 problem+json, English only — consumers key on `code`, a frontend translates FROM the catalogue.
+**1. Every client-visible error is a registered problem type.** The catalogue in `src/App/Platform/Problems.cs` is the only error surface: `AppProblem`'s constructor accepts only registered codes, every route declares the codes it can emit, and `docs/api/problems.md` documents each one. `pnpm error:catalog` fails an unregistered shape, a duplicate code, and a catalogue entry nothing can emit. Responses are RFC 9457 problem+json, English only — consumers key on `code`, a frontend translates FROM the catalogue.
 
-**2. Every operation lives in the route registry with a `<resource>-<verb>` operationId.** One RouteDef in `src/main/java/app/adapter/in/web/` per operation: kebab-case id with at least one hyphen, unique across the app, shapes, problem list. The Spring MVC wiring (RouteRegistrar), the OpenAPI contract, the docs examples and the conformance suite are all derived from that table — `pnpm opid:scan` fails a `@GetMapping`-style path literal anywhere else (only the byte-pinned kernel's `/healthz` and `/version` are outside the contract). Handlers are mapping-annotation-free `@RestController`s with one `handle(...)` method, keyed by operationId.
+**2. Every operation lives in the route registry with a `<resource>-<verb>` operationId.** One `RouteDef` in `src/App/Adapters/In/Http/` per operation: kebab-case id with at least one hyphen, unique across the app, shapes, problem list. The minimal-API wiring (`RouteRegistrar`), the OpenAPI contract, the docs examples and the conformance suite are all derived from that table — `pnpm opid:scan` fails a `MapGet("/…")`-style path literal anywhere else (only the byte-pinned kernel's `/healthz` and `/version` are outside the contract). Handlers are literal-free delegates in one table keyed by operationId.
 
-**3. Migrations are history.** Never edit or delete a file in `src/main/resources/db/migration/` — a correction is a NEW `VNNNN__name.sql`, and `.proto-forge/migrations.lock` pins every file's hash to prove it (`pnpm migration:verify`; `--write` appends and refuses to re-pin). `DROP`/`TRUNCATE` need an `-- @adr NNN` marker. The JPA entities must describe exactly the tables the migrations produce; the native tier (`./gradlew nativeTest`, Docker) proves the full agreement with `flyway migrate` + `ddl-auto=validate`.
+**3. Migrations are history.** Never edit or delete a file in `src/App/Adapters/Out/Persistence/Migrations/` — a correction is a NEW `<utc-timestamp>_<Name>.cs`, and `.proto-forge/migrations.lock` pins every file's hash to prove it (`pnpm migration:verify`; `--write` appends and refuses to re-pin). `DropTable`/`TRUNCATE` need an `// @adr NNN` marker. The EF entities must describe exactly the tables the migrations produce; the native tier (`pnpm test:native`, Docker) proves the full agreement with `Database.Migrate()` + `HasPendingModelChanges`.
 
-**4. The committed contract is a locked derivation of the code.** Never hand-edit `contract/openapi.json`: `pnpm contract:generate` regenerates it from the springdoc test slice (`./gradlew contractEmit`, MockMvc, no socket) through the shared normalizer and re-pins `contract/contract.lock`; `pnpm contract:verify` byte-compares on every run. A breaking change against `contract/released/openapi.json` needs a contract major bump plus an ADR (`pnpm contract:breaking`). The same discipline covers docs: editing a handler invalidates its captured examples until `pnpm docs:examples` reruns.
+**4. The committed contract is a locked derivation of the code.** Never hand-edit `contract/openapi.json`: `pnpm contract:generate` regenerates it from the emitter's console mode (`dotnet run --project src/App -- --emit-openapi`, no socket, no database) through the shared normalizer and re-pins `contract/contract.lock`; `pnpm contract:verify` byte-compares on every run. A breaking change against `contract/released/openapi.json` needs a contract major bump plus an ADR (`pnpm contract:breaking`). The same discipline covers docs: editing a handler invalidates its captured examples until `pnpm docs:examples` reruns.
+
+## The two toolchains
+
+The app is .NET (`global.json` pins the SDK band, `Directory.Build.props` the compiler contract, `packages.lock.json` the resolution, `.config/dotnet-tools.json` the local tools); the gates are Node (`pnpm`, the `.mjs` corpus every proto-forge template shares — BRS §18). All three lockfiles are committed and all three are the reproducibility contract: CI restores with `--locked-mode` and installs with `--frozen-lockfile`. .NET has no in-process Postgres engine, so `tests/App.Tests/Persistence` (the real-database tier) runs against a disposable Postgres container: tool-gated on docker locally, MANDATORY in CI (ADR 003 records this §15/§19 escape).
 
 ## What the hooks will stop
 
-- editing anything under `src/main/java/app/platform/` — the kernel is byte-pinned (with `scripts/`) by sha256
+- editing anything under `src/App/Platform/` — the kernel is byte-pinned (with `scripts/`) by sha256
 - rewriting an existing `.prompts/` entry — the log is append-only; corrections are new entries
 - hand-editing `.proto-forge/seed.lock` or `snapshot.json` — they are generated
-- lowering a JaCoCo minimum, the PIT floor (`mutationThreshold`), the PIT scope (`targetClasses`), or a gate mode
-- `--no-verify`, `git push --force` without a lease, `pnpm seed:lock`, `gradlew -x test`, casual `--write-locks`
+- lowering the coverlet `<Threshold>`, the Stryker `break` floor, the Stryker `mutate` scope, the duplication threshold, or a gate mode
+- `--no-verify`, `git push --force` without a lease, `pnpm seed:lock`, a `dotnet test` that disables its coverage contract, `dotnet restore --force-evaluate`
 - network calls, unless `guardrails.network.allow` is on and the host is listed
 
 ## When a gate is genuinely wrong
@@ -43,19 +47,20 @@ Without a live waiver the setting is ignored and the gate runs at `error` anyway
 | --- | --- |
 | `pnpm verify` | Everything, fail-fast. This is the bar. |
 | `pnpm config:show` | Gates in force, where each value came from, active waivers |
-| `pnpm arch:verify` | Re-derives the architecture style from the facets and proves the imports follow it (JVM-free; ArchUnit re-proves it in `test:unit`) |
+| `pnpm arch:verify` | Re-derives the architecture style from the facets and proves the using directives follow it (toolchain-free; ArchUnitNET re-proves it against the compiled assembly in `test:unit`) |
 | `pnpm opid:scan` · `pnpm error:catalog` | Structural invariants (fast; also run on every edit / at Stop) |
 | `pnpm contract:verify` · `pnpm contract:breaking` | Spec drift + breaking-change policy |
 | `pnpm contract:generate` | The only way the committed spec changes |
 | `pnpm migration:verify` | Append-only migration ledger + model agreement (`--write` appends) |
 | `pnpm docs:examples` · `pnpm docs:verify` | Capture / check API docs examples |
 | `pnpm log:scan` · `pnpm deps:budget` | Structured-logging and dependency-surface floors |
-| `pnpm db:migrate` | Apply migrations to `DATABASE_URL` (operator tool; Flyway via `./gradlew dbMigrate`) |
-| `pnpm test:e2e` | The conformance run: every harness scenario against the MockMvc slice |
-| `./gradlew nativeTest` | The real-database tier: Testcontainers Postgres + flyway + ddl validate (needs Docker; CI runs it always) |
-| `pnpm gates:selftest` | Tier 1: proves each gate still rejects what it claims to (fixture dirs, no JVM) |
-| `pnpm gates:selftest:native` | Tier 2 (CI): throwaway Gradle builds prove ArchUnit, the JaCoCo rule and flyway validate fire |
-| `pnpm doctor` | Fresh-machine pre-flight: toolchain pins (node, pnpm, JDK), husky wiring, installed tree vs lockfile, wrapper cache, stale mutation report, port 8080, docker note, `.env` — every ✗ prints its fix |
+| `pnpm db:migrate` | Apply migrations to `DATABASE_URL` (operator tool; EF Core via the app's `--migrate` mode) |
+| `pnpm test:e2e` | The conformance run: every harness scenario against the in-memory test host |
+| `pnpm test:mutation` | Stryker.NET over the behavioural core; break 85, scope Domain + Application |
+| `pnpm test:native` | The real-database tier: a Postgres container + the committed history + the model-drift proof (needs Docker; CI runs it always) |
+| `pnpm gates:selftest` | Tier 1: proves each gate still rejects what it claims to (fixture dirs, no dotnet) |
+| `pnpm gates:selftest:native` | Tier 2 (CI): throwaway dotnet projects prove the native halves fire — ArchUnitNET, the coverlet `Threshold`, has-pending-model-changes |
+| `pnpm doctor` | Fresh-machine pre-flight: toolchain pins (node, pnpm, the .NET SDK), the restored tool manifest, husky wiring, installed tree vs lockfile, a stale mutation report, port 8080, docker note, `.env` — every ✗ prints its fix |
 | `pnpm heal` | Tiered self-healing for a red `verify`: mechanical regenerations first, a consent-gated agent pass second, escalation third — bounded, hard-stop gates excluded, every pass prompt-logged before it acts |
 | `pnpm quality:report` · `pnpm status:verify` | Regenerate / verify the measured quality facts (`.proto-forge/quality.json` ≡ `docs/STATUS.md` ≡ the enforcing configs and contract) |
 | `pnpm sync:jira` · `pnpm sync:confluence` | Show what *would* be sent. `--commit` to actually send; every sent object gets an MDX record in `docs/external/`. |

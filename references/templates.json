@@ -124,6 +124,19 @@
       ]
     },
     {
+      "id": "api-dotnet",
+      "dir": "templates/api-dotnet",
+      "kind": "backend",
+      "stack": "dotnet",
+      "notAGate": [
+        "dev", "start", "build", "verify", "prepare",
+        "config:show", "snapshot", "seed:lock", "sbom",
+        "sync:jira", "sync:confluence", "sync:pull", "sync:status", "sync:auto",
+        "test:e2e", "test:native", "contract:generate", "docs:examples", "db:migrate",
+        "gates:selftest:native", "deploy:plan", "env:local", "env:remote", "heal"
+      ]
+    },
+    {
       "id": "desktop-tauri",
       "dir": "templates/desktop-tauri",
       "kind": "desktop",

@@ -4,8 +4,8 @@ namespace App.Adapters.In.Http;
 /// <summary>
 /// One HTTP operation: its addressable id, wire shape and declared problems. The
 /// init-only record keeps definitions declarative and mechanically parseable -
-/// opid:scan, error:catalog and the docs gates all read the
-/// <c>OperationId = "..."</c> / <c>Problems = [...]</c> initializers off the
+/// opid:scan, error:catalog and the docs gates all read the object-initializer
+/// assignments to <see cref="OperationId"/> and <see cref="Problems"/> off the
 /// registry sources.
 /// </summary>
 public sealed record RouteDef
