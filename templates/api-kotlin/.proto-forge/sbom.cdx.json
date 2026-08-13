@@ -1,0 +1,490 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.5",
+  "version": 1,
+  "metadata": {
+    "component": {
+      "type": "application",
+      "name": "proto-forge-service",
+      "version": "0.1.0"
+    }
+  },
+  "components": [
+    {
+      "type": "library",
+      "group": "ch.qos.logback",
+      "name": "logback-classic",
+      "version": "1.5.34",
+      "purl": "pkg:maven/ch.qos.logback/logback-classic@1.5.34"
+    },
+    {
+      "type": "library",
+      "group": "ch.qos.logback",
+      "name": "logback-core",
+      "version": "1.5.34",
+      "purl": "pkg:maven/ch.qos.logback/logback-core@1.5.34"
+    },
+    {
+      "type": "library",
+      "group": "com.fasterxml.jackson.core",
+      "name": "jackson-annotations",
+      "version": "2.21",
+      "purl": "pkg:maven/com.fasterxml.jackson.core/jackson-annotations@2.21"
+    },
+    {
+      "type": "library",
+      "group": "com.fasterxml.jackson.core",
+      "name": "jackson-core",
+      "version": "2.21.5",
+      "purl": "pkg:maven/com.fasterxml.jackson.core/jackson-core@2.21.5"
+    },
+    {
+      "type": "library",
+      "group": "com.fasterxml.jackson.core",
+      "name": "jackson-databind",
+      "version": "2.21.5",
+      "purl": "pkg:maven/com.fasterxml.jackson.core/jackson-databind@2.21.5"
+    },
+    {
+      "type": "library",
+      "group": "com.fasterxml.jackson",
+      "name": "jackson-bom",
+      "version": "2.21.5",
+      "purl": "pkg:maven/com.fasterxml.jackson/jackson-bom@2.21.5"
+    },
+    {
+      "type": "library",
+      "group": "com.typesafe",
+      "name": "config",
+      "version": "1.4.3",
+      "purl": "pkg:maven/com.typesafe/config@1.4.3"
+    },
+    {
+      "type": "library",
+      "group": "com.zaxxer",
+      "name": "HikariCP",
+      "version": "7.0.2",
+      "purl": "pkg:maven/com.zaxxer/HikariCP@7.0.2"
+    },
+    {
+      "type": "library",
+      "group": "io.ktor",
+      "name": "ktor-events-jvm",
+      "version": "3.2.4",
+      "purl": "pkg:maven/io.ktor/ktor-events-jvm@3.2.4"
+    },
+    {
+      "type": "library",
+      "group": "io.ktor",
+      "name": "ktor-events",
+      "version": "3.2.4",
+      "purl": "pkg:maven/io.ktor/ktor-events@3.2.4"
+    },
+    {
+      "type": "library",
+      "group": "io.ktor",
+      "name": "ktor-http-cio-jvm",
+      "version": "3.2.4",
+      "purl": "pkg:maven/io.ktor/ktor-http-cio-jvm@3.2.4"
+    },
+    {
+      "type": "library",
+      "group": "io.ktor",
+      "name": "ktor-http-cio",
+      "version": "3.2.4",
+      "purl": "pkg:maven/io.ktor/ktor-http-cio@3.2.4"
+    },
+    {
+      "type": "library",
+      "group": "io.ktor",
+      "name": "ktor-http-jvm",
+      "version": "3.2.4",
+      "purl": "pkg:maven/io.ktor/ktor-http-jvm@3.2.4"
+    },
+    {
+      "type": "library",
+      "group": "io.ktor",
+      "name": "ktor-http",
+      "version": "3.2.4",
+      "purl": "pkg:maven/io.ktor/ktor-http@3.2.4"
+    },
+    {
+      "type": "library",
+      "group": "io.ktor",
+      "name": "ktor-io-jvm",
+      "version": "3.2.4",
+      "purl": "pkg:maven/io.ktor/ktor-io-jvm@3.2.4"
+    },
+    {
+      "type": "library",
+      "group": "io.ktor",
+      "name": "ktor-io",
+      "version": "3.2.4",
+      "purl": "pkg:maven/io.ktor/ktor-io@3.2.4"
+    },
+    {
+      "type": "library",
+      "group": "io.ktor",
+      "name": "ktor-network-jvm",
+      "version": "3.2.4",
+      "purl": "pkg:maven/io.ktor/ktor-network-jvm@3.2.4"
+    },
+    {
+      "type": "library",
+      "group": "io.ktor",
+      "name": "ktor-network",
+      "version": "3.2.4",
+      "purl": "pkg:maven/io.ktor/ktor-network@3.2.4"
+    },
+    {
+      "type": "library",
+      "group": "io.ktor",
+      "name": "ktor-serialization-jvm",
+      "version": "3.2.4",
+      "purl": "pkg:maven/io.ktor/ktor-serialization-jvm@3.2.4"
+    },
+    {
+      "type": "library",
+      "group": "io.ktor",
+      "name": "ktor-serialization",
+      "version": "3.2.4",
+      "purl": "pkg:maven/io.ktor/ktor-serialization@3.2.4"
+    },
+    {
+      "type": "library",
+      "group": "io.ktor",
+      "name": "ktor-server-core-jvm",
+      "version": "3.2.4",
+      "purl": "pkg:maven/io.ktor/ktor-server-core-jvm@3.2.4"
+    },
+    {
+      "type": "library",
+      "group": "io.ktor",
+      "name": "ktor-server-core",
+      "version": "3.2.4",
+      "purl": "pkg:maven/io.ktor/ktor-server-core@3.2.4"
+    },
+    {
+      "type": "library",
+      "group": "io.ktor",
+      "name": "ktor-server-netty-jvm",
+      "version": "3.2.4",
+      "purl": "pkg:maven/io.ktor/ktor-server-netty-jvm@3.2.4"
+    },
+    {
+      "type": "library",
+      "group": "io.ktor",
+      "name": "ktor-server-netty",
+      "version": "3.2.4",
+      "purl": "pkg:maven/io.ktor/ktor-server-netty@3.2.4"
+    },
+    {
+      "type": "library",
+      "group": "io.ktor",
+      "name": "ktor-server-status-pages-jvm",
+      "version": "3.2.4",
+      "purl": "pkg:maven/io.ktor/ktor-server-status-pages-jvm@3.2.4"
+    },
+    {
+      "type": "library",
+      "group": "io.ktor",
+      "name": "ktor-server-status-pages",
+      "version": "3.2.4",
+      "purl": "pkg:maven/io.ktor/ktor-server-status-pages@3.2.4"
+    },
+    {
+      "type": "library",
+      "group": "io.ktor",
+      "name": "ktor-utils-jvm",
+      "version": "3.2.4",
+      "purl": "pkg:maven/io.ktor/ktor-utils-jvm@3.2.4"
+    },
+    {
+      "type": "library",
+      "group": "io.ktor",
+      "name": "ktor-utils",
+      "version": "3.2.4",
+      "purl": "pkg:maven/io.ktor/ktor-utils@3.2.4"
+    },
+    {
+      "type": "library",
+      "group": "io.ktor",
+      "name": "ktor-websockets-jvm",
+      "version": "3.2.4",
+      "purl": "pkg:maven/io.ktor/ktor-websockets-jvm@3.2.4"
+    },
+    {
+      "type": "library",
+      "group": "io.ktor",
+      "name": "ktor-websockets",
+      "version": "3.2.4",
+      "purl": "pkg:maven/io.ktor/ktor-websockets@3.2.4"
+    },
+    {
+      "type": "library",
+      "group": "io.netty",
+      "name": "netty-buffer",
+      "version": "4.2.16.Final",
+      "purl": "pkg:maven/io.netty/netty-buffer@4.2.16.Final"
+    },
+    {
+      "type": "library",
+      "group": "io.netty",
+      "name": "netty-codec-base",
+      "version": "4.2.16.Final",
+      "purl": "pkg:maven/io.netty/netty-codec-base@4.2.16.Final"
+    },
+    {
+      "type": "library",
+      "group": "io.netty",
+      "name": "netty-codec-compression",
+      "version": "4.2.16.Final",
+      "purl": "pkg:maven/io.netty/netty-codec-compression@4.2.16.Final"
+    },
+    {
+      "type": "library",
+      "group": "io.netty",
+      "name": "netty-codec-http2",
+      "version": "4.2.16.Final",
+      "purl": "pkg:maven/io.netty/netty-codec-http2@4.2.16.Final"
+    },
+    {
+      "type": "library",
+      "group": "io.netty",
+      "name": "netty-codec-http",
+      "version": "4.2.16.Final",
+      "purl": "pkg:maven/io.netty/netty-codec-http@4.2.16.Final"
+    },
+    {
+      "type": "library",
+      "group": "io.netty",
+      "name": "netty-common",
+      "version": "4.2.16.Final",
+      "purl": "pkg:maven/io.netty/netty-common@4.2.16.Final"
+    },
+    {
+      "type": "library",
+      "group": "io.netty",
+      "name": "netty-handler",
+      "version": "4.2.16.Final",
+      "purl": "pkg:maven/io.netty/netty-handler@4.2.16.Final"
+    },
+    {
+      "type": "library",
+      "group": "io.netty",
+      "name": "netty-resolver",
+      "version": "4.2.16.Final",
+      "purl": "pkg:maven/io.netty/netty-resolver@4.2.16.Final"
+    },
+    {
+      "type": "library",
+      "group": "io.netty",
+      "name": "netty-transport-classes-epoll",
+      "version": "4.2.16.Final",
+      "purl": "pkg:maven/io.netty/netty-transport-classes-epoll@4.2.16.Final"
+    },
+    {
+      "type": "library",
+      "group": "io.netty",
+      "name": "netty-transport-classes-kqueue",
+      "version": "4.2.16.Final",
+      "purl": "pkg:maven/io.netty/netty-transport-classes-kqueue@4.2.16.Final"
+    },
+    {
+      "type": "library",
+      "group": "io.netty",
+      "name": "netty-transport-native-epoll",
+      "version": "4.2.16.Final",
+      "purl": "pkg:maven/io.netty/netty-transport-native-epoll@4.2.16.Final"
+    },
+    {
+      "type": "library",
+      "group": "io.netty",
+      "name": "netty-transport-native-kqueue",
+      "version": "4.2.16.Final",
+      "purl": "pkg:maven/io.netty/netty-transport-native-kqueue@4.2.16.Final"
+    },
+    {
+      "type": "library",
+      "group": "io.netty",
+      "name": "netty-transport-native-unix-common",
+      "version": "4.2.16.Final",
+      "purl": "pkg:maven/io.netty/netty-transport-native-unix-common@4.2.16.Final"
+    },
+    {
+      "type": "library",
+      "group": "io.netty",
+      "name": "netty-transport",
+      "version": "4.2.16.Final",
+      "purl": "pkg:maven/io.netty/netty-transport@4.2.16.Final"
+    },
+    {
+      "type": "library",
+      "group": "org.eclipse.jetty.alpn",
+      "name": "alpn-api",
+      "version": "1.1.3.v20160715",
+      "purl": "pkg:maven/org.eclipse.jetty.alpn/alpn-api@1.1.3.v20160715"
+    },
+    {
+      "type": "library",
+      "group": "org.flywaydb",
+      "name": "flyway-core",
+      "version": "11.14.0",
+      "purl": "pkg:maven/org.flywaydb/flyway-core@11.14.0"
+    },
+    {
+      "type": "library",
+      "group": "org.flywaydb",
+      "name": "flyway-database-postgresql",
+      "version": "11.14.0",
+      "purl": "pkg:maven/org.flywaydb/flyway-database-postgresql@11.14.0"
+    },
+    {
+      "type": "library",
+      "group": "org.fusesource.jansi",
+      "name": "jansi",
+      "version": "2.4.2",
+      "purl": "pkg:maven/org.fusesource.jansi/jansi@2.4.2"
+    },
+    {
+      "type": "library",
+      "group": "org.jetbrains.exposed",
+      "name": "exposed-core",
+      "version": "1.4.0",
+      "purl": "pkg:maven/org.jetbrains.exposed/exposed-core@1.4.0"
+    },
+    {
+      "type": "library",
+      "group": "org.jetbrains.exposed",
+      "name": "exposed-jdbc",
+      "version": "1.4.0",
+      "purl": "pkg:maven/org.jetbrains.exposed/exposed-jdbc@1.4.0"
+    },
+    {
+      "type": "library",
+      "group": "org.jetbrains.kotlin",
+      "name": "kotlin-reflect",
+      "version": "2.3.20",
+      "purl": "pkg:maven/org.jetbrains.kotlin/kotlin-reflect@2.3.20"
+    },
+    {
+      "type": "library",
+      "group": "org.jetbrains.kotlin",
+      "name": "kotlin-stdlib",
+      "version": "2.3.20",
+      "purl": "pkg:maven/org.jetbrains.kotlin/kotlin-stdlib@2.3.20"
+    },
+    {
+      "type": "library",
+      "group": "org.jetbrains.kotlinx",
+      "name": "kotlinx-coroutines-bom",
+      "version": "1.11.0",
+      "purl": "pkg:maven/org.jetbrains.kotlinx/kotlinx-coroutines-bom@1.11.0"
+    },
+    {
+      "type": "library",
+      "group": "org.jetbrains.kotlinx",
+      "name": "kotlinx-coroutines-core-jvm",
+      "version": "1.11.0",
+      "purl": "pkg:maven/org.jetbrains.kotlinx/kotlinx-coroutines-core-jvm@1.11.0"
+    },
+    {
+      "type": "library",
+      "group": "org.jetbrains.kotlinx",
+      "name": "kotlinx-coroutines-core",
+      "version": "1.11.0",
+      "purl": "pkg:maven/org.jetbrains.kotlinx/kotlinx-coroutines-core@1.11.0"
+    },
+    {
+      "type": "library",
+      "group": "org.jetbrains.kotlinx",
+      "name": "kotlinx-datetime-jvm",
+      "version": "0.7.1-0.6.x-compat",
+      "purl": "pkg:maven/org.jetbrains.kotlinx/kotlinx-datetime-jvm@0.7.1-0.6.x-compat"
+    },
+    {
+      "type": "library",
+      "group": "org.jetbrains.kotlinx",
+      "name": "kotlinx-io-bytestring-jvm",
+      "version": "0.7.0",
+      "purl": "pkg:maven/org.jetbrains.kotlinx/kotlinx-io-bytestring-jvm@0.7.0"
+    },
+    {
+      "type": "library",
+      "group": "org.jetbrains.kotlinx",
+      "name": "kotlinx-io-bytestring",
+      "version": "0.7.0",
+      "purl": "pkg:maven/org.jetbrains.kotlinx/kotlinx-io-bytestring@0.7.0"
+    },
+    {
+      "type": "library",
+      "group": "org.jetbrains.kotlinx",
+      "name": "kotlinx-io-core-jvm",
+      "version": "0.7.0",
+      "purl": "pkg:maven/org.jetbrains.kotlinx/kotlinx-io-core-jvm@0.7.0"
+    },
+    {
+      "type": "library",
+      "group": "org.jetbrains.kotlinx",
+      "name": "kotlinx-io-core",
+      "version": "0.7.0",
+      "purl": "pkg:maven/org.jetbrains.kotlinx/kotlinx-io-core@0.7.0"
+    },
+    {
+      "type": "library",
+      "group": "org.jetbrains.kotlinx",
+      "name": "kotlinx-serialization-bom",
+      "version": "1.9.0",
+      "purl": "pkg:maven/org.jetbrains.kotlinx/kotlinx-serialization-bom@1.9.0"
+    },
+    {
+      "type": "library",
+      "group": "org.jetbrains.kotlinx",
+      "name": "kotlinx-serialization-core-jvm",
+      "version": "1.9.0",
+      "purl": "pkg:maven/org.jetbrains.kotlinx/kotlinx-serialization-core-jvm@1.9.0"
+    },
+    {
+      "type": "library",
+      "group": "org.jetbrains.kotlinx",
+      "name": "kotlinx-serialization-core",
+      "version": "1.9.0",
+      "purl": "pkg:maven/org.jetbrains.kotlinx/kotlinx-serialization-core@1.9.0"
+    },
+    {
+      "type": "library",
+      "group": "org.jetbrains.kotlinx",
+      "name": "kotlinx-serialization-json-jvm",
+      "version": "1.9.0",
+      "purl": "pkg:maven/org.jetbrains.kotlinx/kotlinx-serialization-json-jvm@1.9.0"
+    },
+    {
+      "type": "library",
+      "group": "org.jetbrains.kotlinx",
+      "name": "kotlinx-serialization-json",
+      "version": "1.9.0",
+      "purl": "pkg:maven/org.jetbrains.kotlinx/kotlinx-serialization-json@1.9.0"
+    },
+    {
+      "type": "library",
+      "group": "org.jetbrains",
+      "name": "annotations",
+      "version": "23.0.0",
+      "purl": "pkg:maven/org.jetbrains/annotations@23.0.0"
+    },
+    {
+      "type": "library",
+      "group": "org.postgresql",
+      "name": "postgresql",
+      "version": "42.7.12",
+      "purl": "pkg:maven/org.postgresql/postgresql@42.7.12"
+    },
+    {
+      "type": "library",
+      "group": "org.slf4j",
+      "name": "slf4j-api",
+      "version": "2.0.17",
+      "purl": "pkg:maven/org.slf4j/slf4j-api@2.0.17"
+    }
+  ]
+}

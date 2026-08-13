@@ -7,9 +7,9 @@ import { operationIds, examplesDirFor, handlerSourceHash, EXAMPLES_LOCK } from "
 // @adr 009 - the capture half of BR-26 (support tool, not a gate)
 //   pnpm docs:examples    run the capture slice, then re-pin .examples.lock
 //
-// The capture slice (`./gradlew exampleCapture` → CaptureTest) boots the MockMvc
-// slice over the fixture repository, replays the harness scenarios and writes one
-// docs/api/<opid>/examples/*.json per exchange — a captured example, never a
+// The capture slice (`./gradlew exampleCapture` → CaptureTest) boots the Ktor test
+// application over the fixture repository, replays the harness scenarios and writes
+// one docs/api/<opid>/examples/*.json per exchange — a captured example, never a
 // hand-written one. Afterwards this tool records WHICH handler sources the
 // captures were taken from, so docs:verify can fail a stale one.
 //

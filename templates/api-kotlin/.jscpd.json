@@ -1,0 +1,12 @@
+{
+  "_comment": "Tests, fixtures, the harness scenario catalogue and the e2e slice classes are excluded for the same reason the web template excludes its harness: they are deliberately parallel declarations — one scenario or one wiring per outcome — and the repetition is what makes them readable. They live in src/test, which never ships in a production build.",
+  "threshold": 0,
+  "minTokens": 30,
+  "reporters": ["consoleFull"],
+  "absolute": true,
+  "gitignore": true,
+  "ignore": [
+    "**/src/test/**",
+    "**/build/**"
+  ]
+}

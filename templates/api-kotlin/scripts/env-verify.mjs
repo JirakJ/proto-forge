@@ -7,7 +7,7 @@ import { ENV_ORDER, REMOTE_ENVS, gateResult, loadConfig } from "./config.mjs";
 // The config's environments{} object is the single declaration of the delivery
 // chain. Everything that MENTIONS an environment is derived from it, and this
 // gate fails the moment any copy drifts:
-//   1. .env.example documents exactly the four keys AppProperties binds
+//   1. .env.example documents exactly the four keys Settings binds
 //   2. no committed delivery file carries a secret-shaped VALUE — a secret's
 //      NAME may appear anywhere, its value only in the cluster or the vault
 //   3. an enabled environment has its deploy/chart/values/<env>.yaml, and a
@@ -18,14 +18,15 @@ import { ENV_ORDER, REMOTE_ENVS, gateResult, loadConfig } from "./config.mjs";
 const errors = [];
 const cfg = loadConfig();
 
-// --- 1. .env.example ≡ the AppProperties surface ------------------------------
+// --- 1. .env.example ≡ the Settings surface -----------------------------------
 // A key may be documented active (`KEY=`) or deliberately commented out
-// (`# KEY=…` for optionals) — both count as documented. Java's env surface is
+// (`# KEY=…` for optionals) — both count as documented. Kotlin's env surface is
 // not machine-parseable the way a zod/pydantic schema is, so the source here is
-// the FIXED list below, documented from src/main/java/app/config/AppProperties.java
-// (application.properties maps exactly these four variables onto the app.* keys
-// the record binds). Changing the surface = changing AppProperties, its
-// application.properties mapping AND this list — one reviewed diff.
+// the FIXED list below, documented from src/main/kotlin/app/config/Settings.kt
+// (Settings.fromEnvironment reads exactly these four variables, and logback.xml
+// reads LOG_LEVEL again because a logging backend is configured before any of our
+// Kotlin runs). Changing the surface = changing Settings, its logback.xml mapping
+// AND this list — one reviewed diff.
 const ENV_FILE = ".env.example";
 const SCHEMA_KEYS = ["PORT", "LOG_LEVEL", "DATABASE_URL", "GIT_SHA"];
 
@@ -43,12 +44,12 @@ const schemaKeys = new Set(SCHEMA_KEYS);
 
 for (const key of schemaKeys) {
   if (!exampleKeys.has(key)) {
-    errors.push(`${ENV_FILE}: missing ${key} — AppProperties binds it, so the example must document it`);
+    errors.push(`${ENV_FILE}: missing ${key} — Settings binds it, so the example must document it`);
   }
 }
 for (const key of exampleKeys) {
   if (!schemaKeys.has(key)) {
-    errors.push(`${ENV_FILE}: documents ${key}, which AppProperties never binds — dead documentation misleads`);
+    errors.push(`${ENV_FILE}: documents ${key}, which Settings never binds — dead documentation misleads`);
   }
 }
 
