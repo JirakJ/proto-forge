@@ -70,6 +70,20 @@ jobs:
         run: |
           curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.21.2/gitleaks_8.21.2_linux_x64.tar.gz \
             | sudo tar -xz -C /usr/local/bin gitleaks
+      - name: install osv-scanner
+        # Where a stack's audit is not `pnpm audit` (JVM and NuGet lockfiles are not),
+        # sec:scan hard-stops in CI without osv-scanner (BRS §16). The condition asks
+        # the template's own gate what it needs instead of trusting a list here.
+        env:
+          TEMPLATE: ${{ matrix.template.id }}
+        run: |
+          if grep -q "osv-scanner" "templates/${TEMPLATE}/scripts/sec-scan.mjs"; then
+            sudo curl -sSfL -o /usr/local/bin/osv-scanner \
+              https://github.com/google/osv-scanner/releases/download/v2.0.2/osv-scanner_linux_amd64
+            sudo chmod +x /usr/local/bin/osv-scanner
+          else
+            echo "this template's sec:scan does not use osv-scanner"
+          fi
       - name: set up JDK
         if: matrix.template.stack == 'java'
         uses: actions/setup-java@v4
