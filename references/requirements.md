@@ -854,6 +854,67 @@ editing a document without regenerating the bridge, is a failure.
   unit in the inventory with no document fails"
 - **Decided in:** ADR 008 (plugin namespace)
 
+### BR-27 — An environment exists only by declaration
+
+**MUST.** `environments{}` in the committed config is the single source of which
+delivery environments exist (§20). Everything else derives from it or is checked
+against it: an enabled remote environment must have its `deploy/chart/values/<env>.yaml`
+and an orphan values file for a disabled environment fails just the same; the
+DEPLOYMENT.md environments table is regenerated, never hand-curated; `.env.example`
+carries exactly the keys the env schema declares.
+
+- **Why:** An environment that exists in a values file but not in config — or the
+  reverse — is a deploy target nobody reviews. The tree stays truthful in both
+  directions, which is what makes "early phase = dev only" a fact instead of a hope.
+- **Scope:** web
+- **Enforced by:** `env:verify`, `config:check`
+- **Proven by:** `gates:selftest` → "env: enabled dev with its values file passes",
+  "env: an enabled environment without a values file fails", "env: a values file for
+  a disabled environment fails", "env: a docs table that omits an enabled environment
+  fails", "env: a schema key the example never documents fails"
+- **Decided in:** ADR 200 (prototype namespace)
+
+### BR-28 — Deploying is consented, staged-first, and environment-scoped
+
+**MUST.** A deploy is an outward-facing effect and follows BR-20's model per
+environment: every remote deploy action sits on `guardrails.requireApproval` by
+default; `environments.<env>.autoDeploy: true` is committed standing consent that
+stands in for the per-run `--approve` of operator-script deploys and for nothing
+else; CI promotion is consented by the committed workflow plus a protected GitHub
+environment wherever config says `approval: required` — and prod may neither run
+unapproved nor be the first enabled environment. The compose flavor is the
+single-host simple mode and cannot carry a multi-environment chain.
+
+- **Why:** "Deployed to prod because the flags happened to allow it" must be
+  impossible by construction. Consent lives where review lives: in the committed
+  config and the protected environment, never in a shell flag someone typed once.
+- **Scope:** web
+- **Enforced by:** `config:check` (the declaration half; the operator-script doors —
+  the `assertMayDeploy` mirror of `assertMayCommit` — land with the delivery
+  pipeline scripts and extend this rule's enforcement, not its text)
+- **Proven by:** `gates:selftest` → "config: prod without required approval fails",
+  "config: prod cannot be the first enabled environment", "config: compose flavor
+  cannot carry a multi-environment chain"
+- **Decided in:** ADR 200 (prototype namespace); ADR 005 (plugin namespace) for the
+  standing-consent form
+
+### BR-29 — Secrets travel by name
+
+**MUST.** Committed files carry environment-variable and Secret *names* only, never
+values: `auth.*Env` fields must look like env var names, `.env.example` and every
+committed compose/values file may not hold a secret-shaped value, and the runtime
+secrets contract is the `envFromSecrets` name list in the chart values plus the
+documented provisioning commands — never a value in the tree.
+
+- **Why:** A credential in a committed file is an incident with a delay on it, and
+  the mechanical shape check catches the paste before the secret scanner has to.
+- **Scope:** web
+- **Enforced by:** `config:check`, `env:verify`, `deploy:verify`, `sec:scan`
+- **Proven by:** `gates:selftest` → "config: a credential pasted into auth.tokenEnv
+  fails", "env: a secret-shaped value in a committed env file fails", "deploy: a
+  secret-shaped build ARG default fails"
+- **Decided in:** ADR 202 (prototype namespace)
+
 ### NFR-02 — No heavy runtime UI dependency
 
 **MUST.** The prototype ships no component-framework runtime beyond React. The owned
@@ -990,6 +1051,60 @@ ratchet up. The floors are frozen by the guard hook exactly like coverage thresh
 - **Proven by:** `gates:selftest` → "hook: lowering the mutation-score floor is
   blocked", "hook: narrowing the mutation scope is blocked"
 - **Decided in:** ADR 003 (prototype namespace)
+
+### NFR-15 — The container runs as no one in particular
+
+**MUST.** One image, valid under an OpenShift restricted SCC and an AKS baseline
+alike: non-root with **no hardcoded UID** (OpenShift assigns one), read-only root
+filesystem with declared writable mounts, dropped capabilities, seccomp
+RuntimeDefault, base images pinned by digest, resource limits and probes on every
+rendered Deployment — asserted on the RENDERED output, so a values edit cannot
+silently drop the contract.
+
+- **Why:** A container that needs a particular UID or a writable root works on the
+  laptop and fails on the cluster with the strictest policy — which is exactly the
+  cluster the enterprise target runs.
+- **Scope:** web
+- **Enforced by:** `deploy:verify`
+- **Proven by:** `gates:selftest` → "deploy: a hardcoded runAsUser fails", "deploy: a
+  deployment without resource limits fails", "deploy: a Route rendered for an aks
+  environment fails"
+- **Decided in:** ADR 201 (prototype namespace)
+
+### NFR-16 — Verify is offline; the world is a named CI stage
+
+**MUST.** No verify gate opens a socket or requires a cluster (§21): manifest
+validation runs against vendored schemas, container linting is static, and external
+binaries follow the tool-gated pattern — enforce when present, note locally when
+absent, hard-fail in CI. Building, scanning, signing, pushing and deploying images
+are delivery-pipeline stages, never gates.
+
+- **Why:** A gate that needs the network gets skipped the first time the network is
+  down, and a skipped gate is a disabled one. Offline verify is also what keeps
+  `verify-template` — the standalone proof — meaningful on any machine.
+- **Scope:** web
+- **Enforced by:** `deploy:verify` (vendored `deploy/schemas/`, no sockets)
+- **Proven by:** `gates:selftest` → "deploy: the gate passes with no network and no
+  cluster configured"
+- **Decided in:** ADR 200 (prototype namespace)
+
+### NFR-17 — Provenance reaches the cluster
+
+**MUST.** Base images are pinned by digest and the built image's identity is carried
+to the running workload: the build stamps the git SHA into the served
+`version.json`, the smoke test asserts the running SHA after every deploy, and —
+once the delivery pipeline lands — images are keyless-signed with the repository's
+workflow identity and verified before rollout, with the image SBOM attested.
+
+- **Why:** "What exactly is running in prod?" must have a mechanical answer. A digest
+  chain from Dockerfile to the serving pod is that answer; a tag chain is not.
+- **Scope:** web
+- **Enforced by:** `deploy:verify` (digest pins); `deploy/smoke.mjs` post-deploy (the
+  cosign sign/verify chain ships with the delivery pipeline and extends this rule's
+  enforcement, not its text)
+- **Proven by:** `gates:selftest` → "deploy: a Dockerfile with a floating base tag
+  fails"
+- **Decided in:** ADR 202 (prototype namespace)
 
 ### NFR-20 — One responsibility per module (SRP)
 
@@ -1264,6 +1379,48 @@ Backend gate selftests are two-tier: **Tier 1** fixture-directory cases run insi
 `pnpm verify` (seconds, no JVM/pip); **Tier 2** (`gates:selftest:native`) builds real
 throwaway Gradle/pytest projects and runs in CI only — the `verify-template`
 precedent, recorded per stack in §19.
+
+## §20 Environments and delivery
+
+`Scope: web` today — the delivery surface extends to every app template when the
+shared deploy corpus lands (§18's symmetry machinery will then demand it).
+
+The delivery environments are **local, dev, sit, uat, test, prod**, in that fixed
+order (`ENV_ORDER` in `scripts/config.mjs`); the promotion chain IS the enabled
+remote environments in that order (`promotionChain`), so it cannot drift from the
+flags. `environments{}` in `.proto-forge/config.json` is the single declaration:
+values files, the docs table and the delivery pipeline all derive from or are
+checked against it. The template ships with **only `dev` enabled** — progressive
+delivery is flipping flags in a reviewed config diff, never regenerating files.
+`test` is the performance/pre-prod staging stop between `uat` and `prod`. Deploy
+settings are operator configuration, never brief facets: they do not enter the
+facet hash (BR-14).
+
+Consent (the BR-20 model, extended): every remote deploy action is on
+`guardrails.requireApproval` by default; `environments.<env>.autoDeploy: true` is
+the committed standing consent standing in for the per-run `--approve` of
+operator-script deploys and for nothing else; CI promotion is consented by the
+committed workflow plus a protected GitHub environment for every env whose
+`approval` is `required` — and prod's approval is not optional.
+
+## §21 Supply chain and pipeline security
+
+`Scope: web` today, extending with the delivery surface (§20).
+
+**Verify is offline; the world is a named CI stage.** No verify gate opens a
+socket or needs a cluster: manifest validation runs against vendored schemas,
+container linting is static, and the tool-gated checks (compose config, helm
+lint/template + kubeconform, hadolint) follow the gitleaks pattern — enforce when
+the binary is present, note locally when absent, hard-fail in CI. Everything that
+builds, scans, signs, pushes or deploys an image lives in the delivery pipeline
+under a named stage with a stated failure policy.
+
+Containers run as no one in particular: non-root, no hardcoded UID (OpenShift
+assigns one), read-only root filesystem, dropped capabilities, seccomp
+RuntimeDefault, pinned-by-digest base images, resource limits and probes — one
+image valid under an OpenShift restricted SCC and AKS baseline alike. Image scan
+findings at or above the configured severity fail the pipeline; a `.trivyignore`
+entry without a reason and an expiry date fails `deploy:verify`.
 
 ## §22 Requirements discovery
 

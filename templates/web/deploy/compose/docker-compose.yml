@@ -1,0 +1,27 @@
+# Local single-host run of the SAME image the chain deploys — compose is the
+# simple mode (deployment.flavor "compose", dev at most), never the multi-env
+# path. The runtime constraints mirror the chart on purpose: read-only root
+# filesystem with tmpfs over the paths nginx writes, so "works in compose,
+# crashes on the cluster" cannot hide here.
+services:
+  web:
+    build:
+      context: ../..
+      args:
+        # Pass the real sha for an honest /version.json: GIT_SHA=$(git rev-parse HEAD)
+        GIT_SHA: ${GIT_SHA:-unknown}
+    image: proto-forge-prototype:dev
+    ports:
+      - "8080:8080"
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/cache/nginx
+      - /var/run
+    healthcheck:
+      # Same probe target as the chart's readiness/liveness probes.
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/version.json"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s

@@ -180,6 +180,9 @@ export default tseslint.config(
       "test-results/**",
       "docs/**",
       "scripts/**",
+      // The deploy surface, like scripts/**, is gate corpus: deploy:verify and
+      // the gates-selftest are its tests, and it shares no browser globals.
+      "deploy/**",
       "**/*.config.{ts,js,mjs}",
       "src/i18n/resources.d.ts",
     ],

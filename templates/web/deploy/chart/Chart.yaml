@@ -1,0 +1,6 @@
+apiVersion: v2
+name: proto-forge-prototype
+description: One chart for every environment — differences live in values/<env>.yaml, never in templates.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

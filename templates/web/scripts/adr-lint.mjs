@@ -4,6 +4,14 @@ import { walk, read, isProd, fail, ok } from "./lib.mjs";
 // BR-05: @adr anchors in PRODUCTION code resolve to accepted ADRs; every accepted
 // code-ADR (>=010) is anchored >=1x; each accepted ADR back-references a real
 // .prompts/NNNN-slug.md entry; coverage-waiver markers resolve to an accepted ADR.
+//
+// Scope widening (deliberate, matching api-node's adr-lint): anchors are scanned
+// in src/** and packages/** production code AND in scripts/*.mjs and deploy/*.mjs
+// headers. The delivery decisions (ADRs 200-202) are implemented in the gate
+// corpus and the smoke script — an anchor that cannot live where the decision is
+// implemented would be a lie told to satisfy a linter. The selftest is excluded:
+// its fixture strings are deliberate COUNTEREXAMPLES (@adr numbers that must not
+// resolve), not anchors.
 const PROMPT_REF = /^\.prompts\/\d{4}-[a-z0-9-]+\.md$/;
 
 const adrs = walk("docs/adr", (p) => p.endsWith(".md")).map((p) => {
@@ -36,8 +44,14 @@ for (const a of adrs) {
   if (!["proposed", "accepted", "superseded"].includes(a.status)) errors.push(`${a.p}: unrecognized status "${a.status}"`);
 }
 
-// Anchors are only credible in production source (not tests/stories).
-const codeFiles = [...walk("src", isProd), ...walk("packages", isProd)];
+// Anchors are only credible in production source (not tests/stories) — plus the
+// gate corpus and deploy scripts, per the scope note above.
+const codeFiles = [
+  ...walk("src", isProd),
+  ...walk("packages", isProd),
+  ...walk("scripts", (p) => p.endsWith(".mjs") && !p.endsWith("gates-selftest.mjs")),
+  ...walk("deploy", (p) => p.endsWith(".mjs")),
+];
 const anchored = new Set();
 for (const f of codeFiles) {
   const b = read(f);
@@ -63,4 +77,4 @@ for (const a of adrs) {
 }
 
 if (errors.length) fail("adr-lint FAILED", errors);
-ok(`adr-lint: ${adrs.length} ADRs, ${anchored.size} anchored (prod), links intact`);
+ok(`adr-lint: ${adrs.length} ADRs, ${anchored.size} anchored (prod + gate corpus), links intact`);

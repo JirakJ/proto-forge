@@ -11,7 +11,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "verify": "pnpm run config:check && pnpm run gates:selftest && pnpm run lint && pnpm run typecheck && pnpm run coverage:policy && pnpm run ignores && pnpm run test:unit && pnpm run test:mutation && pnpm run build && pnpm run budget && pnpm run i18n:verify && pnpm run layer:scan && pnpm run overlay:matrix && pnpm run testid:scan && pnpm run docs:verify && pnpm run external:verify && pnpm run stub:scan && pnpm run adr:lint && pnpm run prompt:lint && pnpm run dup:scan && pnpm run consistency && pnpm run sec:scan && pnpm run snapshot:diff && pnpm run test:e2e",
+    "verify": "pnpm run config:check && pnpm run env:verify && pnpm run gates:selftest && pnpm run lint && pnpm run typecheck && pnpm run coverage:policy && pnpm run ignores && pnpm run test:unit && pnpm run test:mutation && pnpm run build && pnpm run deploy:verify && pnpm run budget && pnpm run i18n:verify && pnpm run layer:scan && pnpm run overlay:matrix && pnpm run testid:scan && pnpm run docs:verify && pnpm run external:verify && pnpm run stub:scan && pnpm run adr:lint && pnpm run prompt:lint && pnpm run dup:scan && pnpm run consistency && pnpm run sec:scan && pnpm run snapshot:diff && pnpm run test:e2e",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test:unit": "vitest run --coverage",
@@ -25,6 +25,8 @@
     "docs:shots": "node scripts/docs-shots.mjs",
     "config:show": "node scripts/config-cli.mjs show",
     "config:check": "node scripts/config-cli.mjs check",
+    "env:verify": "node scripts/env-verify.mjs",
+    "deploy:verify": "node scripts/deploy-verify.mjs",
     "gates:selftest": "node scripts/gates-selftest.mjs",
     "sync:jira": "node scripts/sync-jira.mjs",
     "sync:confluence": "node scripts/sync-confluence.mjs",
@@ -88,6 +90,7 @@
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.65.0",
     "vite": "^6.4.3",
-    "vitest": "^3.2.7"
+    "vitest": "^3.2.7",
+    "yaml": "^2.9.0"
   }
 }
