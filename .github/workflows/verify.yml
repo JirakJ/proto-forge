@@ -31,7 +31,7 @@ jobs:
       matrix:
         # Keep in step with references/templates.json — the registry is the source;
         # this list is its CI mirror (a drifted entry fails verify-template itself).
-        template: [web, api-node, workspace, e2e]
+        template: [web, api-node, api-python, api-java, workspace, e2e]
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -49,6 +49,26 @@ jobs:
         run: |
           curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.21.2/gitleaks_8.21.2_linux_x64.tar.gz \
             | sudo tar -xz -C /usr/local/bin gitleaks
+      - name: set up JDK
+        if: matrix.template == 'api-java'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: set up uv
+        if: matrix.template == 'api-python'
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+      - name: install web deploy toolchain
+        # deploy:verify hard-fails in CI when its tools are absent (NFR-16); helm and
+        # docker ship on ubuntu-latest, kubeconform and hadolint are pinned installs.
+        if: matrix.template == 'web'
+        run: |
+          curl -sSfL https://github.com/yannh/kubeconform/releases/download/v0.7.0/kubeconform-linux-amd64.tar.gz \
+            | sudo tar -xz -C /usr/local/bin kubeconform
+          curl -sSfL -o /tmp/hadolint https://github.com/hadolint/hadolint/releases/download/v2.14.0/hadolint-Linux-x86_64 \
+            && sudo install /tmp/hadolint /usr/local/bin/hadolint
       - name: install
         # Warms the pnpm store and the Playwright browser cache the scratch copy will
         # reuse; node_modules itself is excluded from the copy.

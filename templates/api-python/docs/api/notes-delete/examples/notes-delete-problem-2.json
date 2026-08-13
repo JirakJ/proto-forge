@@ -1,0 +1,20 @@
+{
+  "request": {
+    "method": "DELETE",
+    "path": "/notes/not-a-uuid"
+  },
+  "response": {
+    "body": {
+      "code": "validation-failed",
+      "detail": "path.id: Input should be a valid UUID, invalid character: found `n` at 1",
+      "instance": "/notes/not-a-uuid",
+      "status": 400,
+      "title": "The request does not match the operation's schema",
+      "type": "/problems/validation-failed"
+    },
+    "headers": {
+      "content-type": "application/problem+json"
+    },
+    "status": 400
+  }
+}

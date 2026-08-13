@@ -1600,6 +1600,19 @@ which fails if the script exists with no rule behind it. Stated per NFR-25's own
 escape: a limit is recorded here, not papered over with a fixture that proves only
 that `pnpm` is absent.
 
+### §19.9 The JVM and CPython real-database tiers are Testcontainers in CI
+
+§15 wants the Postgres engine in-process at verify time, and for node it is
+(PGlite). The JVM and CPython have no maintained in-process Postgres, and an
+in-memory substitute is a BR-12 mock. Per §15's own escape, api-java's and
+api-python's real-database tier runs over Testcontainers Postgres — Flyway
+migrate + `ddl-auto=validate`, resp. `tests/integration` + `alembic check` — plus
+each stack's `gates:selftest:native` Tier-2 suite proving the native gates fire:
+mandatory in CI on a Docker-equipped runner, tool-gated locally with a printed
+skip note. The persistence adapter is excluded from unit coverage by one
+reasoned entry per stack; each template's ADR 003/006 records it. Mirrors
+§19.4/§19.7: the limit is stated, not papered over.
+
 ### §19.8 `BR-11` describes a tension, not a mechanism
 
 The rule states a goal — do not re-invent accessibility primitives, do not hard-depend

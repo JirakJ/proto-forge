@@ -1,0 +1,27 @@
+{
+  "facetsVersion": 2,
+  "entities": [
+    {
+      "name": "Note",
+      "fields": [{ "name": "text", "type": "string", "required": true }]
+    }
+  ],
+  "flows": [
+    {
+      "name": "manage-notes",
+      "actor": "user",
+      "steps": ["list notes", "create a note", "delete a note"]
+    }
+  ],
+  "roles": ["user"],
+  "persistence": "api",
+  "locales": ["en"],
+  "nonFunctional": { "offlineCapable": false, "realtime": false },
+  "backend": {
+    "stack": "java",
+    "externalSystems": [],
+    "persistence": "postgres",
+    "messaging": "none",
+    "authModel": "none"
+  }
+}
