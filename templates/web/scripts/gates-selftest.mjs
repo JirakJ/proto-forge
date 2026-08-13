@@ -1,7 +1,7 @@
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { cpSync, existsSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname, resolve } from "node:path";
-import { spawnSync } from "node:child_process";
+import { execSync, spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { fail, ok } from "./lib.mjs";
 
@@ -757,6 +757,163 @@ expect(
   }),
   { pass: false, matching: /network access is disabled/, args: ["--commit"] },
 );
+
+// --- deploy consent ------------------------------------------------------------
+// BR-28's operator half. assertMayDeploy (deploy-lib.mjs) mirrors
+// assertMayCommit door for door, and these cases walk the doors exactly like
+// the sync-jira consent cases above: break one thing, expect the right door to
+// refuse. No cluster and no network anywhere — every door closes before a
+// socket could open, and the one helm-needing case gates itself off like
+// deploy:verify's tool half.
+const DEPLOY_SERVER = "https://cluster.example.com:6443";
+const stageRender = (env) => (dir) => {
+  // The staged-first door checks for a render an operator could have read;
+  // the fixture stages one the way a prior `env:remote render` would have.
+  mkdirSync(join(dir, ".proto-forge", "outbox", `deploy-${env}`), { recursive: true });
+  writeFileSync(join(dir, ".proto-forge", "outbox", `deploy-${env}`, "manifests.yaml"), "kind: List\nitems: []\n");
+};
+const kubeconfigFor = (server, namespace) =>
+  [
+    "apiVersion: v1",
+    "kind: Config",
+    "current-context: fixture",
+    "clusters:",
+    "  - name: fixture",
+    "    cluster:",
+    `      server: ${server}`,
+    "contexts:",
+    "  - name: fixture",
+    "    context:",
+    "      cluster: fixture",
+    "      user: fixture",
+    `      namespace: ${namespace}`,
+    "users:",
+    "  - name: fixture",
+    "    user: {}",
+    "",
+  ].join("\n");
+
+expect(
+  "deploy: --commit is refused while the network guardrail is closed",
+  "env-remote.mjs",
+  withConfig({
+    environments: { dev: { cluster: { server: DEPLOY_SERVER } } },
+    guardrails: { network: { allow: false } },
+  }),
+  {
+    pass: false,
+    matching: /network access is disabled/,
+    args: ["deploy", "--env", "dev", "--commit", "--approve"],
+    prepare: stageRender("dev"),
+  },
+);
+
+// autoDeploy is standing consent for exactly one thing: the per-run --approve.
+// The auth door sits AFTER the approval door, so "fails asking for KUBECONFIG"
+// proves the approval was satisfied — without touching any cluster.
+const autoDeployConfig = (extraEnvs = {}) =>
+  withConfig({
+    environments: {
+      dev: { autoDeploy: true, cluster: { server: DEPLOY_SERVER } },
+      ...extraEnvs,
+    },
+    guardrails: { network: { allow: true, allowedHosts: ["cluster.example.com"] } },
+  });
+
+expect(
+  "deploy: autoDeploy stands in for --approve",
+  "env-remote.mjs",
+  autoDeployConfig(),
+  {
+    pass: false,
+    matching: /KUBECONFIG is not set/,
+    args: ["deploy", "--env", "dev", "--commit"],
+    env: { KUBECONFIG: "" },
+    prepare: stageRender("dev"),
+  },
+);
+
+// Standing consent is scoped to ITS environment: dev's autoDeploy approves dev
+// and nothing else — sit still demands its own --approve (or its own flag).
+expect(
+  "deploy: autoDeploy on dev does not approve sit",
+  "env-remote.mjs",
+  autoDeployConfig({ sit: { enabled: true, cluster: { server: DEPLOY_SERVER, namespace: "sit" } } }),
+  {
+    pass: false,
+    matching: /requires explicit approval/,
+    args: ["deploy", "--env", "sit", "--commit"],
+    env: { KUBECONFIG: "" },
+    prepare: stageRender("sit"),
+  },
+);
+
+// The door assertMayCommit has no analogue for: helm acts on the CURRENT
+// kubectl context, so a context aimed at a cluster the config does not name is
+// refused even after every consent door opened.
+expect(
+  "deploy: a context pointing at a different server is refused",
+  "env-remote.mjs",
+  autoDeployConfig(),
+  {
+    pass: false,
+    matching: /current kubectl context points at/,
+    args: ["deploy", "--env", "dev", "--commit", "--approve"],
+    env: { KUBECONFIG: "kubeconfig.yaml" },
+    prepare: (dir) => {
+      stageRender("dev")(dir);
+      writeFileSync(join(dir, "kubeconfig.yaml"), kubeconfigFor("https://other.example.com:6443", "dev"));
+    },
+  },
+);
+
+// The hard rule with no flag past it: bootstrap applies everything EXCEPT the
+// Secret skeleton. Every consent door is open here (context matches too); PATH
+// is emptied so kubectl gates the apply off AFTER the plan is printed — the
+// exclusion is decided and stated before anything could reach a cluster.
+expect(
+  "deploy: secrets are never applied, even with --commit --approve",
+  "env-remote.mjs",
+  autoDeployConfig(),
+  {
+    pass: false,
+    matching: /secret\.yaml SKIPPED/,
+    args: ["bootstrap", "--env", "dev", "--commit", "--approve"],
+    env: { KUBECONFIG: "kubeconfig.yaml", PATH: "", CI: "" },
+    prepare: (dir) => writeFileSync(join(dir, "kubeconfig.yaml"), kubeconfigFor(DEPLOY_SERVER, "dev")),
+  },
+);
+
+// render is an OFFLINE `helm template` into the outbox — the staged artefact
+// deploy replays. helm-gated exactly like deploy:verify's tool half: enforced
+// when installed (always, in CI), one loud note otherwise.
+{
+  let helmPresent = true;
+  try {
+    execSync("command -v helm", { stdio: "ignore" });
+  } catch {
+    helmPresent = false;
+  }
+  if (!helmPresent) {
+    process.stderr.write("⚠ deploy: render selftest skipped — helm not installed (CI enforces the deploy toolchain)\n");
+  } else {
+    const dir = project(withConfig({}));
+    try {
+      cpSync(join(SCRIPTS, "..", "deploy", "chart"), join(dir, "deploy", "chart"), { recursive: true });
+      const { code, out } = run("env-remote.mjs", dir, ["render", "--env", "dev"]);
+      const staged = join(dir, ".proto-forge", "outbox", "deploy-dev", "manifests.yaml");
+      if (code !== 0) {
+        results.push(`deploy: render stages to the outbox without touching a cluster — render failed: ${out.trim()}`);
+      } else if (!existsSync(staged)) {
+        results.push("deploy: render stages to the outbox without touching a cluster — nothing landed in the outbox");
+      } else if (!/no cluster was touched/.test(out)) {
+        results.push(`deploy: render stages to the outbox without touching a cluster — the message must say so: ${out.trim()}`);
+      }
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }
+}
 
 // --- guardrail hooks ----------------------------------------------------------
 function hook(name, script, payload, files, { blocked, matching }) {

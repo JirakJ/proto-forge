@@ -889,12 +889,18 @@ single-host simple mode and cannot carry a multi-environment chain.
   impossible by construction. Consent lives where review lives: in the committed
   config and the protected environment, never in a shell flag someone typed once.
 - **Scope:** web
-- **Enforced by:** `config:check` (the declaration half; the operator-script doors —
-  the `assertMayDeploy` mirror of `assertMayCommit` — land with the delivery
-  pipeline scripts and extend this rule's enforcement, not its text)
+- **Enforced by:** `config:check` (the declaration half); `assertMayDeploy` in
+  `templates/web/scripts/deploy-lib.mjs` — the door-for-door mirror of
+  `assertMayCommit` — behind `env:remote`, plus the approval-preflight step in
+  `cd.yml` reconciling config against GitHub environment protection per run
 - **Proven by:** `gates:selftest` → "config: prod without required approval fails",
   "config: prod cannot be the first enabled environment", "config: compose flavor
-  cannot carry a multi-environment chain"
+  cannot carry a multi-environment chain", "deploy: --commit is refused while the
+  network guardrail is closed", "deploy: autoDeploy stands in for --approve",
+  "deploy: autoDeploy on dev does not approve sit", "deploy: a context pointing at a
+  different server is refused", "deploy: secrets are never applied, even with
+  --commit --approve", "deploy: render stages to the outbox without touching a
+  cluster"
 - **Decided in:** ADR 200 (prototype namespace); ADR 005 (plugin namespace) for the
   standing-consent form
 
@@ -1099,11 +1105,12 @@ workflow identity and verified before rollout, with the image SBOM attested.
 - **Why:** "What exactly is running in prod?" must have a mechanical answer. A digest
   chain from Dockerfile to the serving pod is that answer; a tag chain is not.
 - **Scope:** web
-- **Enforced by:** `deploy:verify` (digest pins); `deploy/smoke.mjs` post-deploy (the
-  cosign sign/verify chain ships with the delivery pipeline and extends this rule's
-  enforcement, not its text)
+- **Enforced by:** `deploy:verify` (digest pins); `deploy/smoke.mjs` post-deploy; the
+  delivery pipeline's own steps — `package.yml` "cosign sign + attest the SBOM" and
+  `cd.yml` "cosign verify the workflow identity" before every rollout, with deploys
+  keyed by digest, never by tag (a CI-mechanism proof, the NFR-10 precedent)
 - **Proven by:** `gates:selftest` → "deploy: a Dockerfile with a floating base tag
-  fails"
+  fails", "deploy: render stages to the outbox without touching a cluster"
 - **Decided in:** ADR 202 (prototype namespace)
 
 ### NFR-20 — One responsibility per module (SRP)
