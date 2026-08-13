@@ -50,6 +50,7 @@ for (const a of adrs) {
 const codeFiles = [
   ...walk("src", isProd),
   ...walk("scripts", (p) => p.endsWith(".mjs") && !p.endsWith("gates-selftest.mjs")),
+  ...walk("deploy", (p) => p.endsWith(".mjs")),
 ];
 const anchored = new Set();
 for (const f of codeFiles) {

@@ -1,0 +1,130 @@
+name: package
+
+# ADR 202 / NFR-17: the stage that turns a green verify into a signed, scanned,
+# pushed image. Everything network-touching lives HERE, never in verify. One
+# image is built per commit and promoted, never rebuilt — cd.yml deploys the
+# digest this workflow pushed.
+#
+# House rules in force:
+#   - GitHub context reaches run: scripts only through env: indirection — ${{ }}
+#     interpolated into a script is the classic Actions shell-injection vector.
+#   - Third-party actions are pinned to full commit SHAs (version in a comment);
+#     first-party actions/* follow verify.yml's tag pinning.
+#   - Tools install pinned, the gitleaks pattern from verify.yml.
+on:
+  workflow_run:
+    workflows: [verify]
+    types: [completed]
+    branches: [main]
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write # cosign keyless signing + azure OIDC federation
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    # workflow_run fires on every completion; only a green verify packages.
+    if: github.event_name == 'push' || github.event.workflow_run.conclusion == 'success'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # For workflow_run events GITHUB_SHA is main's tip at trigger time;
+          # build exactly the commit whose verify succeeded.
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      # deploy-cli reads .proto-forge/config.json with node stdlib only:
+      # no install, no network, same plan an operator gets from `pnpm deploy:plan`.
+      - name: plan
+        id: plan
+        run: node scripts/deploy-cli.mjs plan --github-output >> "$GITHUB_OUTPUT"
+
+      - name: build image
+        env:
+          IMAGE: ${{ steps.plan.outputs.image }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: |
+          docker buildx build --load \
+            --build-arg GIT_SHA="$HEAD_SHA" \
+            -t "$IMAGE:sha-$HEAD_SHA" .
+
+      # trivy serves both the scan and the image SBOM; pinned install either way.
+      - name: install trivy (pinned)
+        run: |
+          curl -sSfL https://github.com/aquasecurity/trivy/releases/download/v0.73.0/trivy_0.73.0_Linux-64bit.tar.gz \
+            | sudo tar -xz -C /usr/local/bin trivy
+      - name: scan image
+        if: steps.plan.outputs.scan == 'true'
+        env:
+          IMAGE: ${{ steps.plan.outputs.image }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+          SEVERITY: ${{ steps.plan.outputs.severity }}
+        # .trivyignore suppressions are triaged and expiring — deploy:verify
+        # fails undated or expired entries before this scan ever honours them.
+        run: |
+          trivy image --severity "$SEVERITY" --ignore-unfixed --exit-code 1 \
+            --ignorefile .trivyignore "$IMAGE:sha-$HEAD_SHA"
+      - name: image SBOM (CycloneDX)
+        env:
+          IMAGE: ${{ steps.plan.outputs.image }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: trivy image --format cyclonedx --output image-sbom.cdx.json "$IMAGE:sha-$HEAD_SHA"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: image-sbom
+          path: image-sbom.cdx.json
+
+      # Registry login: GHCR rides the workflow's own GITHUB_TOKEN; ACR rides
+      # Azure OIDC federation — no long-lived registry password in either path.
+      - name: log in to GHCR
+        if: steps.plan.outputs.registry_host == 'ghcr.io'
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTOR: ${{ github.actor }}
+        run: printf '%s' "$TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin
+      - uses: azure/login@a457da9ea143d694b1b9c7c869ebb04ebe844ef5 # v2.3.0
+        if: endsWith(steps.plan.outputs.registry_host, '.azurecr.io')
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: log in to ACR
+        if: endsWith(steps.plan.outputs.registry_host, '.azurecr.io')
+        env:
+          REGISTRY: ${{ steps.plan.outputs.registry_host }}
+        run: az acr login --name "${REGISTRY%%.*}"
+
+      - name: push
+        id: push
+        env:
+          IMAGE: ${{ steps.plan.outputs.image }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+          EVENT: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          docker push "$IMAGE:sha-$HEAD_SHA"
+          if [ "$EVENT" = "push" ]; then
+            docker tag "$IMAGE:sha-$HEAD_SHA" "$IMAGE:$REF_NAME"
+            docker push "$IMAGE:$REF_NAME"
+          fi
+          digest="$(docker buildx imagetools inspect "$IMAGE:sha-$HEAD_SHA" --format '{{ json .Manifest }}' | jq -r .digest)"
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+
+      # Keyless signing binds the signature to THIS repository's package.yml
+      # workflow identity via the runner's OIDC token — no key to store, rotate
+      # or leak. cd.yml verifies exactly that identity before every rollout.
+      - uses: sigstore/cosign-installer@d7543c93d881b35a8faa02e8e3605f69b7a1ce62 # v3.10.0
+        if: steps.plan.outputs.sign == 'true'
+      - name: cosign sign + attest the SBOM
+        if: steps.plan.outputs.sign == 'true'
+        env:
+          IMAGE: ${{ steps.plan.outputs.image }}
+          DIGEST: ${{ steps.push.outputs.digest }}
+        run: |
+          cosign sign --yes "$IMAGE@$DIGEST"
+          cosign attest --yes --type cyclonedx --predicate image-sbom.cdx.json "$IMAGE@$DIGEST"

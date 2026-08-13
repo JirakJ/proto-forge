@@ -54,6 +54,7 @@ const codeFiles = [
   ...walk("importlinter", (p) => p.endsWith(".toml")),
   ...["pyproject.toml", "alembic.ini"].filter((p) => existsSync(p)),
   ...walk("scripts", (p) => p.endsWith(".mjs") && !/gates-selftest(-native)?\.mjs$/.test(p)),
+  ...walk("deploy", (p) => p.endsWith(".mjs")),
 ];
 const anchored = new Set();
 for (const f of codeFiles) {

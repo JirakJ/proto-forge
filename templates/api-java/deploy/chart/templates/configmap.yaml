@@ -1,0 +1,11 @@
+# Non-secret runtime configuration. Secrets never appear here — they arrive as
+# envFrom references to Secrets named in .Values.envFromSecrets, created by the
+# platform team per the contract in docs/DEPLOYMENT.md.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "app.fullname" . }}
+  labels:
+    {{- include "app.labels" . | nindent 4 }}
+data:
+  APP_ENV: {{ .Values.environment | quote }}

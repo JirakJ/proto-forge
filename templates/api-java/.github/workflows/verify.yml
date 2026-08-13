@@ -71,6 +71,18 @@ jobs:
           sudo chmod +x /usr/local/bin/osv-scanner
       # Locked resolution: a coordinate gradle.lockfile does not name fails here
       # rather than resolving something new (NFR-11).
+      # deploy:verify's toolchain, same doctrine: tool-gated locally, mandatory
+      # here. docker and helm already ship on ubuntu-latest; hadolint and
+      # kubeconform are installed pinned.
+      - name: Install hadolint
+        run: |
+          sudo curl -sSfL -o /usr/local/bin/hadolint \
+            https://github.com/hadolint/hadolint/releases/download/v2.12.0/hadolint-Linux-x86_64
+          sudo chmod +x /usr/local/bin/hadolint
+      - name: Install kubeconform
+        run: |
+          curl -sSfL https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz \
+            | sudo tar -xz -C /usr/local/bin kubeconform
       - run: pnpm verify
       # The Docker-gated tiers (ADR 003/006): the real-database persistence tests
       # and the Tier-2 native gate selftests are tool-gated on a laptop, mandatory here.

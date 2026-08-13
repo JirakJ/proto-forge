@@ -1,0 +1,785 @@
+name: cd
+
+# ADR 200/202 + BR-28: the promotion chain as a STATIC workflow with
+# config-driven skips — reviewable as a diff, never a generated matrix.
+#
+#   workflow_run(package, main)  →  deploy dev only
+#   push tag v*                  →  the full enabled chain, in ENV_ORDER
+#   workflow_dispatch {env, ref} →  surgical redeploy of one environment
+#
+# The `plan` job derives everything from .proto-forge/config.json via
+# `node scripts/deploy-cli.mjs plan` — per-env enabled flags, urls, cluster
+# facts, the image reference — and each environment job composes its `if:` from
+# (a) the enabled flag, (b) the trigger scope and (c) the skip-tolerant chain:
+#
+#   needs: lists every earlier environment, and each predecessor must satisfy
+#   `needs.<pred>.result == 'success' || needs.<pred>.result == 'skipped'`
+#   alongside `!failure() && !cancelled()`. A DISABLED (or out-of-scope)
+#   environment therefore skips and the chain walks on; a FAILED one stops
+#   everything after it. `needs.plan.result == 'success'` leads every clause so
+#   `fromJson(needs.plan.outputs.plan)` is never evaluated when plan skipped.
+#
+# Consent model: CI promotion is consented by this committed file plus GitHub
+# environment protection wherever config says `approval: required` — and the
+# preflight step checks the protection rules actually exist rather than
+# trusting the label. Human approval happens in the GitHub UI BEFORE a
+# protected job starts. Rollback story: `helm --atomic` rolls a failed upgrade
+# back on its own; an operator rolls a bad-but-green release back with
+# `pnpm env:remote rollback --env <e> --commit --approve`.
+#
+# House rules: GitHub context reaches run: scripts only through env:
+# indirection; third-party actions pinned to full commit SHAs.
+on:
+  workflow_run:
+    workflows: [package]
+    types: [completed]
+    branches: [main]
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      env:
+        description: environment to redeploy
+        required: true
+        type: choice
+        options: [dev, sit, uat, test, prod]
+      ref:
+        description: commit or tag to redeploy (must already have a packaged image)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: read # pull the image manifest + cosign signature from GHCR
+  id-token: write # azure OIDC federation for AKS/ACR logins
+  actions: read # the plan job lists package.yml runs to prove the image exists
+
+# One chain at a time: two interleaved promotions of different commits would
+# race each other's helm history.
+concurrency:
+  group: cd
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    # workflow_run fires on every completion; only a successful package deploys.
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    outputs:
+      plan: ${{ steps.plan.outputs.plan }}
+      image: ${{ steps.plan.outputs.image }}
+      registry_host: ${{ steps.plan.outputs.registry_host }}
+      sign: ${{ steps.plan.outputs.sign }}
+      app: ${{ steps.plan.outputs.app }}
+      chart_path: ${{ steps.plan.outputs.chart_path }}
+      keep_history: ${{ steps.plan.outputs.keep_history }}
+      sha: ${{ steps.meta.outputs.sha }}
+      scope: ${{ steps.meta.outputs.scope }}
+      target: ${{ steps.meta.outputs.target }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || inputs.ref || github.ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - name: plan from the config
+        id: plan
+        run: node scripts/deploy-cli.mjs plan --github-output >> "$GITHUB_OUTPUT"
+      - name: scope this run
+        id: meta
+        env:
+          EVENT: ${{ github.event_name }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          TARGET: ${{ inputs.env }}
+        run: |
+          {
+            case "$EVENT" in
+              workflow_run)      echo "scope=dev-only"; echo "sha=$HEAD_SHA"; echo "target=" ;;
+              push)              echo "scope=chain"; echo "sha=$GITHUB_SHA"; echo "target=" ;;
+              workflow_dispatch) echo "scope=surgical"; echo "sha=$(git rev-parse HEAD)"; echo "target=$TARGET" ;;
+            esac
+          } >> "$GITHUB_OUTPUT"
+      - name: the image must exist before any deploy
+        if: github.event_name != 'workflow_run'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ steps.meta.outputs.sha }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          # A tag push triggers package.yml and this workflow at once — wait for
+          # that race to resolve. A dispatch redeploys an EXISTING image: fail
+          # fast when the ref was never packaged.
+          tries=1
+          [ "$EVENT" = "push" ] && tries=60
+          i=1
+          while [ "$i" -le "$tries" ]; do
+            n="$(gh api "/repos/$REPO/actions/workflows/package.yml/runs?head_sha=$SHA&status=success&per_page=1" --jq '.total_count' || echo 0)"
+            if [ "${n:-0}" -gt 0 ]; then echo "package succeeded for $SHA"; exit 0; fi
+            [ "$i" -lt "$tries" ] && sleep 30
+            i=$((i + 1))
+          done
+          echo "::error::no successful package run for $SHA — the image this deploy needs does not exist"
+          exit 1
+
+  # ── dev ──────────────────────────────────────────────────────────────────────
+  # The fully commented job; sit/uat/test/prod repeat these steps scoped to
+  # their environment. dev deploys on every trigger scope that includes it.
+  dev:
+    needs: [plan]
+    if: >-
+      needs.plan.result == 'success' &&
+      fromJson(needs.plan.outputs.plan).environments.dev.enabled &&
+      (needs.plan.outputs.scope == 'dev-only' || needs.plan.outputs.scope == 'chain' ||
+       (needs.plan.outputs.scope == 'surgical' && needs.plan.outputs.target == 'dev'))
+    runs-on: ubuntu-latest
+    # GitHub environment protection IS the human approval for CI promotion:
+    # a protected job blocks here until a reviewer approves it in the UI.
+    environment:
+      name: dev
+      url: ${{ fromJson(needs.plan.outputs.plan).environments.dev.url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.plan.outputs.sha }}
+      # `approval: required` in config must be REAL protection, not a label.
+      - name: approval preflight
+        if: fromJson(needs.plan.outputs.plan).environments.dev.approval == 'required'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          ENV_NAME: dev
+        run: |
+          rules="$(gh api "/repos/$REPO/environments/$ENV_NAME" --jq '.protection_rules | length' 2>/dev/null || echo missing)"
+          if [ "$rules" = "missing" ] || [ "${rules:-0}" -eq 0 ]; then
+            echo "::error::config says approval: required for '$ENV_NAME', but the GitHub environment has no protection rules — the approval would be a label, not a gate."
+            echo "Fix it (repo admin), then re-run:"
+            echo "  gh api /users/<login> --jq .id   # find the reviewer id"
+            echo "  gh api --method PUT \"/repos/$REPO/environments/$ENV_NAME\" --input - <<'JSON'"
+            echo '  { "reviewers": [ { "type": "User", "id": <id> } ] }'
+            echo "  JSON"
+            exit 1
+          fi
+          echo "$ENV_NAME carries $rules protection rule(s)"
+      # Registry access — GHCR by GITHUB_TOKEN, ACR by Azure OIDC. Needed to
+      # resolve the digest and to let cosign fetch the signature.
+      - name: log in to GHCR
+        if: needs.plan.outputs.registry_host == 'ghcr.io'
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTOR: ${{ github.actor }}
+        run: printf '%s' "$TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin
+      - uses: azure/login@a457da9ea143d694b1b9c7c869ebb04ebe844ef5 # v2.3.0
+        if: >-
+          endsWith(needs.plan.outputs.registry_host, '.azurecr.io') ||
+          fromJson(needs.plan.outputs.plan).environments.dev.cluster.type == 'aks'
+        with:
+          client-id: ${{ secrets[fromJson(needs.plan.outputs.plan).environments.dev.auth.azureClientIdEnv] }}
+          tenant-id: ${{ secrets[fromJson(needs.plan.outputs.plan).environments.dev.auth.azureTenantIdEnv] }}
+          subscription-id: ${{ secrets[fromJson(needs.plan.outputs.plan).environments.dev.auth.azureSubscriptionIdEnv] }}
+      - name: log in to ACR
+        if: endsWith(needs.plan.outputs.registry_host, '.azurecr.io')
+        env:
+          REGISTRY: ${{ needs.plan.outputs.registry_host }}
+        run: az acr login --name "${REGISTRY%%.*}"
+      # Deploy by digest: the bytes that were scanned and signed are the bytes
+      # that roll out (NFR-17).
+      - name: resolve the image digest
+        id: digest
+        env:
+          IMAGE: ${{ needs.plan.outputs.image }}
+          SHA: ${{ needs.plan.outputs.sha }}
+        run: |
+          digest="$(docker buildx imagetools inspect "$IMAGE:sha-$SHA" --format '{{ json .Manifest }}' | jq -r .digest)"
+          if [ -z "$digest" ] || [ "$digest" = "null" ]; then
+            echo "::error::no digest for $IMAGE:sha-$SHA — was this commit packaged?"
+            exit 1
+          fi
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+      # The signature must carry THIS repository's package.yml workflow
+      # identity — anyone can sign an image keyless; only our pipeline can sign
+      # as our pipeline.
+      - uses: sigstore/cosign-installer@d7543c93d881b35a8faa02e8e3605f69b7a1ce62 # v3.10.0
+        if: needs.plan.outputs.sign == 'true'
+      - name: cosign verify the workflow identity
+        if: needs.plan.outputs.sign == 'true'
+        env:
+          IMAGE: ${{ needs.plan.outputs.image }}
+          DIGEST: ${{ steps.digest.outputs.digest }}
+          REPO: ${{ github.repository }}
+        run: |
+          cosign verify \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            --certificate-identity-regexp "^https://github.com/${REPO}/[.]github/workflows/package[.]yml@" \
+            "$IMAGE@$DIGEST"
+      # Cluster login, per cluster.type. AKS names its cluster through GitHub
+      # environment VARIABLES (vars.AKS_CLUSTER_NAME / vars.AKS_RESOURCE_GROUP)
+      # — config carries the API server for the operator tools; Azure needs the
+      # ARM names. Secrets are read by the NAMES the config declares (BR-29).
+      - name: cluster login (aks)
+        if: fromJson(needs.plan.outputs.plan).environments.dev.cluster.type == 'aks'
+        env:
+          CLUSTER_NAME: ${{ vars.AKS_CLUSTER_NAME }}
+          RESOURCE_GROUP: ${{ vars.AKS_RESOURCE_GROUP }}
+        run: |
+          sudo az aks install-cli
+          az aks get-credentials --name "$CLUSTER_NAME" --resource-group "$RESOURCE_GROUP"
+          kubelogin convert-kubeconfig -l azurecli
+      - name: cluster login (openshift)
+        if: fromJson(needs.plan.outputs.plan).environments.dev.cluster.type == 'openshift'
+        env:
+          OC_TOKEN: ${{ secrets[fromJson(needs.plan.outputs.plan).environments.dev.auth.tokenEnv] }}
+          SERVER: ${{ fromJson(needs.plan.outputs.plan).environments.dev.cluster.server }}
+        run: |
+          curl -sSfL https://mirror.openshift.com/pub/openshift-v4/clients/ocp/4.17.9/openshift-client-linux.tar.gz \
+            | sudo tar -xz -C /usr/local/bin oc
+          oc login --token="$OC_TOKEN" --server="$SERVER"
+      - name: cluster login (generic)
+        if: fromJson(needs.plan.outputs.plan).environments.dev.cluster.type == 'generic'
+        env:
+          KUBECONFIG_CONTENT: ${{ secrets[fromJson(needs.plan.outputs.plan).environments.dev.auth.kubeconfigEnv] }}
+        run: |
+          install -m 600 /dev/null "$RUNNER_TEMP/kubeconfig"
+          printf '%s' "$KUBECONFIG_CONTENT" > "$RUNNER_TEMP/kubeconfig"
+          echo "KUBECONFIG=$RUNNER_TEMP/kubeconfig" >> "$GITHUB_ENV"
+      # --atomic is the first rollback story: a failed upgrade rolls itself back.
+      - name: helm upgrade
+        env:
+          APP: ${{ needs.plan.outputs.app }}
+          CHART: ${{ needs.plan.outputs.chart_path }}
+          IMAGE: ${{ needs.plan.outputs.image }}
+          DIGEST: ${{ steps.digest.outputs.digest }}
+          KEEP: ${{ needs.plan.outputs.keep_history }}
+          NAMESPACE: ${{ fromJson(needs.plan.outputs.plan).environments.dev.cluster.namespace }}
+        run: |
+          helm upgrade --install "$APP" "$CHART" \
+            -f "$CHART/values/dev.yaml" \
+            --set image.repository="$IMAGE" \
+            --set image.digest="$DIGEST" \
+            --atomic --timeout 5m --history-max "$KEEP" \
+            --namespace "$NAMESPACE"
+      # The deploy is not done until the new pod answers with the deployed sha.
+      - name: smoke
+        env:
+          URL: ${{ fromJson(needs.plan.outputs.plan).environments.dev.url }}
+          SHA: ${{ needs.plan.outputs.sha }}
+        run: node deploy/smoke.mjs --url "$URL" --expect-sha "$SHA"
+
+  # ── sit ──────────────────────────────────────────────────────────────────────
+  # Same steps as dev, scoped to sit. The needs chain is skip-tolerant: a
+  # disabled dev skips and sit still runs; a FAILED dev stops the chain here.
+  sit:
+    needs: [plan, dev]
+    if: >-
+      needs.plan.result == 'success' &&
+      !failure() && !cancelled() &&
+      (needs.dev.result == 'success' || needs.dev.result == 'skipped') &&
+      fromJson(needs.plan.outputs.plan).environments.sit.enabled &&
+      (needs.plan.outputs.scope == 'chain' ||
+       (needs.plan.outputs.scope == 'surgical' && needs.plan.outputs.target == 'sit'))
+    runs-on: ubuntu-latest
+    environment:
+      name: sit
+      url: ${{ fromJson(needs.plan.outputs.plan).environments.sit.url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.plan.outputs.sha }}
+      - name: approval preflight
+        if: fromJson(needs.plan.outputs.plan).environments.sit.approval == 'required'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          ENV_NAME: sit
+        run: |
+          rules="$(gh api "/repos/$REPO/environments/$ENV_NAME" --jq '.protection_rules | length' 2>/dev/null || echo missing)"
+          if [ "$rules" = "missing" ] || [ "${rules:-0}" -eq 0 ]; then
+            echo "::error::config says approval: required for '$ENV_NAME', but the GitHub environment has no protection rules — the approval would be a label, not a gate."
+            echo "Fix it (repo admin), then re-run:"
+            echo "  gh api /users/<login> --jq .id   # find the reviewer id"
+            echo "  gh api --method PUT \"/repos/$REPO/environments/$ENV_NAME\" --input - <<'JSON'"
+            echo '  { "reviewers": [ { "type": "User", "id": <id> } ] }'
+            echo "  JSON"
+            exit 1
+          fi
+          echo "$ENV_NAME carries $rules protection rule(s)"
+      - name: log in to GHCR
+        if: needs.plan.outputs.registry_host == 'ghcr.io'
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTOR: ${{ github.actor }}
+        run: printf '%s' "$TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin
+      - uses: azure/login@a457da9ea143d694b1b9c7c869ebb04ebe844ef5 # v2.3.0
+        if: >-
+          endsWith(needs.plan.outputs.registry_host, '.azurecr.io') ||
+          fromJson(needs.plan.outputs.plan).environments.sit.cluster.type == 'aks'
+        with:
+          client-id: ${{ secrets[fromJson(needs.plan.outputs.plan).environments.sit.auth.azureClientIdEnv] }}
+          tenant-id: ${{ secrets[fromJson(needs.plan.outputs.plan).environments.sit.auth.azureTenantIdEnv] }}
+          subscription-id: ${{ secrets[fromJson(needs.plan.outputs.plan).environments.sit.auth.azureSubscriptionIdEnv] }}
+      - name: log in to ACR
+        if: endsWith(needs.plan.outputs.registry_host, '.azurecr.io')
+        env:
+          REGISTRY: ${{ needs.plan.outputs.registry_host }}
+        run: az acr login --name "${REGISTRY%%.*}"
+      - name: resolve the image digest
+        id: digest
+        env:
+          IMAGE: ${{ needs.plan.outputs.image }}
+          SHA: ${{ needs.plan.outputs.sha }}
+        run: |
+          digest="$(docker buildx imagetools inspect "$IMAGE:sha-$SHA" --format '{{ json .Manifest }}' | jq -r .digest)"
+          if [ -z "$digest" ] || [ "$digest" = "null" ]; then
+            echo "::error::no digest for $IMAGE:sha-$SHA — was this commit packaged?"
+            exit 1
+          fi
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+      - uses: sigstore/cosign-installer@d7543c93d881b35a8faa02e8e3605f69b7a1ce62 # v3.10.0
+        if: needs.plan.outputs.sign == 'true'
+      - name: cosign verify the workflow identity
+        if: needs.plan.outputs.sign == 'true'
+        env:
+          IMAGE: ${{ needs.plan.outputs.image }}
+          DIGEST: ${{ steps.digest.outputs.digest }}
+          REPO: ${{ github.repository }}
+        run: |
+          cosign verify \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            --certificate-identity-regexp "^https://github.com/${REPO}/[.]github/workflows/package[.]yml@" \
+            "$IMAGE@$DIGEST"
+      - name: cluster login (aks)
+        if: fromJson(needs.plan.outputs.plan).environments.sit.cluster.type == 'aks'
+        env:
+          CLUSTER_NAME: ${{ vars.AKS_CLUSTER_NAME }}
+          RESOURCE_GROUP: ${{ vars.AKS_RESOURCE_GROUP }}
+        run: |
+          sudo az aks install-cli
+          az aks get-credentials --name "$CLUSTER_NAME" --resource-group "$RESOURCE_GROUP"
+          kubelogin convert-kubeconfig -l azurecli
+      - name: cluster login (openshift)
+        if: fromJson(needs.plan.outputs.plan).environments.sit.cluster.type == 'openshift'
+        env:
+          OC_TOKEN: ${{ secrets[fromJson(needs.plan.outputs.plan).environments.sit.auth.tokenEnv] }}
+          SERVER: ${{ fromJson(needs.plan.outputs.plan).environments.sit.cluster.server }}
+        run: |
+          curl -sSfL https://mirror.openshift.com/pub/openshift-v4/clients/ocp/4.17.9/openshift-client-linux.tar.gz \
+            | sudo tar -xz -C /usr/local/bin oc
+          oc login --token="$OC_TOKEN" --server="$SERVER"
+      - name: cluster login (generic)
+        if: fromJson(needs.plan.outputs.plan).environments.sit.cluster.type == 'generic'
+        env:
+          KUBECONFIG_CONTENT: ${{ secrets[fromJson(needs.plan.outputs.plan).environments.sit.auth.kubeconfigEnv] }}
+        run: |
+          install -m 600 /dev/null "$RUNNER_TEMP/kubeconfig"
+          printf '%s' "$KUBECONFIG_CONTENT" > "$RUNNER_TEMP/kubeconfig"
+          echo "KUBECONFIG=$RUNNER_TEMP/kubeconfig" >> "$GITHUB_ENV"
+      - name: helm upgrade
+        env:
+          APP: ${{ needs.plan.outputs.app }}
+          CHART: ${{ needs.plan.outputs.chart_path }}
+          IMAGE: ${{ needs.plan.outputs.image }}
+          DIGEST: ${{ steps.digest.outputs.digest }}
+          KEEP: ${{ needs.plan.outputs.keep_history }}
+          NAMESPACE: ${{ fromJson(needs.plan.outputs.plan).environments.sit.cluster.namespace }}
+        run: |
+          helm upgrade --install "$APP" "$CHART" \
+            -f "$CHART/values/sit.yaml" \
+            --set image.repository="$IMAGE" \
+            --set image.digest="$DIGEST" \
+            --atomic --timeout 5m --history-max "$KEEP" \
+            --namespace "$NAMESPACE"
+      - name: smoke
+        env:
+          URL: ${{ fromJson(needs.plan.outputs.plan).environments.sit.url }}
+          SHA: ${{ needs.plan.outputs.sha }}
+        run: node deploy/smoke.mjs --url "$URL" --expect-sha "$SHA"
+
+  # ── uat ──────────────────────────────────────────────────────────────────────
+  uat:
+    needs: [plan, dev, sit]
+    if: >-
+      needs.plan.result == 'success' &&
+      !failure() && !cancelled() &&
+      (needs.dev.result == 'success' || needs.dev.result == 'skipped') &&
+      (needs.sit.result == 'success' || needs.sit.result == 'skipped') &&
+      fromJson(needs.plan.outputs.plan).environments.uat.enabled &&
+      (needs.plan.outputs.scope == 'chain' ||
+       (needs.plan.outputs.scope == 'surgical' && needs.plan.outputs.target == 'uat'))
+    runs-on: ubuntu-latest
+    environment:
+      name: uat
+      url: ${{ fromJson(needs.plan.outputs.plan).environments.uat.url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.plan.outputs.sha }}
+      - name: approval preflight
+        if: fromJson(needs.plan.outputs.plan).environments.uat.approval == 'required'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          ENV_NAME: uat
+        run: |
+          rules="$(gh api "/repos/$REPO/environments/$ENV_NAME" --jq '.protection_rules | length' 2>/dev/null || echo missing)"
+          if [ "$rules" = "missing" ] || [ "${rules:-0}" -eq 0 ]; then
+            echo "::error::config says approval: required for '$ENV_NAME', but the GitHub environment has no protection rules — the approval would be a label, not a gate."
+            echo "Fix it (repo admin), then re-run:"
+            echo "  gh api /users/<login> --jq .id   # find the reviewer id"
+            echo "  gh api --method PUT \"/repos/$REPO/environments/$ENV_NAME\" --input - <<'JSON'"
+            echo '  { "reviewers": [ { "type": "User", "id": <id> } ] }'
+            echo "  JSON"
+            exit 1
+          fi
+          echo "$ENV_NAME carries $rules protection rule(s)"
+      - name: log in to GHCR
+        if: needs.plan.outputs.registry_host == 'ghcr.io'
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTOR: ${{ github.actor }}
+        run: printf '%s' "$TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin
+      - uses: azure/login@a457da9ea143d694b1b9c7c869ebb04ebe844ef5 # v2.3.0
+        if: >-
+          endsWith(needs.plan.outputs.registry_host, '.azurecr.io') ||
+          fromJson(needs.plan.outputs.plan).environments.uat.cluster.type == 'aks'
+        with:
+          client-id: ${{ secrets[fromJson(needs.plan.outputs.plan).environments.uat.auth.azureClientIdEnv] }}
+          tenant-id: ${{ secrets[fromJson(needs.plan.outputs.plan).environments.uat.auth.azureTenantIdEnv] }}
+          subscription-id: ${{ secrets[fromJson(needs.plan.outputs.plan).environments.uat.auth.azureSubscriptionIdEnv] }}
+      - name: log in to ACR
+        if: endsWith(needs.plan.outputs.registry_host, '.azurecr.io')
+        env:
+          REGISTRY: ${{ needs.plan.outputs.registry_host }}
+        run: az acr login --name "${REGISTRY%%.*}"
+      - name: resolve the image digest
+        id: digest
+        env:
+          IMAGE: ${{ needs.plan.outputs.image }}
+          SHA: ${{ needs.plan.outputs.sha }}
+        run: |
+          digest="$(docker buildx imagetools inspect "$IMAGE:sha-$SHA" --format '{{ json .Manifest }}' | jq -r .digest)"
+          if [ -z "$digest" ] || [ "$digest" = "null" ]; then
+            echo "::error::no digest for $IMAGE:sha-$SHA — was this commit packaged?"
+            exit 1
+          fi
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+      - uses: sigstore/cosign-installer@d7543c93d881b35a8faa02e8e3605f69b7a1ce62 # v3.10.0
+        if: needs.plan.outputs.sign == 'true'
+      - name: cosign verify the workflow identity
+        if: needs.plan.outputs.sign == 'true'
+        env:
+          IMAGE: ${{ needs.plan.outputs.image }}
+          DIGEST: ${{ steps.digest.outputs.digest }}
+          REPO: ${{ github.repository }}
+        run: |
+          cosign verify \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            --certificate-identity-regexp "^https://github.com/${REPO}/[.]github/workflows/package[.]yml@" \
+            "$IMAGE@$DIGEST"
+      - name: cluster login (aks)
+        if: fromJson(needs.plan.outputs.plan).environments.uat.cluster.type == 'aks'
+        env:
+          CLUSTER_NAME: ${{ vars.AKS_CLUSTER_NAME }}
+          RESOURCE_GROUP: ${{ vars.AKS_RESOURCE_GROUP }}
+        run: |
+          sudo az aks install-cli
+          az aks get-credentials --name "$CLUSTER_NAME" --resource-group "$RESOURCE_GROUP"
+          kubelogin convert-kubeconfig -l azurecli
+      - name: cluster login (openshift)
+        if: fromJson(needs.plan.outputs.plan).environments.uat.cluster.type == 'openshift'
+        env:
+          OC_TOKEN: ${{ secrets[fromJson(needs.plan.outputs.plan).environments.uat.auth.tokenEnv] }}
+          SERVER: ${{ fromJson(needs.plan.outputs.plan).environments.uat.cluster.server }}
+        run: |
+          curl -sSfL https://mirror.openshift.com/pub/openshift-v4/clients/ocp/4.17.9/openshift-client-linux.tar.gz \
+            | sudo tar -xz -C /usr/local/bin oc
+          oc login --token="$OC_TOKEN" --server="$SERVER"
+      - name: cluster login (generic)
+        if: fromJson(needs.plan.outputs.plan).environments.uat.cluster.type == 'generic'
+        env:
+          KUBECONFIG_CONTENT: ${{ secrets[fromJson(needs.plan.outputs.plan).environments.uat.auth.kubeconfigEnv] }}
+        run: |
+          install -m 600 /dev/null "$RUNNER_TEMP/kubeconfig"
+          printf '%s' "$KUBECONFIG_CONTENT" > "$RUNNER_TEMP/kubeconfig"
+          echo "KUBECONFIG=$RUNNER_TEMP/kubeconfig" >> "$GITHUB_ENV"
+      - name: helm upgrade
+        env:
+          APP: ${{ needs.plan.outputs.app }}
+          CHART: ${{ needs.plan.outputs.chart_path }}
+          IMAGE: ${{ needs.plan.outputs.image }}
+          DIGEST: ${{ steps.digest.outputs.digest }}
+          KEEP: ${{ needs.plan.outputs.keep_history }}
+          NAMESPACE: ${{ fromJson(needs.plan.outputs.plan).environments.uat.cluster.namespace }}
+        run: |
+          helm upgrade --install "$APP" "$CHART" \
+            -f "$CHART/values/uat.yaml" \
+            --set image.repository="$IMAGE" \
+            --set image.digest="$DIGEST" \
+            --atomic --timeout 5m --history-max "$KEEP" \
+            --namespace "$NAMESPACE"
+      - name: smoke
+        env:
+          URL: ${{ fromJson(needs.plan.outputs.plan).environments.uat.url }}
+          SHA: ${{ needs.plan.outputs.sha }}
+        run: node deploy/smoke.mjs --url "$URL" --expect-sha "$SHA"
+
+  # ── test ─────────────────────────────────────────────────────────────────────
+  test:
+    needs: [plan, dev, sit, uat]
+    if: >-
+      needs.plan.result == 'success' &&
+      !failure() && !cancelled() &&
+      (needs.dev.result == 'success' || needs.dev.result == 'skipped') &&
+      (needs.sit.result == 'success' || needs.sit.result == 'skipped') &&
+      (needs.uat.result == 'success' || needs.uat.result == 'skipped') &&
+      fromJson(needs.plan.outputs.plan).environments.test.enabled &&
+      (needs.plan.outputs.scope == 'chain' ||
+       (needs.plan.outputs.scope == 'surgical' && needs.plan.outputs.target == 'test'))
+    runs-on: ubuntu-latest
+    environment:
+      name: test
+      url: ${{ fromJson(needs.plan.outputs.plan).environments.test.url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.plan.outputs.sha }}
+      - name: approval preflight
+        if: fromJson(needs.plan.outputs.plan).environments.test.approval == 'required'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          ENV_NAME: test
+        run: |
+          rules="$(gh api "/repos/$REPO/environments/$ENV_NAME" --jq '.protection_rules | length' 2>/dev/null || echo missing)"
+          if [ "$rules" = "missing" ] || [ "${rules:-0}" -eq 0 ]; then
+            echo "::error::config says approval: required for '$ENV_NAME', but the GitHub environment has no protection rules — the approval would be a label, not a gate."
+            echo "Fix it (repo admin), then re-run:"
+            echo "  gh api /users/<login> --jq .id   # find the reviewer id"
+            echo "  gh api --method PUT \"/repos/$REPO/environments/$ENV_NAME\" --input - <<'JSON'"
+            echo '  { "reviewers": [ { "type": "User", "id": <id> } ] }'
+            echo "  JSON"
+            exit 1
+          fi
+          echo "$ENV_NAME carries $rules protection rule(s)"
+      - name: log in to GHCR
+        if: needs.plan.outputs.registry_host == 'ghcr.io'
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTOR: ${{ github.actor }}
+        run: printf '%s' "$TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin
+      - uses: azure/login@a457da9ea143d694b1b9c7c869ebb04ebe844ef5 # v2.3.0
+        if: >-
+          endsWith(needs.plan.outputs.registry_host, '.azurecr.io') ||
+          fromJson(needs.plan.outputs.plan).environments.test.cluster.type == 'aks'
+        with:
+          client-id: ${{ secrets[fromJson(needs.plan.outputs.plan).environments.test.auth.azureClientIdEnv] }}
+          tenant-id: ${{ secrets[fromJson(needs.plan.outputs.plan).environments.test.auth.azureTenantIdEnv] }}
+          subscription-id: ${{ secrets[fromJson(needs.plan.outputs.plan).environments.test.auth.azureSubscriptionIdEnv] }}
+      - name: log in to ACR
+        if: endsWith(needs.plan.outputs.registry_host, '.azurecr.io')
+        env:
+          REGISTRY: ${{ needs.plan.outputs.registry_host }}
+        run: az acr login --name "${REGISTRY%%.*}"
+      - name: resolve the image digest
+        id: digest
+        env:
+          IMAGE: ${{ needs.plan.outputs.image }}
+          SHA: ${{ needs.plan.outputs.sha }}
+        run: |
+          digest="$(docker buildx imagetools inspect "$IMAGE:sha-$SHA" --format '{{ json .Manifest }}' | jq -r .digest)"
+          if [ -z "$digest" ] || [ "$digest" = "null" ]; then
+            echo "::error::no digest for $IMAGE:sha-$SHA — was this commit packaged?"
+            exit 1
+          fi
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+      - uses: sigstore/cosign-installer@d7543c93d881b35a8faa02e8e3605f69b7a1ce62 # v3.10.0
+        if: needs.plan.outputs.sign == 'true'
+      - name: cosign verify the workflow identity
+        if: needs.plan.outputs.sign == 'true'
+        env:
+          IMAGE: ${{ needs.plan.outputs.image }}
+          DIGEST: ${{ steps.digest.outputs.digest }}
+          REPO: ${{ github.repository }}
+        run: |
+          cosign verify \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            --certificate-identity-regexp "^https://github.com/${REPO}/[.]github/workflows/package[.]yml@" \
+            "$IMAGE@$DIGEST"
+      - name: cluster login (aks)
+        if: fromJson(needs.plan.outputs.plan).environments.test.cluster.type == 'aks'
+        env:
+          CLUSTER_NAME: ${{ vars.AKS_CLUSTER_NAME }}
+          RESOURCE_GROUP: ${{ vars.AKS_RESOURCE_GROUP }}
+        run: |
+          sudo az aks install-cli
+          az aks get-credentials --name "$CLUSTER_NAME" --resource-group "$RESOURCE_GROUP"
+          kubelogin convert-kubeconfig -l azurecli
+      - name: cluster login (openshift)
+        if: fromJson(needs.plan.outputs.plan).environments.test.cluster.type == 'openshift'
+        env:
+          OC_TOKEN: ${{ secrets[fromJson(needs.plan.outputs.plan).environments.test.auth.tokenEnv] }}
+          SERVER: ${{ fromJson(needs.plan.outputs.plan).environments.test.cluster.server }}
+        run: |
+          curl -sSfL https://mirror.openshift.com/pub/openshift-v4/clients/ocp/4.17.9/openshift-client-linux.tar.gz \
+            | sudo tar -xz -C /usr/local/bin oc
+          oc login --token="$OC_TOKEN" --server="$SERVER"
+      - name: cluster login (generic)
+        if: fromJson(needs.plan.outputs.plan).environments.test.cluster.type == 'generic'
+        env:
+          KUBECONFIG_CONTENT: ${{ secrets[fromJson(needs.plan.outputs.plan).environments.test.auth.kubeconfigEnv] }}
+        run: |
+          install -m 600 /dev/null "$RUNNER_TEMP/kubeconfig"
+          printf '%s' "$KUBECONFIG_CONTENT" > "$RUNNER_TEMP/kubeconfig"
+          echo "KUBECONFIG=$RUNNER_TEMP/kubeconfig" >> "$GITHUB_ENV"
+      - name: helm upgrade
+        env:
+          APP: ${{ needs.plan.outputs.app }}
+          CHART: ${{ needs.plan.outputs.chart_path }}
+          IMAGE: ${{ needs.plan.outputs.image }}
+          DIGEST: ${{ steps.digest.outputs.digest }}
+          KEEP: ${{ needs.plan.outputs.keep_history }}
+          NAMESPACE: ${{ fromJson(needs.plan.outputs.plan).environments.test.cluster.namespace }}
+        run: |
+          helm upgrade --install "$APP" "$CHART" \
+            -f "$CHART/values/test.yaml" \
+            --set image.repository="$IMAGE" \
+            --set image.digest="$DIGEST" \
+            --atomic --timeout 5m --history-max "$KEEP" \
+            --namespace "$NAMESPACE"
+      - name: smoke
+        env:
+          URL: ${{ fromJson(needs.plan.outputs.plan).environments.test.url }}
+          SHA: ${{ needs.plan.outputs.sha }}
+        run: node deploy/smoke.mjs --url "$URL" --expect-sha "$SHA"
+
+  # ── prod ─────────────────────────────────────────────────────────────────────
+  # config:check guarantees prod is never the first enabled environment and
+  # never runs unapproved; the preflight above proves the approval is real.
+  prod:
+    needs: [plan, dev, sit, uat, test]
+    if: >-
+      needs.plan.result == 'success' &&
+      !failure() && !cancelled() &&
+      (needs.dev.result == 'success' || needs.dev.result == 'skipped') &&
+      (needs.sit.result == 'success' || needs.sit.result == 'skipped') &&
+      (needs.uat.result == 'success' || needs.uat.result == 'skipped') &&
+      (needs.test.result == 'success' || needs.test.result == 'skipped') &&
+      fromJson(needs.plan.outputs.plan).environments.prod.enabled &&
+      (needs.plan.outputs.scope == 'chain' ||
+       (needs.plan.outputs.scope == 'surgical' && needs.plan.outputs.target == 'prod'))
+    runs-on: ubuntu-latest
+    environment:
+      name: prod
+      url: ${{ fromJson(needs.plan.outputs.plan).environments.prod.url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.plan.outputs.sha }}
+      - name: approval preflight
+        if: fromJson(needs.plan.outputs.plan).environments.prod.approval == 'required'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          ENV_NAME: prod
+        run: |
+          rules="$(gh api "/repos/$REPO/environments/$ENV_NAME" --jq '.protection_rules | length' 2>/dev/null || echo missing)"
+          if [ "$rules" = "missing" ] || [ "${rules:-0}" -eq 0 ]; then
+            echo "::error::config says approval: required for '$ENV_NAME', but the GitHub environment has no protection rules — the approval would be a label, not a gate."
+            echo "Fix it (repo admin), then re-run:"
+            echo "  gh api /users/<login> --jq .id   # find the reviewer id"
+            echo "  gh api --method PUT \"/repos/$REPO/environments/$ENV_NAME\" --input - <<'JSON'"
+            echo '  { "reviewers": [ { "type": "User", "id": <id> } ] }'
+            echo "  JSON"
+            exit 1
+          fi
+          echo "$ENV_NAME carries $rules protection rule(s)"
+      - name: log in to GHCR
+        if: needs.plan.outputs.registry_host == 'ghcr.io'
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTOR: ${{ github.actor }}
+        run: printf '%s' "$TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin
+      - uses: azure/login@a457da9ea143d694b1b9c7c869ebb04ebe844ef5 # v2.3.0
+        if: >-
+          endsWith(needs.plan.outputs.registry_host, '.azurecr.io') ||
+          fromJson(needs.plan.outputs.plan).environments.prod.cluster.type == 'aks'
+        with:
+          client-id: ${{ secrets[fromJson(needs.plan.outputs.plan).environments.prod.auth.azureClientIdEnv] }}
+          tenant-id: ${{ secrets[fromJson(needs.plan.outputs.plan).environments.prod.auth.azureTenantIdEnv] }}
+          subscription-id: ${{ secrets[fromJson(needs.plan.outputs.plan).environments.prod.auth.azureSubscriptionIdEnv] }}
+      - name: log in to ACR
+        if: endsWith(needs.plan.outputs.registry_host, '.azurecr.io')
+        env:
+          REGISTRY: ${{ needs.plan.outputs.registry_host }}
+        run: az acr login --name "${REGISTRY%%.*}"
+      - name: resolve the image digest
+        id: digest
+        env:
+          IMAGE: ${{ needs.plan.outputs.image }}
+          SHA: ${{ needs.plan.outputs.sha }}
+        run: |
+          digest="$(docker buildx imagetools inspect "$IMAGE:sha-$SHA" --format '{{ json .Manifest }}' | jq -r .digest)"
+          if [ -z "$digest" ] || [ "$digest" = "null" ]; then
+            echo "::error::no digest for $IMAGE:sha-$SHA — was this commit packaged?"
+            exit 1
+          fi
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+      - uses: sigstore/cosign-installer@d7543c93d881b35a8faa02e8e3605f69b7a1ce62 # v3.10.0
+        if: needs.plan.outputs.sign == 'true'
+      - name: cosign verify the workflow identity
+        if: needs.plan.outputs.sign == 'true'
+        env:
+          IMAGE: ${{ needs.plan.outputs.image }}
+          DIGEST: ${{ steps.digest.outputs.digest }}
+          REPO: ${{ github.repository }}
+        run: |
+          cosign verify \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            --certificate-identity-regexp "^https://github.com/${REPO}/[.]github/workflows/package[.]yml@" \
+            "$IMAGE@$DIGEST"
+      - name: cluster login (aks)
+        if: fromJson(needs.plan.outputs.plan).environments.prod.cluster.type == 'aks'
+        env:
+          CLUSTER_NAME: ${{ vars.AKS_CLUSTER_NAME }}
+          RESOURCE_GROUP: ${{ vars.AKS_RESOURCE_GROUP }}
+        run: |
+          sudo az aks install-cli
+          az aks get-credentials --name "$CLUSTER_NAME" --resource-group "$RESOURCE_GROUP"
+          kubelogin convert-kubeconfig -l azurecli
+      - name: cluster login (openshift)
+        if: fromJson(needs.plan.outputs.plan).environments.prod.cluster.type == 'openshift'
+        env:
+          OC_TOKEN: ${{ secrets[fromJson(needs.plan.outputs.plan).environments.prod.auth.tokenEnv] }}
+          SERVER: ${{ fromJson(needs.plan.outputs.plan).environments.prod.cluster.server }}
+        run: |
+          curl -sSfL https://mirror.openshift.com/pub/openshift-v4/clients/ocp/4.17.9/openshift-client-linux.tar.gz \
+            | sudo tar -xz -C /usr/local/bin oc
+          oc login --token="$OC_TOKEN" --server="$SERVER"
+      - name: cluster login (generic)
+        if: fromJson(needs.plan.outputs.plan).environments.prod.cluster.type == 'generic'
+        env:
+          KUBECONFIG_CONTENT: ${{ secrets[fromJson(needs.plan.outputs.plan).environments.prod.auth.kubeconfigEnv] }}
+        run: |
+          install -m 600 /dev/null "$RUNNER_TEMP/kubeconfig"
+          printf '%s' "$KUBECONFIG_CONTENT" > "$RUNNER_TEMP/kubeconfig"
+          echo "KUBECONFIG=$RUNNER_TEMP/kubeconfig" >> "$GITHUB_ENV"
+      - name: helm upgrade
+        env:
+          APP: ${{ needs.plan.outputs.app }}
+          CHART: ${{ needs.plan.outputs.chart_path }}
+          IMAGE: ${{ needs.plan.outputs.image }}
+          DIGEST: ${{ steps.digest.outputs.digest }}
+          KEEP: ${{ needs.plan.outputs.keep_history }}
+          NAMESPACE: ${{ fromJson(needs.plan.outputs.plan).environments.prod.cluster.namespace }}
+        run: |
+          helm upgrade --install "$APP" "$CHART" \
+            -f "$CHART/values/prod.yaml" \
+            --set image.repository="$IMAGE" \
+            --set image.digest="$DIGEST" \
+            --atomic --timeout 5m --history-max "$KEEP" \
+            --namespace "$NAMESPACE"
+      - name: smoke
+        env:
+          URL: ${{ fromJson(needs.plan.outputs.plan).environments.prod.url }}
+          SHA: ${{ needs.plan.outputs.sha }}
+        run: node deploy/smoke.mjs --url "$URL" --expect-sha "$SHA"

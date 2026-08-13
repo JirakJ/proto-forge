@@ -912,7 +912,7 @@ carries exactly the keys the env schema declares.
 - **Why:** An environment that exists in a values file but not in config — or the
   reverse — is a deploy target nobody reviews. The tree stays truthful in both
   directions, which is what makes "early phase = dev only" a fact instead of a hope.
-- **Scope:** web
+- **Scope:** frontend, backend
 - **Enforced by:** `env:verify`, `config:check`
 - **Proven by:** `gates:selftest` → "env: enabled dev with its values file passes",
   "env: an enabled environment without a values file fails", "env: a values file for
@@ -934,7 +934,7 @@ single-host simple mode and cannot carry a multi-environment chain.
 - **Why:** "Deployed to prod because the flags happened to allow it" must be
   impossible by construction. Consent lives where review lives: in the committed
   config and the protected environment, never in a shell flag someone typed once.
-- **Scope:** web
+- **Scope:** frontend, backend
 - **Enforced by:** `config:check` (the declaration half); `assertMayDeploy` in
   `templates/web/scripts/deploy-lib.mjs` — the door-for-door mirror of
   `assertMayCommit` — behind `env:remote`, plus the approval-preflight step in
@@ -960,7 +960,7 @@ documented provisioning commands — never a value in the tree.
 
 - **Why:** A credential in a committed file is an incident with a delay on it, and
   the mechanical shape check catches the paste before the secret scanner has to.
-- **Scope:** web
+- **Scope:** frontend, backend
 - **Enforced by:** `config:check`, `env:verify`, `deploy:verify`, `sec:scan`
 - **Proven by:** `gates:selftest` → "config: a credential pasted into auth.tokenEnv
   fails", "env: a secret-shaped value in a committed env file fails", "deploy: a
@@ -1116,7 +1116,7 @@ silently drop the contract.
 - **Why:** A container that needs a particular UID or a writable root works on the
   laptop and fails on the cluster with the strictest policy — which is exactly the
   cluster the enterprise target runs.
-- **Scope:** web
+- **Scope:** frontend, backend
 - **Enforced by:** `deploy:verify`
 - **Proven by:** `gates:selftest` → "deploy: a hardcoded runAsUser fails", "deploy: a
   deployment without resource limits fails", "deploy: a Route rendered for an aks
@@ -1134,7 +1134,7 @@ are delivery-pipeline stages, never gates.
 - **Why:** A gate that needs the network gets skipped the first time the network is
   down, and a skipped gate is a disabled one. Offline verify is also what keeps
   `verify-template` — the standalone proof — meaningful on any machine.
-- **Scope:** web
+- **Scope:** frontend, backend
 - **Enforced by:** `deploy:verify` (vendored `deploy/schemas/`, no sockets)
 - **Proven by:** `gates:selftest` → "deploy: the gate passes with no network and no
   cluster configured"
@@ -1150,7 +1150,7 @@ workflow identity and verified before rollout, with the image SBOM attested.
 
 - **Why:** "What exactly is running in prod?" must have a mechanical answer. A digest
   chain from Dockerfile to the serving pod is that answer; a tag chain is not.
-- **Scope:** web
+- **Scope:** frontend, backend
 - **Enforced by:** `deploy:verify` (digest pins); `deploy/smoke.mjs` post-deploy; the
   delivery pipeline's own steps — `package.yml` "cosign sign + attest the SBOM" and
   `cd.yml` "cosign verify the workflow identity" before every rollout, with deploys
@@ -1435,8 +1435,9 @@ precedent, recorded per stack in §19.
 
 ## §20 Environments and delivery
 
-`Scope: web` today — the delivery surface extends to every app template when the
-shared deploy corpus lands (§18's symmetry machinery will then demand it).
+`Scope: frontend, backend` — every app template carries the same delivery surface,
+and §18's symmetry machinery demands it stays identical by name (and, for the
+shareable set, by byte — the plugin's `deploy:sync` gate).
 
 The delivery environments are **local, dev, sit, uat, test, prod**, in that fixed
 order (`ENV_ORDER` in `scripts/config.mjs`); the promotion chain IS the enabled
@@ -1458,7 +1459,7 @@ committed workflow plus a protected GitHub environment for every env whose
 
 ## §21 Supply chain and pipeline security
 
-`Scope: web` today, extending with the delivery surface (§20).
+`Scope: frontend, backend`, like §20.
 
 **Verify is offline; the world is a named CI stage.** No verify gate opens a
 socket or needs a cluster: manifest validation runs against vendored schemas,

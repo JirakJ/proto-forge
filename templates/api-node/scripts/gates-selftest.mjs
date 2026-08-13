@@ -1,7 +1,7 @@
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { cpSync, existsSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname, resolve } from "node:path";
-import { spawnSync } from "node:child_process";
+import { execSync, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { fail, ok } from "./lib.mjs";
 
@@ -1148,6 +1148,398 @@ expect("logs: a PII field name in a log call fails", "log-scan.mjs", logBase({
 expect("logs: pino imported outside the kernel fails", "log-scan.mjs", logBase({
   "src/application/notes.ts": 'import pino from "pino";\nexport const logger = pino();\n',
 }), { pass: false, matching: /outside src\/platform/ });
+
+
+// --- config: the delivery declaration ----------------------------------------
+// The pasted "credential" is deliberately low-entropy: the config gate rejects
+// on SHAPE (not SCREAMING_SNAKE ⇒ not an env var name), and a high-entropy
+// fixture would trip the tree's own secret scan — the counterexample must fail
+// exactly one gate, the one under test.
+expect(
+  "config: a credential pasted into auth.tokenEnv fails",
+  "config-cli.mjs",
+  withConfig({
+    environments: { dev: { auth: { tokenEnv: "aaaa-bbbb-cccc-dddd" } } },
+  }),
+  { pass: false, matching: /looks like a value, not an env var name/ },
+);
+
+expect(
+  "config: prod cannot be the first enabled environment",
+  "config-cli.mjs",
+  withConfig({
+    environments: {
+      dev: { enabled: false },
+      prod: { enabled: true, cluster: { namespace: "prod" } },
+    },
+  }),
+  { pass: false, matching: /cannot be the first/ },
+);
+
+expect(
+  "config: prod without required approval fails",
+  "config-cli.mjs",
+  withConfig({
+    environments: { prod: { enabled: true, approval: "none", cluster: { namespace: "prod" } } },
+  }),
+  { pass: false, matching: /prod/ },
+);
+
+expect(
+  "config: an enabled environment without a namespace fails",
+  "config-cli.mjs",
+  withConfig({
+    environments: { sit: { enabled: true, cluster: { namespace: "" } } },
+  }),
+  { pass: false, matching: /cluster\.namespace/ },
+);
+
+expect(
+  "config: compose flavor cannot carry a multi-environment chain",
+  "config-cli.mjs",
+  withConfig({
+    deployment: { flavor: "compose" },
+    environments: { sit: { enabled: true, cluster: { namespace: "sit" } } },
+  }),
+  { pass: false, matching: /compose/ },
+);
+
+// --- env:verify ----------------------------------------------------------------
+// The declaration gate: .env.example ≡ the env single source, secrets travel by
+// name, and enabled environment ⇔ values file ⇔ docs table — every copy is derived.
+const EMPTY_TABLE = "# Deployment\n\n<!-- env-table:begin -->\n<!-- env-table:end -->\n";
+const ENV_SCHEMA_TS = (keys) =>
+  `import { z } from "zod";\nexport const EnvSchema = z.object({\n${keys.map((k) => `  ${k}: z.string(),`).join("\n")}\n});\n`;
+const envBase = (over = {}) => ({
+  ".proto-forge/config.json": {},
+  ".env.example": "PORT=3000\n",
+  "src/config/env.ts": ENV_SCHEMA_TS(["PORT"]),
+  "deploy/chart/values/dev.yaml": "environment: dev\n",
+  "docs/DEPLOYMENT.md": EMPTY_TABLE,
+  ...over,
+});
+// The table between the markers is generated, so the fixture generates it the
+// way an operator would before comparing.
+const writeEnvTable = (dir) => run("env-verify.mjs", dir, ["--write"]);
+
+expect("env: enabled dev with its values file passes", "env-verify.mjs", envBase(), {
+  pass: true,
+  prepare: writeEnvTable,
+});
+
+expect(
+  "env: an enabled environment without a values file fails",
+  "env-verify.mjs",
+  envBase({ "deploy/chart/values/dev.yaml": undefined }),
+  { pass: false, matching: /dev\.yaml does not exist/, prepare: writeEnvTable },
+);
+
+expect(
+  "env: a values file for a disabled environment fails",
+  "env-verify.mjs",
+  envBase({ "deploy/chart/values/sit.yaml": "environment: sit\n" }),
+  { pass: false, matching: /orphan/, prepare: writeEnvTable },
+);
+
+expect(
+  "env: a docs table that omits an enabled environment fails",
+  "env-verify.mjs",
+  envBase({
+    "docs/DEPLOYMENT.md":
+      "# Deployment\n\n<!-- env-table:begin -->\n| env | enabled | cluster.type | approval | url |\n| --- | --- | --- | --- | --- |\n| local | yes | — | — | http://localhost:3000 |\n<!-- env-table:end -->\n",
+  }),
+  { pass: false, matching: /drifted/ },
+);
+
+expect(
+  "env: a secret-shaped value in a committed env file fails",
+  "env-verify.mjs",
+  envBase({
+    ".env.example": "PORT=3000\nAPI_TOKEN=aaaabbbbccccdddd\n",
+    "src/config/env.ts": ENV_SCHEMA_TS(["PORT", "API_TOKEN"]),
+  }),
+  { pass: false, matching: /secret-shaped/, prepare: writeEnvTable },
+);
+
+expect(
+  "env: a schema key the example never documents fails",
+  "env-verify.mjs",
+  envBase({ "src/config/env.ts": ENV_SCHEMA_TS(["PORT", "FEATURE_FLAG"]) }),
+  { pass: false, matching: /missing FEATURE_FLAG/, prepare: writeEnvTable },
+);
+
+// --- deploy:verify -------------------------------------------------------------
+// Fixtures exercise the NATIVE half only: PATH is emptied so docker/helm/
+// hadolint/kubeconform gate themselves off exactly as on a toolless laptop, and
+// CI is cleared so the hard-stop does not fire inside a CI selftest run. The
+// tool half is proven by CI running the real gate (the sec-scan precedent).
+const noTools = { PATH: "", CI: "" };
+const PINNED = `@sha256:${"a".repeat(64)}`;
+const DOCKERFILE_OK =
+  `FROM base-image:1${PINNED} AS build\n` +
+  `FROM base-image:1${PINNED}\n` +
+  `USER app\n` +
+  `COPY --from=build /app /app\n`;
+const COMPOSE_OK =
+  'services:\n  app:\n    image: app:dev\n    healthcheck:\n      test: ["CMD", "true"]\n';
+const VALUES_OK = [
+  "resources:",
+  "  limits:",
+  "    cpu: 100m",
+  "    memory: 128Mi",
+  "probes:",
+  "  readiness:",
+  "    path: /healthz",
+  "  liveness:",
+  "    path: /version",
+  "securityContext:",
+  "  runAsNonRoot: true",
+  "  allowPrivilegeEscalation: false",
+  "  capabilities:",
+  '    drop: ["ALL"]',
+  "  seccompProfile:",
+  "    type: RuntimeDefault",
+  "  readOnlyRootFilesystem: true",
+  "expose:",
+  "  kind: none",
+  "",
+].join("\n");
+const deployBase = (over = {}) => ({
+  ".proto-forge/config.json": {},
+  Dockerfile: DOCKERFILE_OK,
+  "deploy/compose/docker-compose.yml": COMPOSE_OK,
+  "deploy/chart/values.yaml": VALUES_OK,
+  "deploy/chart/values/dev.yaml": "environment: dev\n",
+  ...over,
+});
+
+expect("deploy: the gate passes with no network and no cluster configured", "deploy-verify.mjs", deployBase(), {
+  pass: true,
+  env: noTools,
+});
+
+expect(
+  "deploy: a Dockerfile with a floating base tag fails",
+  "deploy-verify.mjs",
+  deployBase({ Dockerfile: DOCKERFILE_OK.replace(`base-image:1${PINNED} AS build`, "base-image:1 AS build") }),
+  { pass: false, matching: /pin it by digest/, env: noTools },
+);
+
+expect(
+  "deploy: an ADD from a URL fails",
+  "deploy-verify.mjs",
+  deployBase({ Dockerfile: `${DOCKERFILE_OK}ADD https://example.com/tool.tar.gz /opt/\n` }),
+  { pass: false, matching: /unverified bytes/, env: noTools },
+);
+
+expect(
+  "deploy: a secret-shaped build ARG default fails",
+  "deploy-verify.mjs",
+  deployBase({ Dockerfile: `${DOCKERFILE_OK}ARG NPM_TOKEN=abc123\n` }),
+  { pass: false, matching: /secret-shaped default/, env: noTools },
+);
+
+expect(
+  "deploy: a compose service without a healthcheck fails",
+  "deploy-verify.mjs",
+  deployBase({ "deploy/compose/docker-compose.yml": "services:\n  app:\n    image: app:dev\n" }),
+  { pass: false, matching: /healthcheck/, env: noTools },
+);
+
+expect(
+  "deploy: a deployment without resource limits fails",
+  "deploy-verify.mjs",
+  deployBase({ "deploy/chart/values.yaml": VALUES_OK.replace("  limits:\n    cpu: 100m\n    memory: 128Mi\n", "") }),
+  { pass: false, matching: /resources\.limits/, env: noTools },
+);
+
+expect(
+  "deploy: a hardcoded runAsUser fails",
+  "deploy-verify.mjs",
+  deployBase({ "deploy/chart/values.yaml": VALUES_OK.replace("  runAsNonRoot: true", "  runAsNonRoot: true\n  runAsUser: 101") }),
+  { pass: false, matching: /arbitrary-UID/, env: noTools },
+);
+
+expect(
+  "deploy: a Route rendered for an aks environment fails",
+  "deploy-verify.mjs",
+  deployBase({
+    ".proto-forge/config.json": { environments: { dev: { cluster: { type: "aks", namespace: "dev" } } } },
+    "deploy/chart/values/dev.yaml": "expose:\n  kind: route\n",
+  }),
+  { pass: false, matching: /OpenShift-only/, env: noTools },
+);
+
+expect(
+  "deploy: an undated trivyignore entry fails",
+  "deploy-verify.mjs",
+  deployBase({ ".trivyignore": "CVE-2026-0001\n" }),
+  { pass: false, matching: /no "# reason:/, env: noTools },
+);
+
+expect(
+  "deploy: an expired trivyignore entry fails",
+  "deploy-verify.mjs",
+  deployBase({ ".trivyignore": "# reason: dev-only base image finding until: 2026-01-01\nCVE-2026-0001\n" }),
+  { pass: false, matching: /expired/, env: noTools },
+);
+
+// --- deploy consent ------------------------------------------------------------
+// BR-28's operator half. assertMayDeploy (deploy-lib.mjs) mirrors
+// assertMayCommit door for door, and these cases walk the doors exactly like
+// the sync-jira consent cases above: break one thing, expect the right door to
+// refuse. No cluster and no network anywhere — every door closes before a
+// socket could open, and the one helm-needing case gates itself off like
+// deploy:verify's tool half.
+const DEPLOY_SERVER = "https://cluster.example.com:6443";
+const stageRender = (env) => (dir) => {
+  // The staged-first door checks for a render an operator could have read;
+  // the fixture stages one the way a prior `env:remote render` would have.
+  mkdirSync(join(dir, ".proto-forge", "outbox", `deploy-${env}`), { recursive: true });
+  writeFileSync(join(dir, ".proto-forge", "outbox", `deploy-${env}`, "manifests.yaml"), "kind: List\nitems: []\n");
+};
+const kubeconfigFor = (server, namespace) =>
+  [
+    "apiVersion: v1",
+    "kind: Config",
+    "current-context: fixture",
+    "clusters:",
+    "  - name: fixture",
+    "    cluster:",
+    `      server: ${server}`,
+    "contexts:",
+    "  - name: fixture",
+    "    context:",
+    "      cluster: fixture",
+    "      user: fixture",
+    `      namespace: ${namespace}`,
+    "users:",
+    "  - name: fixture",
+    "    user: {}",
+    "",
+  ].join("\n");
+
+expect(
+  "deploy: --commit is refused while the network guardrail is closed",
+  "env-remote.mjs",
+  withConfig({
+    environments: { dev: { cluster: { server: DEPLOY_SERVER } } },
+    guardrails: { network: { allow: false } },
+  }),
+  {
+    pass: false,
+    matching: /network access is disabled/,
+    args: ["deploy", "--env", "dev", "--commit", "--approve"],
+    prepare: stageRender("dev"),
+  },
+);
+
+// autoDeploy is standing consent for exactly one thing: the per-run --approve.
+// The auth door sits AFTER the approval door, so "fails asking for KUBECONFIG"
+// proves the approval was satisfied — without touching any cluster.
+const autoDeployConfig = (extraEnvs = {}) =>
+  withConfig({
+    environments: {
+      dev: { autoDeploy: true, cluster: { server: DEPLOY_SERVER } },
+      ...extraEnvs,
+    },
+    guardrails: { network: { allow: true, allowedHosts: ["cluster.example.com"] } },
+  });
+
+expect(
+  "deploy: autoDeploy stands in for --approve",
+  "env-remote.mjs",
+  autoDeployConfig(),
+  {
+    pass: false,
+    matching: /KUBECONFIG is not set/,
+    args: ["deploy", "--env", "dev", "--commit"],
+    env: { KUBECONFIG: "" },
+    prepare: stageRender("dev"),
+  },
+);
+
+// Standing consent is scoped to ITS environment: dev's autoDeploy approves dev
+// and nothing else — sit still demands its own --approve (or its own flag).
+expect(
+  "deploy: autoDeploy on dev does not approve sit",
+  "env-remote.mjs",
+  autoDeployConfig({ sit: { enabled: true, cluster: { server: DEPLOY_SERVER, namespace: "sit" } } }),
+  {
+    pass: false,
+    matching: /requires explicit approval/,
+    args: ["deploy", "--env", "sit", "--commit"],
+    env: { KUBECONFIG: "" },
+    prepare: stageRender("sit"),
+  },
+);
+
+// The door assertMayCommit has no analogue for: helm acts on the CURRENT
+// kubectl context, so a context aimed at a cluster the config does not name is
+// refused even after every consent door opened.
+expect(
+  "deploy: a context pointing at a different server is refused",
+  "env-remote.mjs",
+  autoDeployConfig(),
+  {
+    pass: false,
+    matching: /current kubectl context points at/,
+    args: ["deploy", "--env", "dev", "--commit", "--approve"],
+    env: { KUBECONFIG: "kubeconfig.yaml" },
+    prepare: (dir) => {
+      stageRender("dev")(dir);
+      writeFileSync(join(dir, "kubeconfig.yaml"), kubeconfigFor("https://other.example.com:6443", "dev"));
+    },
+  },
+);
+
+// The hard rule with no flag past it: bootstrap applies everything EXCEPT the
+// Secret skeleton. Every consent door is open here (context matches too); PATH
+// is emptied so kubectl gates the apply off AFTER the plan is printed — the
+// exclusion is decided and stated before anything could reach a cluster.
+expect(
+  "deploy: secrets are never applied, even with --commit --approve",
+  "env-remote.mjs",
+  autoDeployConfig(),
+  {
+    pass: false,
+    matching: /secret\.yaml SKIPPED/,
+    args: ["bootstrap", "--env", "dev", "--commit", "--approve"],
+    env: { KUBECONFIG: "kubeconfig.yaml", PATH: "", CI: "" },
+    prepare: (dir) => writeFileSync(join(dir, "kubeconfig.yaml"), kubeconfigFor(DEPLOY_SERVER, "dev")),
+  },
+);
+
+// render is an OFFLINE `helm template` into the outbox — the staged artefact
+// deploy replays. helm-gated exactly like deploy:verify's tool half: enforced
+// when installed (always, in CI), one loud note otherwise.
+{
+  let helmPresent = true;
+  try {
+    execSync("command -v helm", { stdio: "ignore" });
+  } catch {
+    helmPresent = false;
+  }
+  if (!helmPresent) {
+    process.stderr.write("⚠ deploy: render selftest skipped — helm not installed (CI enforces the deploy toolchain)\n");
+  } else {
+    const dir = project(withConfig({}));
+    try {
+      cpSync(join(SCRIPTS, "..", "deploy", "chart"), join(dir, "deploy", "chart"), { recursive: true });
+      const { code, out } = run("env-remote.mjs", dir, ["render", "--env", "dev"]);
+      const staged = join(dir, ".proto-forge", "outbox", "deploy-dev", "manifests.yaml");
+      if (code !== 0) {
+        results.push(`deploy: render stages to the outbox without touching a cluster — render failed: ${out.trim()}`);
+      } else if (!existsSync(staged)) {
+        results.push("deploy: render stages to the outbox without touching a cluster — nothing landed in the outbox");
+      } else if (!/no cluster was touched/.test(out)) {
+        results.push(`deploy: render stages to the outbox without touching a cluster — the message must say so: ${out.trim()}`);
+      }
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }
+}
 
 if (results.length) fail(`gates:selftest FAILED (${results.length})`, results);
 ok("gates:selftest: every gate, guardrail and converter rejects what it claims to reject");

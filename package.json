@@ -10,7 +10,8 @@
   },
   "packageManager": "pnpm@10.11.0",
   "scripts": {
-    "verify": "pnpm run citations && pnpm run skill:lint && pnpm run manifest:lint && pnpm run template:integrity && pnpm run discovery:lint",
+    "verify": "pnpm run citations && pnpm run skill:lint && pnpm run manifest:lint && pnpm run template:integrity && pnpm run deploy:sync && pnpm run discovery:lint",
+    "deploy:sync": "node scripts/deploy-sync.mjs",
     "citations": "node scripts/citations.mjs",
     "skill:lint": "node scripts/skill-lint.mjs",
     "manifest:lint": "node scripts/manifest-lint.mjs",

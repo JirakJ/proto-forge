@@ -13,7 +13,7 @@
     },
     "gates": {
       "type": "object",
-      "description": "Per-gate settings. Tightening is always allowed. Relaxing a mandatory gate (the MANDATORY_GATES list in scripts/config.mjs — arch, contract, errors, migration, opid, docs, security, stub, consistency, snapshot, coverage, ignores, mutation, external, log, deps) below \"error\" additionally requires a live waivers[] entry — without one, config:check fails AND the gate runs at \"error\" regardless of what is written here.",
+      "description": "Per-gate settings. Tightening is always allowed. Relaxing a mandatory gate (the MANDATORY_GATES list in scripts/config.mjs — arch, contract, errors, migration, opid, docs, security, stub, consistency, snapshot, coverage, ignores, mutation, external, log, deps, env, deploy) below \"error\" additionally requires a live waivers[] entry — without one, config:check fails AND the gate runs at \"error\" regardless of what is written here.",
       "additionalProperties": false,
       "properties": {
         "arch": { "$ref": "#/$defs/simpleGate" },
@@ -34,7 +34,69 @@
         "deps": { "$ref": "#/$defs/simpleGate" },
         "adr": { "$ref": "#/$defs/simpleGate" },
         "prompt": { "$ref": "#/$defs/simpleGate" },
-        "dup": { "$ref": "#/$defs/simpleGate" }
+        "dup": { "$ref": "#/$defs/simpleGate" },
+        "env": { "$ref": "#/$defs/simpleGate" },
+        "deploy": { "$ref": "#/$defs/simpleGate" }
+      }
+    },
+    "environments": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "The single declaration of the delivery chain: local, dev, sit, uat, test, prod — an object with fixed keys so an override merges deep instead of replacing the chain. An environment exists by being declared here and nowhere else: values files, the DEPLOYMENT.md table and the CD plan are derived from this object, and env:verify fails when they disagree. The template ships with only dev enabled; enabling a later environment is a reviewed config diff, never a regeneration.",
+      "properties": {
+        "local": { "$ref": "#/$defs/localEnv" },
+        "dev": { "$ref": "#/$defs/remoteEnv" },
+        "sit": { "$ref": "#/$defs/remoteEnv" },
+        "uat": { "$ref": "#/$defs/remoteEnv" },
+        "test": { "$ref": "#/$defs/remoteEnv" },
+        "prod": { "$ref": "#/$defs/remoteEnv" }
+      }
+    },
+    "deployment": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "How the application ships. helm is the cluster path; compose is the single-host simple mode and config:check refuses it as soon as any environment past dev is enabled.",
+      "properties": {
+        "flavor": {
+          "type": "string",
+          "enum": ["helm", "compose"],
+          "description": "helm deploys deploy/chart per environment. compose runs deploy/compose/docker-compose.yml on one host — dev at most, never a chain."
+        },
+        "imageRegistry": {
+          "type": "string",
+          "description": "Registry the pipeline pushes to, e.g. ghcr.io/acme. Empty keeps images local. Per-environment pulls may override via environments.<env>.cluster.registry."
+        },
+        "sign": {
+          "type": "boolean",
+          "description": "Sign pushed images (cosign, keyless) and verify the signature before every deploy. Turning this off removes the proof that what runs is what CI built."
+        },
+        "scan": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "image": {
+              "type": "boolean",
+              "description": "Scan the built image before it is pushed; findings at or above severityThreshold fail the pipeline."
+            },
+            "severityThreshold": {
+              "type": "string",
+              "enum": ["critical", "high", "medium"],
+              "description": "The lowest severity that fails the image scan. \"high\" (the default) fails HIGH and CRITICAL. Exceptions live in .trivyignore, each with a reason and an expiry — never here."
+            }
+          }
+        },
+        "helm": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "chartPath": { "type": "string", "description": "Path to the chart, relative to the repository root." },
+            "keepHistory": {
+              "type": "integer",
+              "minimum": 2,
+              "description": "helm --history-max: how many releases stay available to roll back to. A rollback needs a release to roll back to, so the floor is 2."
+            }
+          }
+        }
       }
     },
     "integrations": {
@@ -143,6 +205,67 @@
       "type": "object",
       "additionalProperties": false,
       "properties": { "mode": { "$ref": "#/$defs/mode" } }
+    },
+    "localEnv": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "The developer's own machine. Not part of the promotion chain, and not optional: config:check fails when local is disabled, because local is where the prototype actually runs.",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "url": { "type": "string", "description": "Where the service answers locally, e.g. http://localhost:3000 (`pnpm dev` and the compose-built image alike)." }
+      }
+    },
+    "remoteEnv": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "One remote environment in the chain. Enabling it is the whole act of creating it: env:verify then requires the matching deploy/chart/values/<env>.yaml and the DEPLOYMENT.md table row, and the CD plan picks it up — nothing else declares an environment anywhere.",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Whether this environment exists. An enabled environment must name its cluster.namespace and cluster.type; a values file for a DISABLED environment fails env:verify as an orphan."
+        },
+        "url": { "type": "string", "description": "The externally reachable base URL, the smoke test's target. Empty is a config:check warning: an environment nobody can reach cannot prove a deploy landed." },
+        "cluster": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["openshift", "aks", "generic"],
+              "description": "What is on the other side. Drives the exposure cross-check (a Route is OpenShift-only), the login step in CD and the platform notes in DEPLOYMENT.md."
+            },
+            "server": { "type": "string", "description": "API server URL. config:check warns when its host is missing from guardrails.network.allowedHosts — operator deploys to it would be refused." },
+            "namespace": { "type": "string", "description": "Namespace (OpenShift: project) the release lands in. Required as soon as the environment is enabled." },
+            "registry": { "type": "string", "description": "Registry this cluster pulls from when it differs from deployment.imageRegistry (e.g. an ACR the AKS cluster is attached to)." }
+          }
+        },
+        "approval": {
+          "type": "string",
+          "enum": ["none", "required"],
+          "description": "Whether a human stands before the deploy. \"required\" maps to a GitHub environment with required reviewers, and CD preflights that the protection actually exists rather than trusting the label. prod with \"none\" is a config:check error; uat/test with \"none\" is a warning."
+        },
+        "autoDeploy": {
+          "type": "boolean",
+          "description": "Standing, reviewed consent for an UNATTENDED operator deploy to this environment — the deploy analogue of integrations.*.autoPropagate. It stands in for the per-run --approve of an operator deploy and for nothing else: guardrails, cluster context and credentials are still checked, and CI promotion consent stays with the committed workflow plus GitHub environment reviewers."
+        },
+        "auth": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "How a deploy authenticates. Every *Env field names an environment VARIABLE to read at deploy time — never the credential itself; config:check rejects anything that does not look like an env var name.",
+          "properties": {
+            "method": {
+              "type": "string",
+              "enum": ["oidc", "token", "kubeconfig"],
+              "description": "oidc = federated login (AKS via azure *Env names below). token = bearer token (OpenShift oc login). kubeconfig = a context from the file kubeconfigEnv points at."
+            },
+            "tokenEnv": { "type": "string", "description": "Name of the env var holding the bearer token. Never the token itself." },
+            "kubeconfigEnv": { "type": "string", "description": "Name of the env var pointing at the kubeconfig file." },
+            "azureClientIdEnv": { "type": "string", "description": "Name of the env var holding the Azure client id for OIDC login." },
+            "azureTenantIdEnv": { "type": "string", "description": "Name of the env var holding the Azure tenant id." },
+            "azureSubscriptionIdEnv": { "type": "string", "description": "Name of the env var holding the Azure subscription id." }
+          }
+        }
+      }
     }
   }
 }

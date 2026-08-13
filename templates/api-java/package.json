@@ -11,7 +11,7 @@
     "dev": "./gradlew bootRun",
     "build": "./gradlew -q assemble",
     "start": "java -jar build/libs/proto-forge-service-0.1.0.jar",
-    "verify": "pnpm run config:check && pnpm run gates:selftest && pnpm run lint && pnpm run typecheck && pnpm run coverage:policy && pnpm run ignores && pnpm run test:unit && pnpm run test:mutation && pnpm run build && pnpm run deps:budget && pnpm run arch:verify && pnpm run opid:scan && pnpm run log:scan && pnpm run error:catalog && pnpm run migration:verify && pnpm run contract:verify && pnpm run contract:breaking && pnpm run docs:verify && pnpm run external:verify && pnpm run stub:scan && pnpm run adr:lint && pnpm run prompt:lint && pnpm run dup:scan && pnpm run consistency && pnpm run sec:scan && pnpm run snapshot:diff && pnpm run test:e2e",
+    "verify": "pnpm run config:check && pnpm run env:verify && pnpm run gates:selftest && pnpm run lint && pnpm run typecheck && pnpm run coverage:policy && pnpm run ignores && pnpm run test:unit && pnpm run test:mutation && pnpm run build && pnpm run deploy:verify && pnpm run deps:budget && pnpm run arch:verify && pnpm run opid:scan && pnpm run log:scan && pnpm run error:catalog && pnpm run migration:verify && pnpm run contract:verify && pnpm run contract:breaking && pnpm run docs:verify && pnpm run external:verify && pnpm run stub:scan && pnpm run adr:lint && pnpm run prompt:lint && pnpm run dup:scan && pnpm run consistency && pnpm run sec:scan && pnpm run snapshot:diff && pnpm run test:e2e",
     "lint": "./gradlew -q compileJava compileTestJava",
     "typecheck": "./gradlew -q classes testClasses",
     "test:unit": "./gradlew -q test jacocoTestReport jacocoTestCoverageVerification",
@@ -19,6 +19,11 @@
     "test:mutation": "./gradlew -q pitest",
     "config:show": "node scripts/config-cli.mjs show",
     "config:check": "node scripts/config-cli.mjs check",
+    "env:verify": "node scripts/env-verify.mjs",
+    "deploy:verify": "node scripts/deploy-verify.mjs",
+    "deploy:plan": "node scripts/deploy-cli.mjs plan",
+    "env:local": "node scripts/env-local.mjs",
+    "env:remote": "node scripts/env-remote.mjs",
     "gates:selftest": "node scripts/gates-selftest.mjs",
     "gates:selftest:native": "node scripts/gates-selftest-native.mjs",
     "deps:budget": "node scripts/deps-budget.mjs",
@@ -55,6 +60,7 @@
   },
   "devDependencies": {
     "husky": "^9.1.7",
-    "jscpd": "^4.2.5"
+    "jscpd": "^4.2.5",
+    "yaml": "^2.9.0"
   }
 }
