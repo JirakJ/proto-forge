@@ -4,10 +4,9 @@ title = "proto-forge secret scan config"
 useDefault = true
 
 [allowlist]
-description = "Test fixtures and example locale strings are not real secrets (BR-12)."
+description = "Test fixtures and harness scenario values are not real secrets (BR-12)."
 paths = [
-  '''.*\.test\.(ts|tsx)$''',
-  '''.*\.e2e\.ts$''',
+  '''tests/.*''',
   '''.*__fixtures__/.*''',
-  '''src/i18n/locales/.*''',
+  '''src/app/harness/.*''',
 ]
