@@ -1,0 +1,95 @@
+name: heal
+
+# NFR-19's CI half: after a red verify (or on demand) run the MECHANICAL tier
+# only and propose the result as a PR — never a push to the branch itself.
+#
+# Two consent doors, both explicit and reviewable:
+#   1. the repository variable HEAL_ENABLED == 'true' — setting it is the CI
+#      consent act, done once by a repo admin;
+#   2. selfHealing.ci.enabled == true in the COMMITTED config, read below.
+# No agent env is exported here, so tier 2 cannot run in CI unless someone
+# deliberately wires PROTO_FORGE_HEAL_AGENT into this workflow — a reviewed diff.
+#
+# Toolchain: node+pnpm only — the verify chain this heal confirms is the STATIC
+# gate set (no browsers: test:e2e is the workspace's runtime job, not a gate).
+#
+# House rules: GitHub context reaches run: scripts only through env: indirection;
+# checkout/setup-node ride the same @v4 pins verify.yml uses.
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: [verify]
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  heal:
+    runs-on: ubuntu-latest
+    if: >-
+      vars.HEAL_ENABLED == 'true' &&
+      (github.event_name == 'workflow_dispatch' ||
+       github.event.workflow_run.conclusion == 'failure')
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Heal the commit the red verify actually ran on (dispatch: the current ref).
+          ref: ${{ github.event.workflow_run.head_sha || github.ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      # Door 2: the committed config must consent. A missing consent skips the
+      # heal quietly — HEAL_ENABLED alone is one door, never both.
+      - name: committed consent (selfHealing.ci.enabled)
+        id: consent
+        run: |
+          enabled="$(node --input-type=module -e 'import { loadConfig } from "./scripts/config.mjs"; process.stdout.write(String(loadConfig().selfHealing?.ci?.enabled === true));')"
+          echo "enabled=$enabled" >> "$GITHUB_OUTPUT"
+          if [ "$enabled" != "true" ]; then
+            echo "selfHealing.ci.enabled is not committed as true — healing in CI has no standing consent; doing nothing."
+          fi
+      - name: heal (tier 1 only — no agent env is exported)
+        if: steps.consent.outputs.enabled == 'true'
+        shell: bash
+        # An escalated heal (exit 1) still reports; the PR step proposes whatever
+        # the mechanical tier regenerated. pipefail keeps tee from masking the exit.
+        continue-on-error: true
+        run: pnpm heal 2>&1 | tee "$RUNNER_TEMP/heal.log"
+      - name: propose the regeneration as a PR
+        if: steps.consent.outputs.enabled == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_ID: ${{ github.run_id }}
+          BASE_BRANCH: ${{ github.event.workflow_run.head_branch || github.ref_name }}
+        run: |
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "tree unchanged — nothing to propose"
+            exit 0
+          fi
+          gate="$(sed -n 's/^heal: failing gate is //p' "$RUNNER_TEMP/heal.log" | tail -1)"
+          gate="${gate:-verify}"
+          entry="$(ls .prompts | tail -1)"
+          branch="heal/${RUN_ID}"
+          git config user.name "proto-forge-heal"
+          git config user.email "proto-forge-heal@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add -A
+          # The trailers satisfy commit-lint: the heal rides the standing gate
+          # doctrine (ADR 001) and names the pass's own prompt-log entry.
+          git commit -m "chore(heal): mechanical regeneration for ${gate}" \
+            -m "ADR: 001" -m "Prompt-Log: .prompts/${entry}"
+          git push origin "$branch"
+          {
+            echo "Mechanical (tier 1) heal for gate \`${gate}\` — proposed as a PR, never pushed to the branch itself."
+            echo
+            echo '```'
+            tail -c 60000 "$RUNNER_TEMP/heal.log"
+            echo '```'
+          } > "$RUNNER_TEMP/pr-body.md"
+          gh pr create --base "$BASE_BRANCH" --head "$branch" \
+            --title "chore(heal): mechanical regeneration for ${gate}" \
+            --body-file "$RUNNER_TEMP/pr-body.md"

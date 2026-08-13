@@ -8,7 +8,7 @@
     "node": ">=22 <23"
   },
   "scripts": {
-    "verify": "pnpm run config:check && pnpm run gates:selftest && pnpm run ws:verify && pnpm run adr:lint && pnpm run prompt:lint && pnpm run snapshot:diff",
+    "verify": "pnpm run config:check && pnpm run gates:selftest && pnpm run ws:verify && pnpm run adr:lint && pnpm run prompt:lint && pnpm run snapshot:diff && pnpm run quality:report && pnpm run status:verify",
     "config:show": "node scripts/config-cli.mjs show",
     "config:check": "node scripts/config-cli.mjs check",
     "gates:selftest": "node scripts/gates-selftest.mjs",
@@ -16,6 +16,10 @@
     "ws:status": "node scripts/ws-status.mjs",
     "ws:bootstrap": "node scripts/ws-bootstrap.mjs",
     "ws:up": "node scripts/ws-up.mjs",
+    "quality:report": "node scripts/quality-report.mjs",
+    "status:verify": "node scripts/status-verify.mjs",
+    "doctor": "node scripts/doctor.mjs",
+    "heal": "node scripts/heal.mjs",
     "adr:lint": "node scripts/adr-lint.mjs",
     "prompt:lint": "node scripts/prompt-log-lint.mjs",
     "snapshot": "node scripts/snapshot-diff.mjs --write",

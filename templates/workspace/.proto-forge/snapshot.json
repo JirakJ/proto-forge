@@ -4,12 +4,17 @@
     "scripts/adr-lint.mjs",
     "scripts/config-cli.mjs",
     "scripts/config.mjs",
+    "scripts/doctor.mjs",
     "scripts/gates-selftest.mjs",
+    "scripts/heal.mjs",
     "scripts/hooks/guard-write.mjs",
     "scripts/hooks/hook-lib.mjs",
     "scripts/lib.mjs",
     "scripts/prompt-log-lint.mjs",
+    "scripts/quality-lib.mjs",
+    "scripts/quality-report.mjs",
     "scripts/snapshot-diff.mjs",
+    "scripts/status-verify.mjs",
     "scripts/ws-bootstrap.mjs",
     "scripts/ws-status.mjs",
     "scripts/ws-up.mjs",
@@ -29,7 +34,9 @@
     "ws:verify",
     "adr:lint",
     "prompt:lint",
-    "snapshot:diff"
+    "snapshot:diff",
+    "quality:report",
+    "status:verify"
   ],
   "conformance": "strict",
   "templateVersion": "0.1.0"

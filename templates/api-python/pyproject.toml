@@ -49,6 +49,10 @@ package = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+# The junit report is quality:report's machine input (BR-36): "legacy" keeps
+# the per-case file= attributes the unit-file count reads. test:unit passes
+# --junitxml; the documented status is a derivation of that run, never a claim.
+junit_family = "legacy"
 
 # @adr 003 - the coverage configuration is part of the contract, not a knob
 [tool.coverage.run]

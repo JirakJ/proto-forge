@@ -1,0 +1,22 @@
+{
+  "static": {
+    "flows": 1,
+    "contractCases": 5
+  },
+  "gates": {
+    "count": 11,
+    "chain": [
+      "config:check",
+      "gates:selftest",
+      "lint",
+      "typecheck",
+      "registry:verify",
+      "stub:scan",
+      "adr:lint",
+      "prompt:lint",
+      "snapshot:diff",
+      "quality:report",
+      "status:verify"
+    ]
+  }
+}

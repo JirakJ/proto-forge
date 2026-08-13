@@ -49,9 +49,18 @@ jobs:
       - run: corepack enable
       - run: pnpm install --frozen-lockfile
       - run: pnpm verify
+      # BR-36: the derived quality facts, visible on the run page. --summary
+      # renders .proto-forge/quality.json as markdown; GITHUB_STEP_SUMMARY is a
+      # runner-provided path, referenced only through the environment (no ${{ }}
+      # interpolation — the same shell-injection hygiene as the prompt-log step).
+      - name: quality summary
+        if: always()
+        run: node scripts/quality-report.mjs --summary >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: proto-forge-workspace-artifacts
-          path: .proto-forge/snapshot.json
+          path: |
+            .proto-forge/snapshot.json
+            .proto-forge/quality.json
           if-no-files-found: ignore
