@@ -8,40 +8,49 @@ import { walk, read, readJson, withoutFences, headings, fail, ok } from "./lib.m
 //
 //   1. every BR-xx / NFR-xx / BRS §x / T<n> citation resolves to the register
 //      or the decision table
-//   2. every ADR citation resolves, and does not cross the two ADR namespaces
+//   2. every ADR citation resolves, and does not cross ADR namespaces
 //   3. every rule names an enforcer
-//   4. every named enforcer exists as a script
+//   4. every named enforcer exists as a script in every template the rule covers
 //   5. every gate is named by at least one rule  — an enforcer with no norm
-//   6. every rule names a gates:selftest case, and that case is registered
+//   6. every rule names a gates:selftest case, and that case is registered in
+//      every in-scope template's suite (or the plugin's own)
 //
 // (3) and (6) close the direction people forget: a rule nobody enforces reads as
 // a guarantee. (5) closes the other one: a gate no rule motivates is a gate the
 // next person deletes, because nothing says why it is there.
+//
+// Templates come from references/templates.json — the registry every plugin gate
+// loops over (ADR 007). A rule's optional `- **Scope:**` bullet names which
+// templates it binds: `all`, a kind (frontend | backend), template ids, or
+// `plugin` (enforced by root package.json scripts only). Absent scope = `web`,
+// so the pre-registry rule corpus keeps its meaning without a rewrite. Because
+// check 4 requires the enforcer in EVERY in-scope template, identical gate names
+// across stacks are forced by this gate, not by convention.
 
 const REGISTER = "references/requirements.md";
 const TABLE = "references/decision-table.md";
-const TEMPLATE_PKG = "template/package.json";
-const TEMPLATE_SELFTEST = "template/scripts/gates-selftest.mjs";
+const REGISTRY = "references/templates.json";
 
 // Scope: prose that STATES the norm. docs/specs/** and docs/plans/** are excluded —
 // an engineering record legitimately names a rule it is about to create, and failing
 // on that teaches people to stop writing plans.
 const SCANNED = ["SKILL.md", "README.md"];
-const SCANNED_TREES = ["references", "template", "docs/adr"];
 const CODE = /\.(md|ts|tsx|mjs|js)$/;
 
-// Scripts that are not gates: they build, serve, generate or send. Each needs no
-// rule behind it, and listing them here is cheaper than a rule that says "vite builds".
-const NOT_A_GATE = new Set([
-  "dev", "build", "preview", "verify", "prepare",
-  "i18n:extract", "docs:shots", "config:show", "snapshot", "seed:lock", "sbom",
-  "sync:jira", "sync:confluence", "sync:pull", "sync:status", "sync:auto",
-  "test:e2e",
-]);
-
 const errors = [];
-const missing = [REGISTER, TABLE, TEMPLATE_PKG].filter((p) => !existsSync(p));
+const missing = [REGISTER, TABLE, REGISTRY].filter((p) => !existsSync(p));
 if (missing.length > 0) fail("citations FAILED", missing.map((p) => `${p} is missing`));
+
+const TEMPLATES = readJson(REGISTRY).templates ?? [];
+if (TEMPLATES.length === 0) fail("citations FAILED", [`${REGISTRY} lists no templates`]);
+for (const t of TEMPLATES) {
+  if (!existsSync(`${t.dir}/package.json`)) {
+    fail("citations FAILED", [`${REGISTRY}: template "${t.id}" has no ${t.dir}/package.json`]);
+  }
+}
+const templateIds = new Set(TEMPLATES.map((t) => t.id));
+
+const SCANNED_TREES = ["references", ...TEMPLATES.map((t) => t.dir), "docs/adr"];
 
 const registerSrc = read(REGISTER);
 
@@ -68,17 +77,25 @@ const scanned = [
 
 const RULE_CITE = /\b(BR-\d+|NFR-\d+)\b/g;
 const SECTION_CITE = /BRS §([\d]+(?:\.[\d]+)?)/g;
-// Restricted to the table's real range: a bare \bT\d+\b matches type parameters,
-// hashes and version strings, and a gate that cries wolf gets switched off.
-const ROW_CITE = /\bT([1-9]|1[0-3])\b/g;
+// Built as the range 1..maxRow from the table's actual rows (longest first, so T2
+// never shadows T22): a bare \bT\d+\b matches type parameters, hashes and version
+// strings, and a gate that cries wolf gets switched off — but a hardcoded ceiling
+// has to be re-widened by hand every time the table grows, which is how T14 would
+// silently go uncited. The RANGE (not just the existing ids) is what keeps the
+// missing-row check alive: citing a removed T9 must still fail, not fall outside
+// the regex.
+const maxRow = Math.max(...[...tableRows].map((t) => Number(t.slice(1))));
+const rowRange = Array.from({ length: maxRow }, (_, i) => String(i + 1)).sort((a, b) => b.length - a.length);
+const ROW_CITE = new RegExp(`\\bT(${rowRange.join("|")})\\b`, "g");
 // An explicit annotation wins over the file's default namespace, because the
 // register legitimately discusses both.
 const ADR_CITE = /(?:@adr\s+|\bADR[\s-])(\d{3})\b(?:\s*\((plugin|prototype) namespace\))?/g;
 
 const adrFiles = (dir) => (existsSync(dir) ? walk(dir, (p) => p.endsWith(".md")) : []);
 const adrNumbers = (dir) => new Set(adrFiles(dir).map((p) => /\/(\d+)-/.exec(p)?.[1]).filter(Boolean));
-const templateAdrs = adrNumbers("template/docs/adr");
+const templateAdrs = new Map(TEMPLATES.map((t) => [t.id, adrNumbers(`${t.dir}/docs/adr`)]));
 const pluginAdrs = adrNumbers("docs/adr");
+const anyTemplateHas = (num) => [...templateAdrs.values()].some((set) => set.has(num));
 
 /**
  * Where a prose "ADR NNN" is a REFERENCE to a record rather than an ALLOCATION of a
@@ -86,9 +103,11 @@ const pluginAdrs = adrNumbers("docs/adr");
  * exist yet ("persistence = api -> ADR 023"), and use others as worked examples
  * ("waiver citing ADR 150"). Enforcing there would demand that every future ADR
  * already exist, so the check applies only where a citation can only mean a record:
- * the two ADR trees themselves.
+ * the ADR trees themselves.
  */
-const citesRecords = (file) => file.startsWith("docs/adr/") || file.startsWith("template/docs/adr/");
+const templateOf = (file) => TEMPLATES.find((t) => file.startsWith(`${t.dir}/`));
+const citesRecords = (file) =>
+  file.startsWith("docs/adr/") || TEMPLATES.some((t) => file.startsWith(`${t.dir}/docs/adr/`));
 
 for (const file of scanned) {
   // The register's own §19 is excluded; everything else is scanned whole.
@@ -105,23 +124,34 @@ for (const file of scanned) {
     if (!tableRows.has(m[0])) errors.push(`${file}: cites ${m[0]}, which ${TABLE} has no row for`);
   }
 
-  // Two ADR namespaces, deliberately separate: template/docs/adr describes the
-  // seed a prototype starts from, docs/adr records how the seed changed. A
-  // citation that crosses them is a category error, not a shortcut.
+  // ADR namespaces, deliberately separate: each template's docs/adr describes the
+  // seed a prototype starts from, the plugin's docs/adr records how the seeds
+  // changed. A citation that crosses them is a category error, not a shortcut.
+  // "(prototype namespace)" from plugin-side prose resolves against ANY template's
+  // tree — the register legitimately speaks about the seed ADRs all templates share.
   if (!citesRecords(file)) continue;
-  const inTemplate = file.startsWith("template/");
+  const inTemplate = templateOf(file);
   for (const m of prose.matchAll(ADR_CITE)) {
     const annotated = m[2];
-    const wantsPlugin = annotated === "plugin" || (annotated === undefined && !inTemplate);
-    const own = wantsPlugin ? pluginAdrs : templateAdrs;
-    const other = wantsPlugin ? templateAdrs : pluginAdrs;
-    const ownDir = wantsPlugin ? "docs/adr" : "template/docs/adr";
-    if (own.has(m[1])) continue;
+    const wantsPlugin = annotated === "plugin" || (annotated === undefined && inTemplate === undefined);
+    if (wantsPlugin) {
+      if (pluginAdrs.has(m[1])) continue;
+      errors.push(
+        anyTemplateHas(m[1])
+          ? `${file}: cites ADR ${m[1]}, which exists only in a template namespace — annotate it ` +
+            `"(prototype namespace)" if that is deliberate`
+          : `${file}: cites ADR ${m[1]}, which does not exist in docs/adr`,
+      );
+      continue;
+    }
+    const own = inTemplate !== undefined ? templateAdrs.get(inTemplate.id) : null;
+    const resolves = own !== null ? own.has(m[1]) : anyTemplateHas(m[1]);
+    if (resolves) continue;
     errors.push(
-      other.has(m[1])
-        ? `${file}: cites ADR ${m[1]}, which exists only in the other ADR namespace — annotate it ` +
-          `"(plugin namespace)" / "(prototype namespace)" if that is deliberate`
-        : `${file}: cites ADR ${m[1]}, which does not exist in ${ownDir}`,
+      pluginAdrs.has(m[1])
+        ? `${file}: cites ADR ${m[1]}, which exists only in the plugin namespace — annotate it ` +
+          `"(plugin namespace)" if that is deliberate`
+        : `${file}: cites ADR ${m[1]}, which does not exist in ${inTemplate !== undefined ? `${inTemplate.dir}/docs/adr` : "any template's docs/adr"}`,
     );
   }
 }
@@ -142,41 +172,81 @@ const bullet = (block, label) => new RegExp(`^- \\*\\*${label}:\\*\\*([\\s\\S]*?
 const backticked = (text) => [...(text ?? "").matchAll(/`([^`]+)`/g)].map((m) => m[1]);
 const SCRIPT_SHAPED = /^[a-z][a-z0-9]*(:[a-z][a-z0-9-]*)*$/;
 
-const templateScripts = new Set(Object.keys(readJson(TEMPLATE_PKG).scripts ?? {}));
-const pluginScripts = new Set(existsSync("package.json") ? Object.keys(readJson("package.json").scripts ?? {}) : []);
-// Cases register through expect() and through hook(), its guardrail-shaped sibling.
-// Both scopes count: the register covers prototype rules, proven in the template's
-// suite, and plugin rules, proven in scripts/*.selftest.mjs.
-const CASE_CALL = /(?:expect|hook)\(\s*"([^"]+)"/g;
-const caseSources = [
-  ...(existsSync(TEMPLATE_SELFTEST) ? [TEMPLATE_SELFTEST] : []),
-  ...walk("scripts", (p) => p.endsWith(".selftest.mjs")),
-];
-const registeredCases = new Set(caseSources.flatMap((p) => [...read(p).matchAll(CASE_CALL)].map((m) => m[1])));
+/** A rule's `- **Scope:**` bullet resolved to the template ids it binds.
+ *  Absent = web (the pre-registry corpus keeps its meaning); `plugin` = none —
+ *  the rule is enforced by root package.json scripts alone. */
+function scopeTemplates(block, id) {
+  const raw = bullet(block, "Scope");
+  if (raw === undefined) return ["web"];
+  const tokens = raw.trim().split(/\s*[,|]\s*/).map((s) => s.trim()).filter(Boolean);
+  const ids = new Set();
+  for (const token of tokens) {
+    if (token === "plugin") continue;
+    if (token === "all") for (const t of TEMPLATES) ids.add(t.id);
+    else if (token === "frontend" || token === "backend") {
+      for (const t of TEMPLATES) if (t.kind === token) ids.add(t.id);
+    } else if (templateIds.has(token)) ids.add(token);
+    else errors.push(`${REGISTER}: ${id} has scope "${token}", which names no template, kind or "plugin"/"all"`);
+  }
+  return [...ids];
+}
 
-// Enforcers are named by rules in §10 AND by the normative sections (§3.1 owns the
-// coverage gate, §12.2 owns typecheck). Collecting from both is what lets check 5
-// hold without inventing a BR-xx for every section that already states a rule.
-const named = new Set();
-for (const m of registerBeforeNotes.matchAll(/^- \*\*Enforced by:\*\*([^\n]*(?:\n(?!- \*\*|#)[^\n]*)*)/gm)) {
-  for (const token of backticked(m[1])) if (SCRIPT_SHAPED.test(token)) named.add(token);
+const templateScripts = new Map(
+  TEMPLATES.map((t) => [t.id, new Set(Object.keys(readJson(`${t.dir}/package.json`).scripts ?? {}))]),
+);
+const pluginScripts = new Set(existsSync("package.json") ? Object.keys(readJson("package.json").scripts ?? {}) : []);
+
+// Cases register through expect() and through hook(), its guardrail-shaped sibling.
+// Per-template suites prove prototype rules; scripts/*.selftest.mjs proves plugin rules.
+const CASE_CALL = /(?:expect|hook)\(\s*"([^"]+)"/g;
+const casesIn = (paths) =>
+  new Set(paths.filter((p) => existsSync(p)).flatMap((p) => [...read(p).matchAll(CASE_CALL)].map((m) => m[1])));
+const templateCases = new Map(TEMPLATES.map((t) => [t.id, casesIn([`${t.dir}/scripts/gates-selftest.mjs`])]));
+const pluginCases = casesIn(walk("scripts", (p) => p.endsWith(".selftest.mjs")));
+
+// Which scripts each template has a norm for. Section-level "Enforced by" bullets
+// (§3.1 owns the coverage gate, §12.2 owns typecheck) bind EVERY template — the
+// registry forces structural symmetry — while a §10 rule binds exactly its scope.
+const namedPerTemplate = new Map(TEMPLATES.map((t) => [t.id, new Set()]));
+const nameFor = (ids, token) => {
+  for (const id of ids) namedPerTemplate.get(id)?.add(token);
+};
+
+const ruleStart = registerBeforeNotes.indexOf("## §10");
+const nextSection = registerBeforeNotes.indexOf("\n## §11");
+const outsideRules =
+  ruleStart === -1
+    ? registerBeforeNotes
+    : registerBeforeNotes.slice(0, ruleStart) + (nextSection === -1 ? "" : registerBeforeNotes.slice(nextSection));
+for (const m of outsideRules.matchAll(/^- \*\*Enforced by:\*\*([^\n]*(?:\n(?!- \*\*|#)[^\n]*)*)/gm)) {
+  for (const token of backticked(m[1])) {
+    if (SCRIPT_SHAPED.test(token)) nameFor([...templateIds], token);
+  }
 }
 
 const blocks = ruleBlocks(registerBeforeNotes);
 if (blocks.size === 0) errors.push(`${REGISTER}: §10 defines no rules — nothing for a gate to be accountable to`);
 
 for (const [id, block] of blocks) {
+  const scope = scopeTemplates(block, id);
   const enforced = bullet(block, "Enforced by");
   if (enforced === undefined || enforced.trim() === "") {
     errors.push(`${REGISTER}: ${id} names no enforcer — a rule nobody enforces reads as a guarantee`);
   } else {
     for (const token of backticked(enforced)) {
       if (!SCRIPT_SHAPED.test(token)) continue; // prose enforcers (a hook path, "ADR review")
-      if (templateScripts.has(token) || pluginScripts.has(token)) {
-        named.add(token);
+      if (pluginScripts.has(token)) {
+        // A plugin-level gate may enforce a rule of any scope (citations itself does).
         continue;
       }
-      errors.push(`${REGISTER}: ${id} is enforced by \`${token}\`, which is not a gate in ${TEMPLATE_PKG}`);
+      const missingIn = scope.filter((tid) => !templateScripts.get(tid)?.has(token));
+      if (missingIn.length > 0) {
+        errors.push(
+          `${REGISTER}: ${id} is enforced by \`${token}\`, which is not a script in ` +
+            missingIn.map((tid) => `${tid}'s package.json`).join(", "),
+        );
+      }
+      nameFor(scope, token);
     }
   }
 
@@ -186,22 +256,34 @@ for (const [id, block] of blocks) {
     errors.push(`${REGISTER}: ${id} has no selftest case — nobody has seen its gate fail`);
   }
   for (const name of cited) {
-    if (!registeredCases.has(name)) {
-      errors.push(`${REGISTER}: ${id} cites the selftest case "${name}", which ${TEMPLATE_SELFTEST} never registers`);
+    if (pluginCases.has(name)) continue;
+    const missingIn = scope.filter((tid) => !templateCases.get(tid)?.has(name));
+    if (missingIn.length > 0) {
+      errors.push(
+        `${REGISTER}: ${id} cites the selftest case "${name}", which ` +
+          missingIn.map((tid) => `${tid}'s gates-selftest`).join(", ") +
+          ` never registers`,
+      );
     }
   }
 }
 
-for (const script of templateScripts) {
-  if (NOT_A_GATE.has(script) || named.has(script)) continue;
-  errors.push(
-    `${TEMPLATE_PKG}: "${script}" is a gate no rule names — add the rule to ${REGISTER} §10, ` +
-      `or add the script to NOT_A_GATE with a reason if it does not enforce anything`,
-  );
+for (const t of TEMPLATES) {
+  const notAGate = new Set(t.notAGate ?? []);
+  const named = namedPerTemplate.get(t.id);
+  for (const script of templateScripts.get(t.id)) {
+    if (notAGate.has(script) || named.has(script)) continue;
+    errors.push(
+      `${t.dir}/package.json: "${script}" is a gate no rule names — add the rule to ${REGISTER} §10 ` +
+        `(with a Scope covering "${t.id}"), or add the script to the template's notAGate in ${REGISTRY} ` +
+        `if it does not enforce anything`,
+    );
+  }
 }
 
 if (errors.length > 0) fail("citations FAILED", errors);
 ok(
   `citations: ${scanned.length} files, ${ruleIds.size} rules, ${sectionIds.size} sections, ` +
-    `${tableRows.size} table rows — every citation resolves, every rule is enforced, every gate is motivated`,
+    `${tableRows.size} table rows, ${TEMPLATES.length} template(s) — every citation resolves, ` +
+    `every rule is enforced, every gate is motivated`,
 );

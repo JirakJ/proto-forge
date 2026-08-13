@@ -5,6 +5,19 @@ import { expect, report } from "./selftest.mjs";
 // marketplace.json (the listing) and package.json (the gates). A release bumps
 // all four; this gate proves they never drift apart in between.
 
+// The complete shape a registry entry demands — the smallest tree that counts as
+// a template (manifest-lint's registry section enforces exactly this list).
+const templateShape = (dir) => ({
+  [`${dir}/package.json`]: { scripts: { verify: "true" } },
+  [`${dir}/scripts/gates-selftest.mjs`]: "// selftest\n",
+  [`${dir}/scripts/snapshot-diff.mjs`]: "// gate\n",
+  [`${dir}/.proto-forge/seed.lock`]: "{}\n",
+  [`${dir}/.proto-forge/snapshot.json`]: "{}\n",
+  [`${dir}/.proto-forge/config.json`]: "{}\n",
+  [`${dir}/.proto-forge/config.schema.json`]: "{}\n",
+  [`${dir}/docs/adr/001-a.md`]: "# ADR 001: A\n\n- Status: accepted\n",
+});
+
 const files = (over = {}) => ({
   // plugin.json's skills[] must resolve to a real SKILL.md, so the fixture repo
   // needs one at the root the entry points back to.
@@ -21,6 +34,10 @@ const files = (over = {}) => ({
     name: "proto-forge",
     plugins: [{ name: "proto-forge", source: "./plugin", version: "0.4.0" }],
   },
+  "references/templates.json": {
+    templates: [{ id: "web", dir: "templates/web", kind: "frontend", stack: "ts", notAGate: [] }],
+  },
+  ...templateShape("templates/web"),
   ...over,
 });
 
@@ -96,6 +113,62 @@ expect(
     return f;
   })(),
   { pass: false, matching: /marketplace\.json/ },
+);
+
+// --- the template registry (ADR 007) -------------------------------------------
+
+expect(
+  "manifest-lint: a missing template registry fails",
+  "manifest-lint.mjs",
+  (() => {
+    const f = files();
+    delete f["references/templates.json"];
+    return f;
+  })(),
+  { pass: false, matching: /templates\.json/ },
+);
+
+expect(
+  "manifest-lint: a registry entry pointing at a half-template fails",
+  "manifest-lint.mjs",
+  (() => {
+    const f = files();
+    delete f["templates/web/.proto-forge/seed.lock"];
+    return f;
+  })(),
+  { pass: false, matching: /seed\.lock/ },
+);
+
+expect(
+  "manifest-lint: a template without a verify script fails",
+  "manifest-lint.mjs",
+  files({ "templates/web/package.json": { scripts: { build: "true" } } }),
+  { pass: false, matching: /verify/ },
+);
+
+expect(
+  "manifest-lint: two registry entries sharing an id fail",
+  "manifest-lint.mjs",
+  files({
+    "references/templates.json": {
+      templates: [
+        { id: "web", dir: "templates/web", kind: "frontend", stack: "ts", notAGate: [] },
+        { id: "web", dir: "templates/web", kind: "frontend", stack: "ts", notAGate: [] },
+      ],
+    },
+  }),
+  { pass: false, matching: /duplicate/ },
+);
+
+expect(
+  "manifest-lint: an unknown template kind fails",
+  "manifest-lint.mjs",
+  files({
+    "references/templates.json": {
+      templates: [{ id: "web", dir: "templates/web", kind: "mobile", stack: "ts", notAGate: [] }],
+    },
+  }),
+  { pass: false, matching: /mobile/ },
 );
 
 report();

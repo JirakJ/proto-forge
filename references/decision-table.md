@@ -4,7 +4,7 @@ Map normalized brief facets to fixed actions. Exhaustive for the supported surfa
 
 | #   | WHEN (facet)                | THEN (fixed action)                                                                                          | Emits                                                       |
 | --- | --------------------------- | ----------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| T1  | Brief received              | Copy `template/` into the target dir (slug of first entity, else `app`); normalize into facets; write brief to `.prompts/0002-brief.md` (0001 is the shipped scaffold record); leave the shipped snapshot (regen at end of Phase 1). | — |
+| T1  | Brief received              | Copy `templates/web/` into the target dir (slug of first entity, else `app`); normalize into facets; write brief to `.prompts/0002-brief.md` (0001 is the shipped scaffold record); leave the shipped snapshot (regen at end of Phase 1). | — |
 | T2  | Always (Phase 1)            | Scaffold pinned template: Vite+React+TS, ESLint/Prettier, Vitest, Playwright, i18next, Dexie, zod, Husky.   | ADR 001 stack, 002 prompt-log, 003 test strategy, 004 i18n |
 | T3  | ≥1 domain entity            | Typed domain model + `zod` schema + repository port per entity (TS type via `z.infer`).                     | ADR 010-019 (per entity, facet order)                      |
 | T4  | Always (Phase 3)            | Vendor `@jj/proto-ui` at pinned version; mount `ProtoUIProvider` once. Never hand-roll an overlay — compose Dialog/Menu/ToastProvider/Tooltip, which are promoted into the browser's top layer and ordered by when they opened. | ADR 020 own library, 008 layering (pre-written) |
@@ -28,7 +28,7 @@ If a facet is **not** covered by T1-T13:
 
 The "conservative default" is itself a fixed rule, so off-table behavior stays repeatable.
 
-**A gate waiver is never the conservative default.** Relaxing a mandatory gate (i18n, testid, layer, docs, security, stub, consistency, snapshot, overlay, coverage, ignores, mutation, external — `MANDATORY_GATES` in `template/scripts/config.mjs`) is an operator's product decision and needs an ADR plus an expiry date — see the gate-failure protocol in `SKILL.md`. Escalation produces a question, not a waiver.
+**A gate waiver is never the conservative default.** Relaxing a mandatory gate (i18n, testid, layer, docs, security, stub, consistency, snapshot, overlay, coverage, ignores, mutation, external — `MANDATORY_GATES` in `templates/web/scripts/config.mjs`) is an operator's product decision and needs an ADR plus an expiry date — see the gate-failure protocol in `SKILL.md`. Escalation produces a question, not a waiver.
 
 ## ADR number ranges (BRS §9.6)
 

@@ -3,7 +3,7 @@
   "version": "0.5.0",
   "private": true,
   "type": "module",
-  "description": "The proto-forge skill and its prototype template. This package holds the plugin-level gates only; the generated prototype has its own package.json under template/.",
+  "description": "The proto-forge skills and their app templates. This package holds the plugin-level gates only; every generated app has its own package.json under its template's dir in references/templates.json.",
   "license": "MIT",
   "engines": {
     "node": ">=22 <23"

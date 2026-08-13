@@ -36,7 +36,7 @@ Phase 9  RELEASE           → SemVer tag + changelog + SBOM + snapshot
 
 ### Phase 0 — Brief intake (the only interpretive step)
 
-1. Choose the target directory: the kebab-slug of the first entity name (or `app` if the brief names none). **Copy `template/` byte-for-byte into it and work inside it** — `.prompts/` and `.proto-forge/` exist only after this copy, so the copy is the first action.
+1. Choose the target directory: the kebab-slug of the first entity name (or `app` if the brief names none). **Copy `templates/web/` byte-for-byte into it and work inside it** — `.prompts/` and `.proto-forge/` exist only after this copy, so the copy is the first action.
 2. Write the raw brief verbatim to `.prompts/0002-brief.md` (id `0002`; the shipped `0001-scaffold.md` is the scaffold record — never reuse id `0001`) **before** generating any code.
 3. Normalize into the typed facets in `references/facets.schema.ts`: `entities[]`, `flows[]`, `roles[]`, `persistence`, `apiContract?`, `locales[]`, `nonFunctional`.
    - Entity names → PascalCase; fields → camelCase. **No synonym invention.** No flow verb the brief didn't state.
@@ -169,7 +169,7 @@ SemVer tag; `CHANGELOG.md` from the ADR set + Conventional Commits; attach SBOM 
 - **Linkage:** every `accepted` ADR references ≥1 prompt-log entry; every ADR-producing entry names its ADR.
 - **Redaction:** before writing an entry, replace secret-shaped values (tokens/keys/connection strings/bearer creds) with `«redacted:<type>»`; PII with `«redacted:pii»` unless the brief marks it non-sensitive fixture data. `.prompts/**` is scanned by `secret-scan` like `src/**`.
 
-## Gate commands (all in `template/package.json`)
+## Gate commands (all in `templates/web/package.json`)
 
 `verify` runs all, fail-fast:
 `config:check` · `gates:selftest` · `lint` · `typecheck` · `coverage:policy` · `ignores` · `test:unit` · `test:mutation` · `build` · `budget` · `i18n:verify` · `layer:scan` · `overlay:matrix` · `testid:scan` · `docs:verify` · `external:verify` · `stub:scan` · `adr:lint` · `prompt:lint` · `dup:scan` · `consistency` · `sec:scan` · `snapshot:diff` · `test:e2e`.
@@ -190,7 +190,7 @@ Banned: hardcoded literals ignoring arguments; inline `return [{id:1,...}]` in a
 - `references/facets.schema.ts` — the canonical brief schema (Phase 0 target).
 - `references/decision-table.md` — T1-T13 when→then + escalation + ADR ranges.
 - `references/adr-template.md` — the MADR ADR skeleton.
-- `template/` — the fixed skeleton copied per run. Read `template/README.md` for its layout and `template/AGENTS.md` for the rules every change must satisfy.
+- `templates/web/` — the fixed skeleton copied per run. Read `templates/web/README.md` for its layout and `templates/web/AGENTS.md` for the rules every change must satisfy.
 
 ## Full requirements
 

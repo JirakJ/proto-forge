@@ -9,7 +9,7 @@ repository, and the only pointer to it was a path on one machine — so ~150 cit
 resolved to nothing a reader could open. It is rebuilt from the artefacts that
 implement it, in this order of evidence: the ADR that states a decision, the gate
 script that enforces it, the source comment at the citation site, and `SKILL.md` /
-`template/AGENTS.md`, which restate many rules for their own audiences. No rule here
+`templates/web/AGENTS.md`, which restate many rules for their own audiences. No rule here
 was invented; §19 records every place the evidence was thin and what was done about it.
 
 Section numbers are **not** free to change. Fifteen citations point at `BRS §x.y`
@@ -22,7 +22,7 @@ This register binds two things:
 
 - **the skill** — the pipeline in `SKILL.md` and the decision table in
   `references/decision-table.md`. Rules marked `Scope: plugin` apply here.
-- **the prototype** — anything generated from `template/`. Everything else applies here.
+- **the prototype** — anything generated from `templates/web/`. Everything else applies here.
 
 A **conforming run** is one where `pnpm verify` exits 0 in the generated prototype and
 `.proto-forge/snapshot.json` records `conformance: "strict"`. A run may also be
@@ -40,17 +40,17 @@ names no enforcer, and when a gate is named by no rule.
 
 ## §2 Definitions
 
-**Prototype** — a web application slice generated from `template/` by the pipeline in
+**Prototype** — a web application slice generated from `templates/web/` by the pipeline in
 `SKILL.md`. It compiles, passes its own tests, and passes its own gates.
 
-**Seed** — the vendored `@jj/proto-ui` tree under `template/packages/proto-ui/`. It is
+**Seed** — the vendored `@jj/proto-ui` tree under `templates/web/packages/proto-ui/`. It is
 byte-pinned (§17.2) and is not edited during generation.
 
 **Facet** — a normalized field of the brief, typed by `references/facets.schema.ts`.
 The hash of the facet set is the *brief identity* (BR-14).
 
-**Gate** — a script named in `template/package.json` that exits non-zero on a violation.
-A **mandatory gate** is one listed in `MANDATORY_GATES` (`template/scripts/config.mjs`);
+**Gate** — a script named in `templates/web/package.json` that exits non-zero on a violation.
+A **mandatory gate** is one listed in `MANDATORY_GATES` (`templates/web/scripts/config.mjs`);
 relaxing one requires a waiver (BR-17).
 
 **Waiver** — an entry in `.proto-forge/config.json` `waivers[]` with `gate`, `reason`
@@ -80,7 +80,7 @@ percentage: a percentage that includes browser runs hides which of the two faile
 
 ### §3.1 Coverage: 100 on every glob, and the configuration is part of the contract
 
-Every glob in `template/vite.config.ts` carries a floor of
+Every glob in `templates/web/vite.config.ts` carries a floor of
 `statements/branches/functions/lines = 100`, enforced by Vitest's V8 provider. A floor
 below 100 is a standing licence for untested branches; a line that genuinely cannot be
 reached is a design problem to fix, never a threshold problem to lower.
@@ -92,7 +92,7 @@ exclude list stays a record instead of becoming a dumping ground — and `test:m
 proves the assertions fire rather than merely execute (§3.2, added with the mutation gate).
 
 Lowering a threshold or adding an exclusion is blocked by a hook
-(`template/scripts/hooks/guard-write.mjs`) locally and by `coverage:policy` in CI, where
+(`templates/web/scripts/hooks/guard-write.mjs`) locally and by `coverage:policy` in CI, where
 hooks do not run. A genuine change to the exclusion allow-list is a gate edit and an ADR.
 
 A pure-interface module (a repository port) needs no exclusion: it has zero executable
@@ -158,12 +158,12 @@ never auto-suppressed, never waived, and a finding halts the run for a human.
 
 - A strict Content Security Policy. Production serves `script-src 'self'`; the dev
   server relaxes it only because Vite injects an inline react-refresh preamble.
-  Configured in `template/vite.config.ts`, documented in `template/docs/SECURITY.md`.
+  Configured in `templates/web/vite.config.ts`, documented in `templates/web/docs/SECURITY.md`.
 - Security headers: `X-Content-Type-Options: nosniff`,
   `Referrer-Policy: strict-origin-when-cross-origin`, `X-Frame-Options: DENY`,
   `object-src 'none'`, `base-uri 'self'`, `frame-ancestors 'none'`.
 - Environment configuration is validated with zod at the boundary
-  (`template/src/config/env.ts`). Nothing reads `import.meta.env` directly.
+  (`templates/web/src/config/env.ts`). Nothing reads `import.meta.env` directly.
 - External data is zod-validated before it enters the domain. An unvalidated response
   is a defect, not a shortcut.
 - Raw HTML has exactly one sanctioned entry point, `src/shared/SafeHtml.tsx`.
@@ -441,7 +441,7 @@ code it produced is committed. Secret-shaped values and PII are redacted before 
 
 - **Why:** Provenance that can be edited after the fact is not provenance (NFR-10).
 - **Enforced by:** `prompt:lint` for structure, a git-history diff in CI for
-  append-only, and `template/scripts/hooks/guard-write.mjs` locally
+  append-only, and `templates/web/scripts/hooks/guard-write.mjs` locally
 - **Proven by:** `gates:selftest` → "prompt: well-formed, strictly increasing entries
   pass", "prompt: an empty log fails", "prompt: a filename that is not NNNN-slug.md
   fails", "prompt: an id that disagrees with the filename fails", "prompt: an entry with
@@ -537,7 +537,7 @@ operator's agreement. It is never a way to make a red gate green.
   quietly returning a build to green, while it ships untranslated UI, is the failure this
   asymmetry exists to prevent.
 - **Enforced by:** `config:check`, every gate through `gateResult`, and
-  `template/scripts/hooks/guard-write.mjs`
+  `templates/web/scripts/hooks/guard-write.mjs`
 - **Proven by:** `gates:selftest` → "config: the strict default passes", "config:
   relaxing a mandatory gate without a waiver fails", "config: a complete waiver passes
   and is reported", "config: a waiver citing an ADR that does not exist fails", "config:
@@ -628,7 +628,7 @@ unattended. `autoPropagate` stands in for `--approve` and for nothing else.
   must not open two doors — if `autoPropagate` also implied `dryRun: false`, a reviewer
   reading the diff would not see the dry-run door swing open.
 - **Enforced by:** `sync:jira` / `sync:confluence` through `assertMayCommit`
-  (`template/scripts/outbox.mjs`, ordered cheapest-first with the credential check
+  (`templates/web/scripts/outbox.mjs`, ordered cheapest-first with the credential check
   after the approval check), `sync:auto` for the unattended path
 - **Proven by:** `gates:selftest` → "integrations: --commit is refused while the network
   guardrail is closed", "integrations: autoPropagate stands in for --approve",
@@ -697,7 +697,7 @@ blocked locally by a hook.
 
 - **Why:** A log that can be edited after the fact tells you what someone wishes had
   happened.
-- **Enforced by:** the CI history diff, `template/scripts/hooks/guard-write.mjs`
+- **Enforced by:** the CI history diff, `templates/web/scripts/hooks/guard-write.mjs`
 - **Proven by:** `gates:selftest` → "hook: rewriting an existing prompt-log entry is
   blocked", "hook: adding a NEW prompt-log entry is allowed"
 - **Decided in:** ADR 002 (prototype namespace)
@@ -867,7 +867,7 @@ edited during generation — a hook blocks it. A legitimate upgrade is an ADR pl
 
 - **Why:** The seed is the part of a prototype nobody re-reviews. Unpinned, it is the
   easiest place for a change to arrive unnoticed.
-- **Enforced by:** `snapshot:diff`, `template/scripts/hooks/guard-write.mjs`,
+- **Enforced by:** `snapshot:diff`, `templates/web/scripts/hooks/guard-write.mjs`,
   `template:integrity` at the plugin level
 - **Proven by:** `gates:selftest` → "snapshot: a missing seed.lock fails", "snapshot: a
   vendored seed that differs from seed.lock fails", "hook: editing the byte-pinned seed
@@ -882,14 +882,14 @@ An empty list here would be the suspicious outcome, not the reassuring one.
 ### §19.1 Identifiers with no citation in the shipped artefacts
 
 `BR-01`, `BR-03` and `BR-04` are cited nowhere in `SKILL.md`, `references/` or
-`template/`. No rule was written for them: inventing three rules to fill a numeric gap
+`templates/web/`. No rule was written for them: inventing three rules to fill a numeric gap
 would put text in a normative document that nothing in the repository asks for. The gap
 in numbering is left visible, which is the honest record of a register that was
 reconstructed rather than transcribed.
 
 ### §19.2 Sections whose meaning came from a single citation
 
-`BRS §5` (application shell, from `template/src/app/App.tsx`), `BRS §9.6` (ADR ranges,
+`BRS §5` (application shell, from `templates/web/src/app/App.tsx`), `BRS §9.6` (ADR ranges,
 from `references/decision-table.md`) and `BRS §11.1` (escalation, same file) each rest on
 one citation site plus the code or table it names. Their scope here is exactly what
 those sites demonstrate, no wider. If the original register said more under those
@@ -898,7 +898,7 @@ numbers, that content is lost and this document does not pretend otherwise.
 ### §19.3 The template's ADR set is a seed document
 
 `SKILL.md` requires that an ADR is never deleted and that a reversal is a supersede.
-That rule governs a **prototype's** history. `template/docs/adr/` is not a history — it
+That rule governs a **prototype's** history. `templates/web/docs/adr/` is not a history — it
 is the design document a freshly generated prototype inherits. A seed decision that
 changes is therefore rewritten in place, and the change is recorded in the plugin's own
 `docs/adr/`. Shipping a `superseded by` trail into every new prototype would hand each
