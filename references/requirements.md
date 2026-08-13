@@ -993,12 +993,12 @@ fails. CI renders the same table into the job summary and uploads quality.json.
   a README written by hand stays green forever. A number that is a derivation of
   the last green verify is the CI/CD view of the project, in the repo, for every
   generated application.
-- **Scope:** web, api-node
+- **Scope:** all
 - **Enforced by:** `status:verify`; `quality:report` as the producer the chain runs
   right before it
 - **Proven by:** `gates:selftest` → "status: a fresh quality report passes",
   "status: a hand-edited STATUS block fails", "status: a threshold mirror
-  disagreeing with the config fails", "status: a gate chain mirror disagreeing with
+  disagreeing with the config fails" (frontend, backend), "status: a gate chain mirror disagreeing with
   package.json fails", "status: a missing quality.json fails"
 - **Decided in:** ADR 009 (prototype namespace)
 
@@ -1211,12 +1211,12 @@ skipped and why, so an absent binary reads as a note, never as silence.
   per stack, and every one of them is cheaper to detect than to debug. A failure
   that names itself and its fix is a five-minute event; the same failure bare is
   an afternoon.
-- **Scope:** web, api-node
+- **Scope:** all
 - **Enforced by:** `doctor` (the actionable diagnosis); the TZ pin asserted by the
   test setup; the tool-gated skip-with-note discipline (prose, §21)
 - **Proven by:** `gates:selftest` → "doctor: a clean tree passes", "doctor: a stale
-  mutation cache is named with its fix", "doctor: a missing env file is named with
-  its fix"
+  mutation cache is named with its fix" (frontend, backend), "doctor: a missing env
+  file is named with its fix" (frontend, backend)
 - **Decided in:** ADR 009 (prototype namespace)
 
 ### NFR-19 — Self-healing is tiered, bounded, and on the record
@@ -1238,7 +1238,7 @@ with the result; enabling it is a repository variable plus the committed flag.
   green. Bounds, consent, the hard-stop exclusion and write-ahead logging are what
   separate self-healing from self-deception — the gate-failure protocol, executed
   by a tool instead of hoped for.
-- **Scope:** web, api-node
+- **Scope:** all
 - **Enforced by:** `config:check` (the consent form and the pass bounds); the guard
   hooks freezing every quality floor regardless of the editor (prose)
 - **Proven by:** `gates:selftest` → "heal: a mechanical drift heals in one pass",

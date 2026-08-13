@@ -1,4 +1,4 @@
-import { cpSync, existsSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, utimesSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname, resolve } from "node:path";
 import { execSync, spawnSync } from "node:child_process";
@@ -1547,6 +1547,232 @@ inlineCase("deploy: render stages to the outbox without touching a cluster");
     }
   }
 }
+
+// --- status: the documented numbers are the measured numbers --------------------
+// BR-36. quality:report distils the tiers' machine outputs into quality.json and
+// regenerates the STATUS.md block; status:verify re-derives both and holds the
+// config mirrors (floors, chain, contract counts) to their sources. The fixtures
+// fabricate the machine outputs the reporters would have written, run the
+// producer, then break exactly one copy.
+const PYPROJECT_QUALITY = (breakAt = 85) =>
+  `[tool.coverage.report]\nfail_under = 100\n\n[tool.proto-forge.mutation]\nbreak = ${breakAt}\n`;
+const JUNIT_XML =
+  '<?xml version="1.0" encoding="utf-8"?>\n<testsuites><testsuite name="pytest" errors="0" failures="0" skipped="0" tests="5" time="0.1">\n' +
+  '<testcase classname="tests.unit.test_a" file="tests/unit/test_a.py" name="test_one" time="0.01"/>\n' +
+  '<testcase classname="tests.unit.test_a" file="tests/unit/test_a.py" name="test_two" time="0.01"/>\n' +
+  '<testcase classname="tests.unit.test_a" file="tests/unit/test_a.py" name="test_three" time="0.01"/>\n' +
+  '<testcase classname="tests.unit.test_b" file="tests/unit/test_b.py" name="test_four" time="0.01"/>\n' +
+  '<testcase classname="tests.unit.test_b" file="tests/unit/test_b.py" name="test_five" time="0.01"/>\n' +
+  "</testsuite></testsuites>\n";
+const statusProject = (over = {}) => ({
+  ".proto-forge/config.json": {},
+  "package.json": { scripts: { verify: "pnpm run test:unit && pnpm run status:verify" } },
+  "pyproject.toml": PYPROJECT_QUALITY(),
+  "coverage/junit.xml": JUNIT_XML,
+  "coverage/coverage.json": {
+    totals: { covered_lines: 200, num_statements: 200, covered_branches: 40, num_branches: 40, percent_covered: 100.0 },
+  },
+  ".proto-forge/mutation-score.json": { score: 90, detected: 9, total: 10 },
+  ".proto-forge/e2e-results.json": { scenarios: 3, passed: 3 },
+  "contract/openapi.json": { openapi: "3.1.0", paths: { "/notes": { get: {}, post: {} } } },
+  "src/app/platform/problems.py":
+    'problems = {\n    "validation-failed": ProblemDef(\n        code="validation-failed",\n    ),\n    "internal": ProblemDef(\n        code="internal",\n    ),\n}\n',
+  "docs/STATUS.md": "# Quality status\n\n<!-- quality:begin -->\n<!-- quality:end -->\n",
+  ...over,
+});
+const writeQuality = (dir) => run("quality-report.mjs", dir);
+
+expect("status: a fresh quality report passes", "status-verify.mjs", statusProject(), {
+  pass: true,
+  prepare: writeQuality,
+});
+
+expect("status: a hand-edited STATUS block fails", "status-verify.mjs", statusProject(), {
+  pass: false,
+  matching: /hand-edited/,
+  prepare: (dir) => {
+    writeQuality(dir);
+    const doc = join(dir, "docs", "STATUS.md");
+    writeFileSync(doc, readFileSync(doc, "utf8").replace("5/5 passed", "999/999 passed"));
+  },
+});
+
+expect("status: a threshold mirror disagreeing with the config fails", "status-verify.mjs", statusProject(), {
+  pass: false,
+  matching: /thresholds\.mutation/,
+  prepare: (dir) => {
+    writeQuality(dir);
+    writeFileSync(join(dir, "pyproject.toml"), PYPROJECT_QUALITY(80));
+  },
+});
+
+expect("status: a gate chain mirror disagreeing with package.json fails", "status-verify.mjs", statusProject(), {
+  pass: false,
+  matching: /gates\.chain/,
+  prepare: (dir) => {
+    writeQuality(dir);
+    writeFileSync(join(dir, "package.json"), JSON.stringify({ scripts: { verify: "pnpm run test:unit" } }, null, 2));
+  },
+});
+
+expect("status: a missing quality.json fails", "status-verify.mjs", statusProject(), {
+  pass: false,
+  matching: /quality\.json is missing/,
+});
+
+// --- doctor ------------------------------------------------------------------
+// NFR-18. The doctor is a support tool, so the contract under test is the useful
+// half: a finding names its fix. PROTO_FORGE_DOCTOR_PORTS="" skips the port
+// probe so a dev server on the operator's machine cannot flake the selftest;
+// the engines fixture matches the running node so the clean case passes anywhere,
+// and the fixtures ship no pyproject.toml so the uv probes stay out of scope.
+const doctorBase = (over = {}) => ({
+  "package.json": { engines: { node: `>=${process.versions.node.split(".")[0]}` } },
+  ...over,
+});
+const noPorts = { PROTO_FORGE_DOCTOR_PORTS: "" };
+
+expect("doctor: a clean tree passes", "doctor.mjs", doctorBase(), { pass: true, env: noPorts });
+
+expect(
+  "doctor: a stale mutation cache is named with its fix",
+  "doctor.mjs",
+  doctorBase({ "mutants/src/app/a.py": "a = 1\n", "src/app/a.py": "a = 1\n" }),
+  {
+    pass: false,
+    matching: /rm -rf mutants/,
+    env: noPorts,
+    // The cache predates the source by construction: epoch mtime, no clock math.
+    prepare: (dir) => utimesSync(join(dir, "mutants", "src", "app", "a.py"), new Date(0), new Date(0)),
+  },
+);
+
+expect(
+  "doctor: a missing env file is named with its fix",
+  "doctor.mjs",
+  doctorBase({ ".env.example": "PORT=\n" }),
+  { pass: false, matching: /cp \.env\.example \.env/, env: noPorts },
+);
+
+// --- heal --------------------------------------------------------------------
+// NFR-19: self-healing is layered, bounded and on the record. The loop is
+// proven offline through the three fixture seams documented in scripts/heal.mjs
+// (PROTO_FORGE_HEAL_VERIFY / _GATE_CMD / _REGISTRY): a fixture gate fails until
+// a marker exists, a fixture regen creates it, and a fixture registry wires the
+// two together — no package manager involved.
+const HEAL_GATE =
+  'import { existsSync } from "node:fs";\n' +
+  'if (existsSync("healed.marker")) { process.stdout.write("fixturegate ok\\n"); process.exit(0); }\n' +
+  'process.stdout.write("✗ fixturegate FAILED\\n    the derived marker is missing\\n");\n' +
+  "process.exit(1);\n";
+const HEAL_REGEN =
+  'import { appendFileSync, writeFileSync } from "node:fs";\n' +
+  'appendFileSync("attempts.log", "pass\\n");\n' +
+  'writeFileSync("healed.marker", "regenerated\\n");\n';
+const HEAL_REGEN_NOOP = 'import { appendFileSync } from "node:fs";\nappendFileSync("attempts.log", "pass\\n");\n';
+const healEnv = {
+  PROTO_FORGE_HEAL_VERIFY: "node fixture-gate.mjs",
+  PROTO_FORGE_HEAL_GATE_CMD: "node fixture-gate.mjs",
+  PROTO_FORGE_HEAL_REGISTRY: "fixture-registry.json",
+};
+const healBase = (over = {}) => ({
+  ".proto-forge/config.json": {},
+  ".prompts/0001-scaffold.md": promptEntry,
+  "fixture-gate.mjs": HEAL_GATE,
+  "fixture-registry.json": {
+    fixturegate: { check: "fixturegate", regen: ["node fixture-regen.mjs"], reason: "the marker is a derivation of the fixture" },
+  },
+  "fixture-regen.mjs": HEAL_REGEN,
+  ...over,
+});
+
+inlineCase("heal: a mechanical drift heals in one pass");
+{
+  const dir = project(healBase());
+  try {
+    const { code, out } = run("heal.mjs", dir, [], healEnv);
+    if (code !== 0) {
+      results.push(`heal: a mechanical drift heals in one pass — expected exit 0, got ${code}: ${out.trim()}`);
+    } else if (!/healed by the mechanical tier in pass 1/.test(out)) {
+      results.push(`heal: a mechanical drift heals in one pass — the report must name tier and pass: ${out.trim()}`);
+    } else if (!existsSync(join(dir, ".prompts", "0002-heal-fixturegate-pass-1.md"))) {
+      results.push("heal: a mechanical drift heals in one pass — the pass was not logged as .prompts/0002-heal-fixturegate-pass-1.md");
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+expect(
+  "heal: a hard-stop gate is never healed",
+  "heal.mjs",
+  healBase({
+    "fixture-gate.mjs": 'process.stdout.write("✗ sec FAILED\\n    gitleaks found secrets\\n");\nprocess.exit(1);\n',
+    // A registry entry EXISTS for the hard-stop gate — the refusal must come first.
+    "fixture-registry.json": { sec: { check: "sec:scan", regen: ["node fixture-regen.mjs"], reason: "an entry the tool must refuse to use" } },
+  }),
+  { pass: false, matching: /no auto-remediation/, env: healEnv },
+);
+
+expect(
+  "heal: the agent tier without committed consent is refused",
+  "heal.mjs",
+  healBase({
+    "fixture-gate.mjs": 'process.stdout.write("✗ mysterygate FAILED\\n    a failure no registry entry covers\\n");\nprocess.exit(1);\n',
+    "fixture-registry.json": {},
+  }),
+  { pass: false, matching: /selfHealing\.agent\.enabled/, env: healEnv },
+);
+
+inlineCase("heal: every pass writes a prompt-log entry first");
+// Write-before-act: the entry must be on disk EVEN though the heal failed.
+{
+  const dir = project(healBase({ "fixture-regen.mjs": HEAL_REGEN_NOOP }));
+  try {
+    const { code, out } = run("heal.mjs", dir, [], healEnv);
+    const entry = join(dir, ".prompts", "0002-heal-fixturegate-pass-1.md");
+    if (code === 0) {
+      results.push(`heal: every pass writes a prompt-log entry first — a no-op regen must not heal: ${out.trim()}`);
+    } else if (!existsSync(entry)) {
+      results.push("heal: every pass writes a prompt-log entry first — no entry on disk after a failed heal (write-before-act broken)");
+    } else if (!/## Prompt/.test(readFileSync(entry, "utf8"))) {
+      results.push("heal: every pass writes a prompt-log entry first — the entry has no ## Prompt section");
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+inlineCase("heal: passes stop at the configured bound");
+{
+  const dir = project(
+    healBase({
+      ".proto-forge/config.json": { selfHealing: { mechanical: { maxPasses: 1 } } },
+      "fixture-regen.mjs": HEAL_REGEN_NOOP,
+    }),
+  );
+  try {
+    const { code, out } = run("heal.mjs", dir, [], healEnv);
+    const log = join(dir, "attempts.log");
+    const attempts = existsSync(log) ? readFileSync(log, "utf8").trim().split("\n").length : 0;
+    if (code === 0) {
+      results.push(`heal: passes stop at the configured bound — must escalate, not pass: ${out.trim()}`);
+    } else if (attempts !== 1) {
+      results.push(`heal: passes stop at the configured bound — expected exactly 1 attempt, got ${attempts}`);
+    } else if (!/blocked/.test(out)) {
+      results.push(`heal: passes stop at the configured bound — the escalation must say blocked: ${out.trim()}`);
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+expect(
+  "config: an unbounded healing loop fails",
+  "config-cli.mjs",
+  withConfig({ selfHealing: { mechanical: { maxPasses: 9 } } }),
+  { pass: false, matching: /a healing loop without a bound is a loop/ },
+);
 
 if (results.length) fail(`gates:selftest FAILED (${results.length})`, results);
 ok("gates:selftest: every gate, guardrail and converter rejects what it claims to reject");

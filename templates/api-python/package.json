@@ -11,10 +11,10 @@
     "dev": "uv run python -m app.main",
     "build": "uv run python -m compileall -q src alembic",
     "start": "uv run python -m app.main",
-    "verify": "pnpm run config:check && pnpm run env:verify && pnpm run gates:selftest && pnpm run lint && pnpm run typecheck && pnpm run coverage:policy && pnpm run ignores && pnpm run test:unit && pnpm run test:mutation && pnpm run build && pnpm run deploy:verify && pnpm run deps:budget && pnpm run arch:verify && pnpm run opid:scan && pnpm run log:scan && pnpm run error:catalog && pnpm run migration:verify && pnpm run contract:verify && pnpm run contract:breaking && pnpm run docs:verify && pnpm run external:verify && pnpm run stub:scan && pnpm run adr:lint && pnpm run prompt:lint && pnpm run dup:scan && pnpm run consistency && pnpm run sec:scan && pnpm run snapshot:diff && pnpm run test:e2e",
+    "verify": "pnpm run config:check && pnpm run env:verify && pnpm run gates:selftest && pnpm run lint && pnpm run typecheck && pnpm run coverage:policy && pnpm run ignores && pnpm run test:unit && pnpm run test:mutation && pnpm run build && pnpm run deploy:verify && pnpm run deps:budget && pnpm run arch:verify && pnpm run opid:scan && pnpm run log:scan && pnpm run error:catalog && pnpm run migration:verify && pnpm run contract:verify && pnpm run contract:breaking && pnpm run docs:verify && pnpm run external:verify && pnpm run stub:scan && pnpm run adr:lint && pnpm run prompt:lint && pnpm run dup:scan && pnpm run consistency && pnpm run sec:scan && pnpm run snapshot:diff && pnpm run test:e2e && pnpm run quality:report && pnpm run status:verify",
     "lint": "uv run ruff check .",
     "typecheck": "uv run mypy",
-    "test:unit": "uv run pytest --cov --cov-report=term-missing --cov-report=json",
+    "test:unit": "uv run pytest --cov --cov-report=term-missing --cov-report=json --junitxml=coverage/junit.xml",
     "test:e2e": "node scripts/e2e-conformance.mjs",
     "test:mutation": "node scripts/test-mutation.mjs",
     "config:show": "node scripts/config-cli.mjs show",
@@ -56,6 +56,10 @@
     "sync:pull": "node scripts/sync-pull.mjs",
     "sync:status": "node scripts/sync-status.mjs",
     "sync:auto": "node scripts/sync-auto.mjs",
+    "quality:report": "node scripts/quality-report.mjs",
+    "status:verify": "node scripts/status-verify.mjs",
+    "doctor": "node scripts/doctor.mjs",
+    "heal": "node scripts/heal.mjs",
     "prepare": "husky || true"
   },
   "devDependencies": {

@@ -1,0 +1,19 @@
+{
+  "parts": {
+    "declared": 3,
+    "present": 0
+  },
+  "gates": {
+    "count": 8,
+    "chain": [
+      "config:check",
+      "gates:selftest",
+      "ws:verify",
+      "adr:lint",
+      "prompt:lint",
+      "snapshot:diff",
+      "quality:report",
+      "status:verify"
+    ]
+  }
+}

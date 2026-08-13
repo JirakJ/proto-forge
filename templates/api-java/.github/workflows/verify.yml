@@ -88,6 +88,13 @@ jobs:
       # and the Tier-2 native gate selftests are tool-gated on a laptop, mandatory here.
       - run: ./gradlew nativeTest --console=plain
       - run: pnpm gates:selftest:native
+      # BR-36: the measured quality facts, visible on the run page. --summary
+      # renders .proto-forge/quality.json as markdown; GITHUB_STEP_SUMMARY is a
+      # runner-provided path, referenced only through the environment (no ${{ }}
+      # interpolation — the same shell-injection hygiene as the prompt-log step).
+      - name: quality summary
+        if: always()
+        run: node scripts/quality-report.mjs --summary >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -95,6 +102,7 @@ jobs:
           path: |
             .proto-forge/snapshot.json
             .proto-forge/sbom.cdx.json
+            .proto-forge/quality.json
             build/reports/jacoco
             build/reports/pitest
           if-no-files-found: ignore

@@ -51,5 +51,10 @@ class ConformanceTest {
           harnessCase, response.getStatus(), response.getContentAsString(StandardCharsets.UTF_8)));
     }
     assertTrue(failures.isEmpty(), "conformance failures:\n" + String.join("\n", failures));
+    // The machine fact for quality:report (BR-36): scripts/e2e-conformance.mjs
+    // captures this line (the conformance task shows test stdout) and records
+    // .proto-forge/e2e-results.json from it — the documented status is a
+    // derivation of THIS run, never a typed claim.
+    System.out.println("conformance: " + HarnessCases.CASES.size() + " scenarios green");
   }
 }

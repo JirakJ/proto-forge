@@ -1,5 +1,8 @@
+import { mkdirSync, writeFileSync } from "node:fs";
+import { dirname } from "node:path";
 import { spawnSync } from "node:child_process";
 import { read, fail, ok } from "./lib.mjs";
+import { MUTATION_SCORE } from "./quality-lib.mjs";
 
 // @adr 003 - mutation testing proves the assertions fire (NFR-14)
 //
@@ -11,6 +14,11 @@ import { read, fail, ok } from "./lib.mjs";
 // scope), and the score is computed the strict way — a mutant that no test
 // covers (🫥) or that merely looks suspicious (🤔) counts AGAINST the score,
 // exactly like a survivor; only a kill or a timeout counts for it.
+//
+// The strict score is also recorded into .proto-forge/mutation-score.json for
+// quality:report (BR-36): the documented status restates THIS run's number,
+// never a typed claim — mutmut's own tally is emoji prose, so the machine fact
+// is written here, where the arithmetic lives.
 
 const pyproject = read("pyproject.toml");
 const breakFloor = Number(
@@ -43,6 +51,8 @@ const total = detected + undetected;
 if (total === 0) fail("test:mutation — mutmut generated no mutants; the mutate scope is empty");
 
 const score = Math.floor((detected / total) * 1000) / 10;
+mkdirSync(dirname(MUTATION_SCORE), { recursive: true });
+writeFileSync(MUTATION_SCORE, JSON.stringify({ score, detected, total }, null, 2) + "\n");
 if (score < breakFloor) {
   const survivors = spawnSync("uv", ["run", "mutmut", "results"], { encoding: "utf8" });
   fail(`test:mutation — mutation score ${score}% is under the break floor ${breakFloor}% (NFR-14)`, [

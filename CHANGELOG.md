@@ -76,6 +76,30 @@ from 28 to 50 rules with every one mechanically enforced across six templates.
   dependency-free lint, run over the shipped sample in plugin verify and over
   every output at runtime.
 
+### Quality status, doctor, and tiered self-healing (BR-36, NFR-18, NFR-19)
+
+- **The documentation carries the numbers of the last green verify** in every
+  template: `docs/STATUS.md` renders unit counts, the coverage axes vs their
+  floors, mutation score vs break, e2e/conformance counts, contract
+  operation/problem counts and the full gate chain — derived from
+  `.proto-forge/quality.json`, which the test gates' own machine reports produce
+  during verify. The `status` gate re-renders the block byte-wise and re-checks
+  the config mirrors, so a hand-edited number fails; CI renders the same table
+  into the job summary and uploads quality.json. No wall-clock anywhere.
+- **`pnpm doctor`** names every known environment failure with its one-command
+  fix (engine pins, hooks after clone, installed-tree-vs-lockfile agreement,
+  stale mutation caches, ports, browsers, env files, per-stack toolchains);
+  TZ=UTC pinned at config level and asserted by the test setups;
+  `docs/TROUBLESHOOTING.md` curates the remaining symptom → cause → fix classes
+  — including the incidents this plugin's own construction hit.
+- **`pnpm heal`** repairs a red verify in three tiers and never any other way:
+  mechanical regeneration from a data-driven healing registry (never a snapshot,
+  seed, or anything semantic); a bounded agent loop that only exists once
+  `selfHealing.agent.enabled` is committed (the autoPropagate consent form),
+  which hard-stop gates never enter; then escalation. Every pass writes its
+  prompt-log entry before acting; passes stop at the configured bound. The
+  optional `heal.yml` runs tier 1 only in CI and opens a PR with the heal log.
+
 ### Norm and gate infrastructure
 
 - Facets v2: `facetsVersion` + optional `backend` subtree; brief identity is the

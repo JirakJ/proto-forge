@@ -46,10 +46,11 @@ scripts/             the gate corpus (byte-pinned) and orchestration support
 | Command | What it proves |
 | --- | --- |
 | `pnpm verify` | Everything below, fail-fast. This is the bar. |
-| `pnpm config:check` | The config + waivers are honest (mandatory gates: `ws`, `snapshot`) |
+| `pnpm config:check` | The config + waivers are honest (mandatory gates: `ws`, `snapshot`, `status`) |
 | `pnpm gates:selftest` | Every gate still rejects what it claims to reject |
 | `pnpm ws:verify` | Manifest shape, unique ids/dirs, roles, pairedBrief agreement, gitignore coverage, contract path |
 | `pnpm adr:lint` · `pnpm prompt:lint` | ADR ledger anchored + append-only prompt log well-formed |
 | `pnpm snapshot:diff` | Structure matches the committed snapshot; the gate corpus matches seed.lock |
+| `pnpm quality:report` · `pnpm status:verify` | `docs/STATUS.md`'s block is a derivation of the manifest, tree and chain (`.proto-forge/quality.json`), byte-checked |
 
-`ws:status`, `ws:bootstrap` and `ws:up` are support scripts, not gates: they are registered `notAGate`, stay dry-run by default, and `ws:up` is tool-gated on docker — the running pair is an operator concern, never a verify precondition. The e2e part's runtime suites read the URLs `ws:up` prints (`E2E_API_URL` / `E2E_WEB_URL`).
+`ws:status`, `ws:bootstrap` and `ws:up` are support scripts, not gates: they are registered `notAGate`, stay dry-run by default, and `ws:up` is tool-gated on docker — the running pair is an operator concern, never a verify precondition. The e2e part's runtime suites read the URLs `ws:up` prints (`E2E_API_URL` / `E2E_WEB_URL`). Two more support tools: `pnpm doctor` (fresh-machine pre-flight — toolchain pins, git presence, every declared part's directory; every ✗ prints its fix) and `pnpm heal` (tiered self-healing for a red `verify`: mechanical regenerations first, a consent-gated agent pass second, escalation third — bounded, hard-stop gates excluded, every pass prompt-logged; `docs/TROUBLESHOOTING.md`).

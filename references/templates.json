@@ -88,7 +88,8 @@
         "gates:selftest:native",
         "deploy:plan",
         "env:local",
-        "env:remote"
+        "env:remote",
+        "heal"
       ]
     },
     {
@@ -118,7 +119,8 @@
         "gates:selftest:native",
         "deploy:plan",
         "env:local",
-        "env:remote"
+        "env:remote",
+        "heal"
       ]
     },
     {
@@ -133,7 +135,8 @@
         "ws:bootstrap",
         "ws:up",
         "snapshot",
-        "seed:lock"
+        "seed:lock",
+        "heal"
       ]
     },
     {
@@ -147,7 +150,8 @@
         "config:show",
         "snapshot",
         "seed:lock",
-        "test:e2e"
+        "test:e2e",
+        "heal"
       ]
     }
   ]

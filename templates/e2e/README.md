@@ -33,13 +33,16 @@ Response validation is a dependency-free structural JSON-schema-subset validator
 
 | Command | What it proves |
 | --- | --- |
-| `pnpm config:check` | The config + waivers are honest (mandatory gates: `registry`, `stub`, `snapshot`) |
+| `pnpm config:check` | The config + waivers are honest (mandatory gates: `registry`, `stub`, `snapshot`, `status`) |
 | `pnpm gates:selftest` | Every gate, hook and the validator still reject what they claim to |
 | `pnpm lint` · `pnpm typecheck` | strictTypeChecked eslint (api-node's bar, minus boundaries) + tsc |
 | `pnpm registry:verify` | Registries parse; ids unique + kebab-case; every flow case implemented and vice versa; specs still consume the registries; every contract case's operationId exists in the referenced contract when reachable (pre-workspace absence = a note) |
 | `pnpm stub:scan` | No placeholder markers, first-party mocks or gated-rule escape hatches in src/ or e2e/ |
 | `pnpm adr:lint` · `pnpm prompt:lint` | ADR ledger anchored + append-only prompt log well-formed |
 | `pnpm snapshot:diff` | Structure matches the committed snapshot; the gate corpus (validator included) matches seed.lock |
+| `pnpm quality:report` · `pnpm status:verify` | `docs/STATUS.md`'s block is a derivation of the registries + chain (`.proto-forge/quality.json`), byte-checked |
+
+Support tools outside the chain: `pnpm doctor` (fresh-machine pre-flight — toolchain pins, husky wiring, installed tree vs lockfile, playwright browsers, the `E2E_*` surface; every ✗ prints its fix) and `pnpm heal` (tiered self-healing for a red `verify`: mechanical regenerations first, a consent-gated agent pass second, escalation third — bounded, hard-stop gates excluded, every pass prompt-logged; `docs/TROUBLESHOOTING.md`).
 
 ## Layout
 

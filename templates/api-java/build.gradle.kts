@@ -84,10 +84,14 @@ tasks.withType<JavaCompile> {
     options.compilerArgs.addAll(listOf("-parameters", "-Xlint:all,-processing,-serial", "-Werror"))
 }
 
-/** Deterministic English messages for validation details and captured examples. */
+/** Deterministic English messages for validation details and captured examples,
+ *  and a pinned timezone (NFR-18): date logic must not pass on one machine's zone
+ *  and fail on another's. TimezonePinTest asserts the pin took. */
 fun Test.pinnedJvm() {
     systemProperty("user.language", "en")
     systemProperty("user.country", "US")
+    systemProperty("user.timezone", "UTC")
+    environment("TZ", "UTC")
 }
 
 tasks.test {
@@ -148,6 +152,9 @@ val conformance by tasks.registering(Test::class) {
         includeTags("conformance")
     }
     pinnedJvm()
+    // BR-36: the runner's own "conformance: N scenarios green" line must reach
+    // scripts/e2e-conformance.mjs, which records it into .proto-forge/e2e-results.json.
+    testLogging { showStandardStreams = true }
     outputs.upToDateWhen { false }
 }
 
@@ -236,6 +243,10 @@ pitest {
 
 tasks.withType<PitestTask> {
     // PIT drives the unit suites only; the tagged tiers have their own oracles.
+    // The same determinism pins as pinnedJvm(): PIT spawns its own JVMs, and
+    // user.timezone is the pin a JVM reads (no Test.environment here — PitestTask
+    // is not a Test task).
     systemProperty("user.language", "en")
     systemProperty("user.country", "US")
+    systemProperty("user.timezone", "UTC")
 }
