@@ -1,0 +1,16 @@
+<Project>
+  <!-- @adr 001 - one pinned stack: the compiler contract every project inherits.
+       TreatWarningsAsErrors is the C# analogue of the web template's strict
+       tsconfig; Nullable makes the reference-type contract explicit; the lockfile
+       pair (RestorePackagesWithLockFile + committed packages.lock.json, restored
+       with locked-mode in CI) is NFR-11's reproducibility promise. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <LangVersion>latest</LangVersion>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+</Project>

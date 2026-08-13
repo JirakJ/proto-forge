@@ -1,0 +1,57 @@
+{
+  "unit": {
+    "files": 31,
+    "tests": 205,
+    "passed": 205
+  },
+  "coverage": {
+    "statements": 100,
+    "branches": 100,
+    "functions": 100,
+    "lines": 100
+  },
+  "mutation": {
+    "score": 92.75,
+    "break": 90
+  },
+  "e2e": {
+    "tests": 83,
+    "passed": 83
+  },
+  "gates": {
+    "count": 27,
+    "chain": [
+      "config:check",
+      "gates:selftest",
+      "lint",
+      "typecheck",
+      "coverage:policy",
+      "ignores",
+      "test:unit",
+      "test:mutation",
+      "build",
+      "shell:verify",
+      "budget",
+      "i18n:verify",
+      "layer:scan",
+      "overlay:matrix",
+      "testid:scan",
+      "docs:verify",
+      "external:verify",
+      "stub:scan",
+      "adr:lint",
+      "prompt:lint",
+      "dup:scan",
+      "consistency",
+      "sec:scan",
+      "snapshot:diff",
+      "test:e2e",
+      "quality:report",
+      "status:verify"
+    ]
+  },
+  "thresholds": {
+    "coverage": 100,
+    "mutation": 90
+  }
+}

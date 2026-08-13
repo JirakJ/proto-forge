@@ -1,0 +1,8 @@
+node_modules/
+build/
+.gradle/
+bin/
+.env
+.proto-forge/outbox/
+# raw machine output — quality:report distils it into .proto-forge/quality.json
+.proto-forge/e2e-results.json

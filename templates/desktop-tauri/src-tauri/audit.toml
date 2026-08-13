@@ -1,0 +1,36 @@
+# cargo-audit configuration — the triaged RUSTSEC ignore list (ADR 203).
+#
+# The same discipline deploy pipelines apply to .trivyignore holds here, enforced
+# by shell:verify on every run: EVERY entry carries `# reason: … until: YYYY-MM-DD`,
+# an undated or unreasoned entry fails the build, and an entry past its date fails
+# until a human re-reviews it. Nothing in this list is silent or permanent.
+#
+# Context (docs/SECURITY.md "Stated limits"): Tauri 2 renders through the system
+# WebView, and on Linux that means the gtk3-rs binding stack, which upstream has
+# archived. The advisories below are unmaintained-crate notices (no CVE, no
+# exploit path) plus one MODERATE unsoundness in glib's VariantStrIter that the
+# shell never touches — none is reachable service surface in a desktop shell
+# with zero commands and core:default capabilities. They cannot be pinned away
+# inside tauri 2.x: gtk 0.18 is the newest the tauri/wry stack accepts. The
+# `until:` dates force a re-review against the then-current tauri minor.
+
+[advisories]
+ignore = [
+  "RUSTSEC-2024-0411", # reason: gdkwayland-sys — gtk3-rs bindings archived upstream; linux GTK backend of tauri 2, no fix inside tauri 2.x until: 2027-02-13
+  "RUSTSEC-2024-0412", # reason: gdk — gtk3-rs bindings archived upstream; linux GTK backend of tauri 2, no fix inside tauri 2.x until: 2027-02-13
+  "RUSTSEC-2024-0413", # reason: atk — gtk3-rs bindings archived upstream; linux GTK backend of tauri 2, no fix inside tauri 2.x until: 2027-02-13
+  "RUSTSEC-2024-0414", # reason: gdkx11-sys — gtk3-rs bindings archived upstream; linux GTK backend of tauri 2, no fix inside tauri 2.x until: 2027-02-13
+  "RUSTSEC-2024-0415", # reason: gtk — gtk3-rs bindings archived upstream; linux GTK backend of tauri 2, no fix inside tauri 2.x until: 2027-02-13
+  "RUSTSEC-2024-0416", # reason: atk-sys — gtk3-rs bindings archived upstream; linux GTK backend of tauri 2, no fix inside tauri 2.x until: 2027-02-13
+  "RUSTSEC-2024-0417", # reason: gdkx11 — gtk3-rs bindings archived upstream; linux GTK backend of tauri 2, no fix inside tauri 2.x until: 2027-02-13
+  "RUSTSEC-2024-0418", # reason: gdk-sys — gtk3-rs bindings archived upstream; linux GTK backend of tauri 2, no fix inside tauri 2.x until: 2027-02-13
+  "RUSTSEC-2024-0419", # reason: gtk3-macros — gtk3-rs bindings archived upstream; linux GTK backend of tauri 2, no fix inside tauri 2.x until: 2027-02-13
+  "RUSTSEC-2024-0420", # reason: gtk-sys — gtk3-rs bindings archived upstream; linux GTK backend of tauri 2, no fix inside tauri 2.x until: 2027-02-13
+  "RUSTSEC-2024-0429", # reason: glib 0.18 VariantStrIter unsoundness (GHSA-wrw7-89jp-8q8g, MODERATE) — fix needs glib 0.20, which the tauri 2 gtk stack does not accept; the shell never constructs a Variant until: 2027-02-13
+  "RUSTSEC-2024-0370", # reason: proc-macro-error unmaintained — build-time macro helper via the gtk stack, never in the shipped binary until: 2027-02-13
+  "RUSTSEC-2025-0075", # reason: unic-char-range unmaintained — build-time/codegen transitive of the tauri stack until: 2027-02-13
+  "RUSTSEC-2025-0080", # reason: unic-common unmaintained — build-time/codegen transitive of the tauri stack until: 2027-02-13
+  "RUSTSEC-2025-0081", # reason: unic-char-property unmaintained — build-time/codegen transitive of the tauri stack until: 2027-02-13
+  "RUSTSEC-2025-0098", # reason: unic-ucd-version unmaintained — build-time/codegen transitive of the tauri stack until: 2027-02-13
+  "RUSTSEC-2025-0100", # reason: unic-ucd-ident unmaintained — build-time/codegen transitive of the tauri stack until: 2027-02-13
+]

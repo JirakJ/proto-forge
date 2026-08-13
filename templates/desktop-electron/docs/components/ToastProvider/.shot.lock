@@ -1,0 +1,14 @@
+{
+  "source": "f6f4a1dfd236bec3d2010da6be27761ac64ab77976ea3f3043fb1944f9ce175e",
+  "shots": [
+    {
+      "file": "info.png",
+      "note": "A polite toast in the body-level region, promoted per batch so it lands above whatever was open."
+    },
+    {
+      "file": "over-modal.png",
+      "note": "A toast raised from inside a modal still draws above it, because it was promoted later."
+    }
+  ],
+  "capturedBy": "docs:shots"
+}

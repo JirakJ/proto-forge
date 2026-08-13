@@ -1,0 +1,10 @@
+{
+  "source": "b5ef30add420b01c7232973734fe45a23f8970aa75efbb79adf5945db0219deb",
+  "shots": [
+    {
+      "file": "default.png",
+      "note": "Checkbox with the label beside it, sharing Field's a11y contract."
+    }
+  ],
+  "capturedBy": "docs:shots"
+}
