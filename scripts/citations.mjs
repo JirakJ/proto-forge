@@ -201,7 +201,11 @@ function ruleBlocks(src) {
   return out;
 }
 
-const bullet = (block, label) => new RegExp(`^- \\*\\*${label}:\\*\\*([\\s\\S]*?)(?=\\n- \\*\\*|\\n## |\\n### |$)`, "m").exec(block)?.[1];
+// No `m` flag: with it, the lazy body stops at the first line's `$` and every
+// continuation line of a wrapped bullet silently escapes validation — an enforcer
+// or a cited case on line two was invisible to checks 4-6.
+const bullet = (block, label) =>
+  new RegExp(`(?:^|\\n)- \\*\\*${label}:\\*\\*([\\s\\S]*?)(?=\\n- \\*\\*|\\n## |\\n### |\\n\\n|$)`).exec(block)?.[1];
 const backticked = (text) => [...(text ?? "").matchAll(/`([^`]+)`/g)].map((m) => m[1]);
 const SCRIPT_SHAPED = /^[a-z][a-z0-9]*(:[a-z][a-z0-9-]*)*$/;
 
@@ -254,9 +258,12 @@ const templateScripts = new Map(
 );
 const pluginScripts = new Set(existsSync("package.json") ? Object.keys(readJson("package.json").scripts ?? {}) : []);
 
-// Cases register through expect() and through hook(), its guardrail-shaped sibling.
+// Cases register through expect(), hook() (its guardrail-shaped sibling), and
+// inlineCase() — the marker a suite places on a proof written as an inline block
+// rather than a spawned fixture (a validator exercised in-process, a tool-gated
+// render). The marker is a declaration, and the block beneath it is the proof.
 // Per-template suites prove prototype rules; scripts/*.selftest.mjs proves plugin rules.
-const CASE_CALL = /(?:expect|hook)\(\s*"([^"]+)"/g;
+const CASE_CALL = /(?:expect|hook|inlineCase)\(\s*"([^"]+)"/g;
 const casesIn = (paths) =>
   new Set(paths.filter((p) => existsSync(p)).flatMap((p) => [...read(p).matchAll(CASE_CALL)].map((m) => m[1])));
 const templateCases = new Map(TEMPLATES.map((t) => [t.id, casesIn([`${t.dir}/scripts/gates-selftest.mjs`])]));
@@ -315,7 +322,8 @@ for (const [id, block] of blocks) {
     errors.push(`${REGISTER}: ${id} has no selftest case — nobody has seen its gate fail`);
   }
   for (const m of (proven ?? "").matchAll(/"([^"]+)"(?:\s*\(([^)]+)\))?/g)) {
-    const name = m[1];
+    // Prose wraps; registered names never do. Collapse the wrap before comparing.
+    const name = m[1].replace(/\s+/g, " ");
     if (pluginCases.has(name)) continue;
     const effective = restrict(scope, m[2]);
     const missingIn = effective.filter((tid) => !templateCases.get(tid)?.has(name));

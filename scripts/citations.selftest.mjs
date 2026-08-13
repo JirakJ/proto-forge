@@ -275,4 +275,48 @@ expect("citations: a prose parenthetical after an enforcer narrows nothing", "ci
 `),
   }), { pass: false, matching: /missing:gate/ });
 
+
+// The bullet parser must read WRAPPED bullets whole: an enforcer or a cited case on
+// a continuation line was invisible to checks 4-6 before the fix. And an inline-block
+// proof registers through the inlineCase() marker.
+expect("citations: an enforcer on a continuation line is still seen", "citations.mjs",
+  files({
+    "references/requirements.md": register(`### BR-01 — A rule that exists
+
+**MUST.** Something is required.
+
+- **Why:** because.
+- **Enforced by:** \`lint\` for the everyday half, and on the next line
+  \`missing:gate\` for the rest
+- **Proven by:** \`gates:selftest\` → "lint: a case that exists"
+`),
+  }), { pass: false, matching: /missing:gate/ });
+
+expect("citations: a wrapped proven-by case is validated after unwrapping", "citations.mjs",
+  files({
+    "references/requirements.md": register(`### BR-01 — A rule that exists
+
+**MUST.** Something is required.
+
+- **Why:** because.
+- **Enforced by:** \`lint\`
+- **Proven by:** \`gates:selftest\` → "lint: a case that
+  exists"
+`),
+  }), { pass: true });
+
+expect("citations: an inline-block case registers through inlineCase", "citations.mjs",
+  files({
+    "references/requirements.md": register(`### BR-01 — A rule that exists
+
+**MUST.** Something is required.
+
+- **Why:** because.
+- **Enforced by:** \`lint\`
+- **Proven by:** \`gates:selftest\` → "lint: an inline proof"
+`),
+    "templates/web/scripts/gates-selftest.mjs":
+      'const inlineCase = (n) => n;\ninlineCase("lint: an inline proof");\n',
+  }), { pass: true });
+
 report();
