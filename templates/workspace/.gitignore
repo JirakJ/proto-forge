@@ -1,0 +1,13 @@
+node_modules/
+.env
+.proto-forge/outbox/
+
+# Part directories are SEPARATE git repositories living inside this workspace
+# (T14): the workspace repo carries the manifest, the shared brief record and
+# the orchestration scripts — never the parts' history. Every dir listed in
+# workspace.json parts[].dir must appear here as /<dir>/; regeneration rewrites
+# workspace.json and this block together, and `pnpm ws:verify` fails when they
+# fall out of step.
+/api/
+/web/
+/e2e/

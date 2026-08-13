@@ -1,0 +1,37 @@
+{
+  "name": "proto-forge-e2e",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.11.0",
+  "engines": {
+    "node": ">=22 <23"
+  },
+  "scripts": {
+    "verify": "pnpm run config:check && pnpm run gates:selftest && pnpm run lint && pnpm run typecheck && pnpm run registry:verify && pnpm run stub:scan && pnpm run adr:lint && pnpm run prompt:lint && pnpm run snapshot:diff",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test:e2e": "playwright test",
+    "config:show": "node scripts/config-cli.mjs show",
+    "config:check": "node scripts/config-cli.mjs check",
+    "gates:selftest": "node scripts/gates-selftest.mjs",
+    "registry:verify": "node scripts/registry-verify.mjs",
+    "stub:scan": "node scripts/stub-scan.mjs",
+    "adr:lint": "node scripts/adr-lint.mjs",
+    "prompt:lint": "node scripts/prompt-log-lint.mjs",
+    "snapshot": "node scripts/snapshot-diff.mjs --write",
+    "seed:lock": "node scripts/snapshot-diff.mjs --write-seed",
+    "snapshot:diff": "node scripts/snapshot-diff.mjs",
+    "prepare": "husky || true"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@playwright/test": "^1.61.1",
+    "@types/node": "^22.20.1",
+    "eslint": "^9.39.5",
+    "eslint-plugin-security": "^3.0.1",
+    "husky": "^9.1.7",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.65.0"
+  }
+}

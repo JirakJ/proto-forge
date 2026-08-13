@@ -1,0 +1,9 @@
+{
+  "seed": [
+    "scripts"
+  ],
+  "version": "0.1.0",
+  "sha": null,
+  "sha256": "cfcfa80dcd3c522fe2c270aec1eadb78019bc972de0e929d39ddde8c0a9f2d01",
+  "note": "sha = upstream git commit of the skill release that vendored this seed; null until first published release. sha256 covers the gate corpus (scripts/**) as one digest; snapshot:diff re-verifies it."
+}

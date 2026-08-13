@@ -107,7 +107,7 @@ count is pinned in the committed snapshot — growing it is a reviewed diff, nev
 drive-by statistic.
 
 - **Enforced by:** `test:unit` (per-glob V8 thresholds), `coverage:policy`, `ignores`
-- **Proven by:** `gates:selftest` → "hook: lowering a coverage threshold is blocked",
+- **Proven by:** `gates:selftest` → "hook: lowering a coverage threshold is blocked" (frontend, backend),
   "coverage: floors at 100 and reasoned exclusions pass", "coverage: a lowered threshold
   fails", "coverage: an exclusion outside the allow-list fails", "coverage: an
   allow-listed exclusion without its reason fails", "coverage: a character-class glob
@@ -305,7 +305,7 @@ resolving `Prompt-Log:` trailer.
   a commit accepting two decisions makes the gates that guarded it ambiguous. The
   message can promise anything; the staged diff is what the commit actually does, and
   the two must agree.
-- **Scope:** all
+- **Scope:** frontend, backend
 - **Enforced by:** `commit-lint` via the `commit-msg` hook — both halves: the message
   (subject, exactly one `ADR:` trailer, a resolving `Prompt-Log:`) and the staged diff
   (exactly one `- Status: accepted` transition, in the ADR the trailer names). Outside
@@ -324,7 +324,7 @@ catalogues are exempt, and `pseudo` is deliberately decorated.
 
 - **Why:** A mixed-language codebase costs every later reader, and a non-English literal
   in code is almost always a string that should have been a catalogue key (BR-08).
-- **Scope:** all
+- **Scope:** frontend, backend
 - **Enforced by:** `consistency`
 - **Proven by:** `gates:selftest` → "consistency: a non-English script in code fails"
 - **Decided in:** ADR 004
@@ -388,7 +388,7 @@ intrinsics. Code clones over 30 tokens fail, except among library primitives.
 - **Why:** A primitive re-implemented in a feature carries none of the library's
   accessibility work and none of its tests, and the divergence is invisible until a
   screen reader meets it.
-- **Scope:** all
+- **Scope:** frontend, backend
 - **Enforced by:** `dup:scan`, which runs jscpd for clones and component-dup-scan for
   re-implemented primitives
 - **Proven by:** `gates:selftest` → "dup: a feature composing proto-ui primitives
@@ -422,16 +422,17 @@ first-party path (`@/`, `@jj/`, relative).
 - **Why:** A prototype whose persistence is faked has not demonstrated the thing a
   prototype exists to demonstrate. And a test that mocks its own module under test
   asserts the mock.
-- **Scope:** all
-- **Enforced by:** `stub:scan`; `consistency` for the dead-weight corollary — a runtime
-  `dependencies` entry nothing in `src/` or `packages/` imports fails (devDependencies
-  are wired through configs and CLIs, where "is it used?" has no cheap mechanical
-  answer, so they are held by review)
+- **Scope:** frontend, backend, e2e
+- **Enforced by:** `stub:scan`; `consistency` (frontend, backend) for the dead-weight
+  corollary — a runtime `dependencies` entry nothing in `src/` or `packages/` imports
+  fails (devDependencies are wired through configs and CLIs, where "is it used?" has
+  no cheap mechanical answer, so they are held by review; the e2e template ships zero
+  runtime dependencies by construction)
 - **Proven by:** `gates:selftest` → "stub: clean production code passes", "stub: a
   banned marker in production code fails", "stub: 'not implemented' in production code
   fails", "stub: mocking a first-party module fails", "stub: pulling __fixtures__ into
-  production code fails", "consistency: a runtime dependency nothing imports fails",
-  "consistency: an imported runtime dependency passes"
+  production code fails", "consistency: a runtime dependency nothing imports fails" (frontend, backend),
+  "consistency: an imported runtime dependency passes" (frontend, backend)
 - **Limit, stated:** grep cannot prove the absence of inline mock data — a large static
   dataset inside a feature could still pass. The mechanically detectable surface is
   gated; the seed-data allowance is confined by convention to `src/infra/**/seed.ts`.
@@ -488,7 +489,7 @@ supersede link.
 
 - **Why:** A second definition of the default locale, the token set or the route table
   does not announce itself; it produces two behaviours that agree until they do not.
-- **Scope:** all
+- **Scope:** frontend, backend
 - **Enforced by:** `consistency`
 - **Proven by:** `gates:selftest` → "consistency: one definition per single-source
   registry passes", "consistency: design tokens defined twice fails" (web), "consistency: two
@@ -560,9 +561,9 @@ operator's agreement. It is never a way to make a red gate green.
   and is reported", "config: a waiver citing an ADR that does not exist fails", "config:
   a waiver with no real justification fails", "config: a waiver for a gate that is not
   relaxed fails as dead paperwork", "hook: switching a gate to warn in the config is
-  blocked", "hook: lowering a coverage threshold is blocked", "hook: lowering the
-  mutation-score floor is blocked", "hook: narrowing the mutation scope is blocked",
-  "hook: raising the duplication threshold is blocked", "hook: widening the duplication
+  blocked", "hook: lowering a coverage threshold is blocked" (frontend, backend), "hook: lowering the
+  mutation-score floor is blocked", "hook: narrowing the mutation scope is blocked" (frontend, backend),
+  "hook: raising the duplication threshold is blocked" (frontend, backend), "hook: widening the duplication
   ignore list is blocked"
 - **Decided in:** ADR 009
 
@@ -587,7 +588,7 @@ to the local documents it concerns.
   which revision did we last see, and which of our files does this touch. A record that
   cannot answer the third (`affectedFiles: []`) asserts the object concerns nothing
   here, which is worse than no record: the drift report it feeds would name no work.
-- **Scope:** all
+- **Scope:** frontend, backend
 - **Enforced by:** `external:verify`
 - **Proven by:** `gates:selftest` → "external: a complete record passes", "external: a
   record with no url fails", "external: a url on the wrong host fails when the
@@ -645,7 +646,7 @@ unattended. `autoPropagate` stands in for `--approve` and for nothing else.
   review; a typed flag is a decision for one run; a default is neither. And one flag
   must not open two doors — if `autoPropagate` also implied `dryRun: false`, a reviewer
   reading the diff would not see the dry-run door swing open.
-- **Scope:** all
+- **Scope:** frontend, backend
 - **Enforced by:** `sync:jira` / `sync:confluence` through `assertMayCommit`
   (`templates/web/scripts/outbox.mjs`, ordered cheapest-first with the credential check
   after the approval check), `sync:auto` for the unattended path
@@ -854,6 +855,51 @@ editing a document without regenerating the bridge, is a failure.
   unit in the inventory with no document fails"
 - **Decided in:** ADR 008 (plugin namespace)
 
+### BR-34 — The workspace manifest is the single source of parts
+
+**MUST.** `workspace.json` declares every part of a composed project (§23): part ids
+and dirs are unique, roles come from the closed vocabulary, every part dir is
+gitignored by the workspace repository, and a PRESENT part must carry a
+`facets.json` whose `pairedBrief` equals the manifest's. An absent part dir is the
+legitimate pre-clone state; a present, disagreeing one is two projects pretending
+to be one.
+
+- **Why:** The workspace is the only place the composition is stated. A part the
+  manifest does not know, or a manifest entry no directory backs, is an
+  orchestration script guessing — and `ws:bootstrap`/`ws:up` treat manifest order
+  as generation order, so the statement has to be right.
+- **Scope:** workspace
+- **Enforced by:** `ws:verify`
+- **Proven by:** `gates:selftest` → "ws: the shipped manifest passes", "ws: a part
+  dir the gitignore does not cover fails", "ws: duplicate part ids fail", "ws: a
+  present part whose pairedBrief disagrees fails", "ws: a manifest listing a part
+  with no template fails"
+- **Decided in:** ADR 001 (prototype namespace)
+
+### BR-35 — The pair is proven by the cross-app layer
+
+**MUST.** The e2e part carries two registries — flow cases derived from the flows
+facets and consumer-driven contract cases keyed by `operationId` — and both stay
+honest statically: ids unique and kebab-case, every contract case must name an
+operation the referenced contract defines (when the contract is reachable; its
+absence is the tolerated pre-workspace state), every flow case has spec coverage
+and every spec a registry case, and the response validator provably rejects shapes
+the contract forbids. The against-the-running-pair execution is the workspace CI's
+job (§23), tool-gated locally.
+
+- **Why:** Each part's own suite proves the part; nothing else proves the PAIR. A
+  frontend green against its mocks and a backend green against its contract can
+  still disagree about reality — the cross-app layer is where that disagreement
+  surfaces before a customer finds it.
+- **Scope:** e2e
+- **Enforced by:** `registry:verify`; the playwright suites themselves in the
+  workspace CI
+- **Proven by:** `gates:selftest` → "e2e: the shipped registries pass", "e2e: a
+  contract case naming an unknown operation fails", "e2e: duplicate case ids fail",
+  "e2e: a flow case with no spec coverage fails", "e2e: response validation rejects
+  a shape the contract forbids"
+- **Decided in:** ADR 001 (prototype namespace)
+
 ### BR-27 — An environment exists only by declaration
 
 **MUST.** `environments{}` in the committed config is the single source of which
@@ -944,7 +990,7 @@ application.
 
 - **Why:** A domain that imports its persistence cannot be tested without it, and the
   dependency direction is the only thing keeping the layers meaningful.
-- **Scope:** all
+- **Scope:** frontend, backend, e2e
 - **Enforced by:** `lint` (`boundaries/element-types`)
 - **Proven by:** `lint` running over the template's own tree, which contains one module
   per layer
@@ -957,7 +1003,7 @@ lockfile is committed; CI installs with `--frozen-lockfile`.
 
 - **Why:** A prototype that builds differently on two machines has not demonstrated it
   builds.
-- **Scope:** all
+- **Scope:** frontend, backend
 - **Enforced by:** `sec:scan` (audit against the committed lockfile), CI's
   `--frozen-lockfile` install, `template:integrity` at the plugin level
 - **Proven by:** `gates:selftest` → "security: the secret scan cannot be skipped in CI"
@@ -1055,7 +1101,7 @@ ratchet up. The floors are frozen by the guard hook exactly like coverage thresh
 - **Enforced by:** `test:mutation` per stack, `templates/web/scripts/hooks/guard-write.mjs`
   pattern copied per template
 - **Proven by:** `gates:selftest` → "hook: lowering the mutation-score floor is
-  blocked", "hook: narrowing the mutation scope is blocked"
+  blocked", "hook: narrowing the mutation scope is blocked" (frontend, backend)
 - **Decided in:** ADR 003 (prototype namespace)
 
 ### NFR-15 — The container runs as no one in particular
@@ -1125,7 +1171,7 @@ platform call.
   layering in one file, and each of those was untestable without the other three. The
   reason the two-modal and menu-in-modal defects went unnoticed for so long is that no
   test could address the pieces separately.
-- **Scope:** all
+- **Scope:** frontend, backend, e2e
 - **Enforced by:** `lint` (the SRP ceilings: max-lines 200, max-lines-per-function 60,
   complexity 8, max-depth 3, max-params 3 — every template), and `layer:scan` (web) for
   the overlay composition: one dismiss owner, one reader of the fallback scale, one
@@ -1464,6 +1510,23 @@ facet normalization and reserves Phase 4's testids, but the facet hash and BR-14
 are untouched: the brief wins every conflict, a conflict the brief does not settle
 escalates, and discovery provenance lives in the prompt log
 (`.prompts/0003-discovery.md`), never in the identity.
+
+## §23 Workspace composition
+
+`Scope: workspace, e2e` for this section.
+
+A brief that yields multiple parts composes them as ONE WORKSPACE (T14): a
+`<project>/` directory that is itself a small git repository — carrying
+`workspace.json`, the shared brief record and the orchestration scripts — which
+`.gitignore`s the part directories, because every part (`api/`, `web/`, `e2e/`) is a
+SEPARATE git repository with its per-repo machinery (verify, CI, prompt log,
+commit discipline, snapshot) unchanged. `workspace.json` is the single source of
+parts; every part's `facets.json` records the shared `pairedBrief` hash and a
+present part whose hash disagrees fails. The e2e part is the cross-app layer:
+a flow suite derived from the flows facets plus consumer-driven contract checks
+replayed against the running pair — its static gates run in its own verify, and
+the against-the-pair run is the workspace repository's orchestration (services
+from `ws:up`), tool-gated locally and mandatory in the workspace CI.
 
 ## §19 Reconstruction notes
 

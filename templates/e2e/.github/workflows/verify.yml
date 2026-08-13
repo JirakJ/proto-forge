@@ -1,0 +1,62 @@
+name: verify
+
+# The gates are the interface (BRS §17.3): CI is a thin wrapper that runs the
+# same `pnpm verify` you run locally — the STATIC gates only. The runtime
+# suites (`pnpm test:e2e`) need the running pair, and the job that brings the
+# pair up and runs them is the WORKSPACE repo's orchestration, not this repo's:
+# here they would only ever hard-fail (CI=1 + no services) or lie (skip).
+# Chromium is still installed so this workflow doubles as the runtime job's
+# template when the workspace CI calls into it.
+on:
+  push:
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history: the prompt-log step below diffs against the branch base.
+          fetch-depth: 0
+      # BR-13 / NFR-10 / ADR discipline: .prompts/ is append-only. The local hook
+      # enforces it per edit; this is the same promise where hooks do not run.
+      # Corrections are NEW entries referencing the prior id, never rewrites. (A
+      # force-push can still evade a history diff — protect the default branch to
+      # close that door.)
+      - name: prompt log is append-only
+        # GitHub context reaches the shell only through env, never by ${{ }} inside
+        # run: interpolating a ref name into the script is the classic Actions
+        # shell-injection vector.
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            range="origin/${BASE_REF}...HEAD"
+          else
+            case "$BEFORE_SHA" in ""|0000000000000000000000000000000000000000) echo "no prior commit to compare against"; exit 0;; esac
+            git cat-file -e "${BEFORE_SHA}^{commit}" 2>/dev/null || { echo "prior commit unreachable after a force-push — relying on branch protection"; exit 0; }
+            range="${BEFORE_SHA}..HEAD"
+          fi
+          changed="$(git diff --diff-filter=MD --name-only "$range" -- .prompts/)"
+          if [ -n "$changed" ]; then
+            echo "::error::.prompts/ is append-only (ADR discipline) — these entries were rewritten or deleted:"
+            echo "$changed"
+            exit 1
+          fi
+          echo "prompt log untouched in $range"
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install chromium
+      - run: pnpm verify
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: proto-forge-e2e-artifacts
+          path: .proto-forge/snapshot.json
+          if-no-files-found: ignore
