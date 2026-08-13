@@ -20,14 +20,20 @@ jobs:
       # entries referencing the prior id, never rewrites. (A force-push can still evade
       # a history diff — protect the default branch to close that door.)
       - name: prompt log is append-only
+        # GitHub context reaches the shell only through env, never by ${{ }} inside
+        # run: interpolating a ref name into the script is the classic Actions
+        # shell-injection vector.
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          BEFORE_SHA: ${{ github.event.before }}
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            range="origin/${{ github.base_ref }}...HEAD"
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            range="origin/${BASE_REF}...HEAD"
           else
-            before="${{ github.event.before }}"
-            case "$before" in ""|0000000000000000000000000000000000000000) echo "no prior commit to compare against"; exit 0;; esac
-            git cat-file -e "$before^{commit}" 2>/dev/null || { echo "prior commit unreachable after a force-push — relying on branch protection"; exit 0; }
-            range="$before..HEAD"
+            case "$BEFORE_SHA" in ""|0000000000000000000000000000000000000000) echo "no prior commit to compare against"; exit 0;; esac
+            git cat-file -e "${BEFORE_SHA}^{commit}" 2>/dev/null || { echo "prior commit unreachable after a force-push — relying on branch protection"; exit 0; }
+            range="${BEFORE_SHA}..HEAD"
           fi
           changed="$(git diff --diff-filter=MD --name-only "$range" -- .prompts/)"
           if [ -n "$changed" ]; then
