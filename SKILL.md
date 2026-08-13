@@ -46,7 +46,7 @@ Phase 9  RELEASE           → SemVer tag + changelog + SBOM + snapshot
 4. Write facets to `.proto-forge/facets.json`; its hash is the **brief identity** (BR-14). Two briefs with the same facets are "the same brief."
 5. Leave the shipped `.proto-forge/snapshot.json` in place; it is regenerated at the end of Phase 1 (after demo cleanup) and re-staged with every ADR commit.
 
-**Escalation rule (T-escalation).** If a facet is not covered by T1-T13: (a) write the ambiguity to `.prompts/` as an open question, (b) emit a `proposed` ADR listing the options, (c) pick the **most conservative, most standard** option and record why. Never improvise silently.
+**Escalation rule (T-escalation).** If a facet is not covered by T1-T22: (a) write the ambiguity to `.prompts/` as an open question, (b) emit a `proposed` ADR listing the options, (c) pick the **most conservative, most standard** option and record why. Never improvise silently.
 
 ### Phase 1 — Scaffold cleanup + shell regen (always)
 
@@ -188,7 +188,7 @@ Banned: hardcoded literals ignoring arguments; inline `return [{id:1,...}]` in a
 ## Reference files
 
 - `references/facets.schema.ts` — the canonical brief schema (Phase 0 target).
-- `references/decision-table.md` — T1-T13 when→then + escalation + ADR ranges.
+- `references/decision-table.md` — T1-T22 when→then + escalation + ADR ranges.
 - `references/adr-template.md` — the MADR ADR skeleton.
 - `templates/web/` — the fixed skeleton copied per run. Read `templates/web/README.md` for its layout and `templates/web/AGENTS.md` for the rules every change must satisfy.
 
