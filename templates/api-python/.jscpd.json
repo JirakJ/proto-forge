@@ -1,0 +1,14 @@
+{
+  "_comment": "Fixtures, the harness scenario catalogue and the e2e composition entries are excluded for the same reason the web template excludes its harness: they are deliberately parallel declarations — one scenario or one wiring per outcome — and the repetition is what makes them readable. None of them ship in a production build. Duplication in tests is policed by review; the product trees carry the zero-threshold.",
+  "threshold": 0,
+  "minTokens": 30,
+  "reporters": ["consoleFull"],
+  "absolute": true,
+  "gitignore": true,
+  "ignore": [
+    "**/__fixtures__/**",
+    "**/__pycache__/**",
+    "src/app/harness/**",
+    "src/app/e2e/**"
+  ]
+}

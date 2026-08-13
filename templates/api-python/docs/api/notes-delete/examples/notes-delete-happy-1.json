@@ -1,0 +1,13 @@
+{
+  "request": {
+    "method": "DELETE",
+    "path": "/notes/22222222-2222-4222-8222-222222222222"
+  },
+  "response": {
+    "body": null,
+    "headers": {
+      "content-type": ""
+    },
+    "status": 204
+  }
+}

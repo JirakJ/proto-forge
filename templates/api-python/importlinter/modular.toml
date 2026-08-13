@@ -1,0 +1,98 @@
+# @adr 005 - the MODULAR enforcement profile (T16): one module per connected
+# component of the entity graph. This demo has one component, so the module
+# rules match the layered profile; a generated modular service ADDS one
+# independence contract per entity-module pair (no module reaches into
+# another module's internals). The ACTIVE profile is selected by
+# scripts/arch-verify.mjs FROM .proto-forge/architecture.json — data-driven,
+# never hardcoded — and the gate re-proves the same edges standalone.
+[tool.importlinter]
+root_packages = ["app"]
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "domain is framework-pure (BR-21)"
+type = "forbidden"
+source_modules = ["app.domain"]
+forbidden_modules = [
+    "fastapi",
+    "starlette",
+    "sqlalchemy",
+    "alembic",
+    "structlog",
+    "uvicorn",
+    "psycopg",
+    "httpx",
+    "app.application",
+    "app.adapters",
+    "app.platform",
+    "app.config",
+    "app.harness",
+    "app.e2e",
+    "app.main",
+]
+
+[[tool.importlinter.contracts]]
+name = "application reaches only domain and platform (BR-21)"
+type = "forbidden"
+source_modules = ["app.application"]
+forbidden_modules = [
+    "fastapi",
+    "starlette",
+    "sqlalchemy",
+    "alembic",
+    "structlog",
+    "uvicorn",
+    "psycopg",
+    "httpx",
+    "app.adapters",
+    "app.config",
+    "app.harness",
+    "app.e2e",
+    "app.main",
+]
+
+[[tool.importlinter.contracts]]
+name = "the platform kernel stands alone (BRS 13)"
+type = "forbidden"
+source_modules = ["app.platform"]
+forbidden_modules = [
+    "sqlalchemy",
+    "alembic",
+    "uvicorn",
+    "psycopg",
+    "httpx",
+    "app.domain",
+    "app.application",
+    "app.adapters",
+    "app.config",
+    "app.harness",
+    "app.e2e",
+    "app.main",
+]
+
+[[tool.importlinter.contracts]]
+name = "config is pydantic over the environment, nothing else"
+type = "forbidden"
+source_modules = ["app.config"]
+forbidden_modules = [
+    "fastapi",
+    "starlette",
+    "sqlalchemy",
+    "alembic",
+    "structlog",
+    "uvicorn",
+    "psycopg",
+    "httpx",
+    "app.domain",
+    "app.application",
+    "app.adapters",
+    "app.platform",
+    "app.harness",
+    "app.e2e",
+    "app.main",
+]
+
+[[tool.importlinter.contracts]]
+name = "inbound and outbound adapters are independent (BR-21)"
+type = "independence"
+modules = ["app.adapters.inbound", "app.adapters.outbound"]

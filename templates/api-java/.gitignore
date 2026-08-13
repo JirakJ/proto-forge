@@ -1,0 +1,6 @@
+node_modules/
+build/
+.gradle/
+bin/
+.env
+.proto-forge/outbox/

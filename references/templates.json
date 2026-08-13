@@ -26,6 +26,30 @@
       ]
     },
     {
+      "id": "api-python",
+      "dir": "templates/api-python",
+      "kind": "backend",
+      "stack": "python",
+      "notAGate": [
+        "dev", "start", "build", "verify", "prepare",
+        "config:show", "snapshot", "seed:lock", "sbom",
+        "sync:jira", "sync:confluence", "sync:pull", "sync:status", "sync:auto",
+        "test:e2e", "contract:generate", "docs:examples", "db:migrate", "gates:selftest:native"
+      ]
+    },
+    {
+      "id": "api-java",
+      "dir": "templates/api-java",
+      "kind": "backend",
+      "stack": "java",
+      "notAGate": [
+        "dev", "start", "build", "verify", "prepare",
+        "config:show", "snapshot", "seed:lock", "sbom",
+        "sync:jira", "sync:confluence", "sync:pull", "sync:status", "sync:auto",
+        "test:e2e", "contract:generate", "docs:examples", "db:migrate", "gates:selftest:native"
+      ]
+    },
+    {
       "id": "workspace",
       "dir": "templates/workspace",
       "kind": "workspace",

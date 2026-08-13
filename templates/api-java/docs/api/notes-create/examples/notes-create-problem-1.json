@@ -1,0 +1,23 @@
+{
+  "request": {
+    "body": {
+      "text": ""
+    },
+    "method": "POST",
+    "path": "/notes"
+  },
+  "response": {
+    "body": {
+      "code": "validation-failed",
+      "detail": "text: must not be blank",
+      "instance": "/notes",
+      "status": 400,
+      "title": "The request does not match the operation's schema",
+      "type": "/problems/validation-failed"
+    },
+    "headers": {
+      "content-type": "application/problem+json"
+    },
+    "status": 400
+  }
+}

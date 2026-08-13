@@ -1,0 +1,141 @@
+# @adr 001 - one pinned stack, one lockfile, reproducible installs (NFR-11)
+# The committed uv.lock — not these ranges — is the reproducibility contract:
+# CI installs with `uv sync --frozen`, and a resolution the lock does not name
+# is a failure, not an update. Runtime pins are exact on purpose.
+[project]
+name = "proto-forge-service"
+version = "0.1.0"
+description = "A production-grade FastAPI service prototype scaffolded by proto-forge."
+requires-python = ">=3.12,<3.13"
+# LOCKED by scripts/deps-budget.mjs: every runtime dependency is on that gate's
+# named allowlist under its ceiling. A new runtime dependency is an ADR plus a
+# diff to the gate, never a quiet `uv add` (NFR-13, ADR 007).
+dependencies = [
+    "alembic==1.19.1",
+    "fastapi==0.141.1",
+    "psycopg[binary]==3.3.4",
+    "pydantic==2.13.4",
+    "sqlalchemy==2.0.52",
+    "structlog==26.1.0",
+    "uvicorn==0.52.2",
+]
+
+[dependency-groups]
+dev = [
+    "httpx2==2.10.0",
+    "import-linter==2.13",
+    "mutmut==3.7.0",
+    "mypy==2.3.0",
+    "pip-audit==2.10.1",
+    "pytest==9.1.1",
+    "pytest-cov==7.1.0",
+    "ruff==0.16.2",
+    "testcontainers==4.15.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/app"]
+
+[tool.uv]
+# The project itself is installed editable into the locked environment so that
+# `uv run python -m app.main`, alembic's env.py and the test suite all import
+# the same package the wheel would ship.
+package = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+# @adr 003 - the coverage configuration is part of the contract, not a knob
+[tool.coverage.run]
+branch = true
+source = ["src/app"]
+# LOCKED by scripts/coverage-policy.mjs: every entry must be on its allow-list
+# and carry the reason stated there. A new kind of exclusion is a gate edit and
+# an ADR, not a config tweak — the list is a record, not a dumping ground.
+omit = [
+    # tests and their fixtures are not product code
+    "*/__fixtures__/*",
+    # bootstrap entry: opens the listening socket, covered by the e2e conformance run
+    "src/app/main.py",
+    # scenario catalogue for docs examples and the e2e suite, never in a production build
+    "src/app/harness/*",
+    # e2e composition roots: exercised by the conformance run itself, not by unit tests
+    "src/app/e2e/*",
+    # integration tier: the real-Postgres adapter is proven by tests/integration against
+    # Testcontainers Postgres (CI-mandatory, tool-gated locally) — Python has no
+    # in-process Postgres engine, the per-stack escape recorded in ADR 003/006 and BRS §19
+    "src/app/adapters/outbound/persistence/*",
+]
+
+[tool.coverage.report]
+# The floor is 100 everywhere (BRS §3.1): with the measured set scoped by the
+# omit allow-list above, an aggregate of 100 IS 100 on every measured file.
+fail_under = 100
+show_missing = true
+
+[tool.coverage.json]
+output = "coverage/coverage.json"
+
+[tool.mypy]
+strict = true
+files = ["src", "tests"]
+mypy_path = "src"
+plugins = ["pydantic.mypy"]
+warn_unreachable = true
+
+[[tool.mypy.overrides]]
+module = ["testcontainers.*"]
+ignore_missing_imports = true
+
+[tool.ruff]
+target-version = "py312"
+line-length = 110
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+# E/W/F core, I import order, B bugbear, UP modernity, S = flake8-bandit (the
+# SAST half of BRS §16 — sec:scan's gitleaks + pip-audit cover the other half),
+# N naming, C90 complexity (SRP with numbers, NFR-20).
+select = ["E", "W", "F", "I", "B", "UP", "S", "N", "C90", "T20"]
+# T20 bans print() — log through the platform kernel only (NFR-12); log:scan
+# repeats this where lint cannot see.
+ignore = []
+
+[tool.ruff.lint.mccabe]
+max-complexity = 8
+
+[tool.ruff.lint.per-file-ignores]
+# Test asserts are the point; fixed test credentials are not secrets (BR-12).
+"tests/**" = ["S101", "S105", "S106"]
+# The e2e runner asserts its scenario expectations the same way.
+"src/app/e2e/**" = ["T201"]
+# The contract emitter's stdout IS its output, not a log (tool surface).
+"src/app/contract_emit.py" = ["T201"]
+# uvicorn binds all interfaces inside the container by design (NFR-15 gives it
+# no privileged identity); S104 flags the bind address.
+"src/app/main.py" = ["S104"]
+# AppProblem mirrors the api-node kernel's name — the error-catalog gate and
+# the docs key on it; an -Error suffix would rename a cross-stack contract.
+"src/app/platform/problems.py" = ["N818"]
+
+# @adr 003 - mutation testing floor: break 85 (NFR-14, python floor), ratchet-only.
+# The guard hook blocks edits that lower `break` or narrow `paths_to_mutate`.
+[tool.proto-forge.mutation]
+break = 85
+
+[tool.mutmut]
+source_paths = ["src"]
+only_mutate = ["src/app/domain/*", "src/app/application/*"]
+# fixtures are test material, not behaviour under test
+do_not_mutate = ["*/__fixtures__/*"]
+pytest_add_cli_args_test_selection = ["tests/unit"]
+
+# @adr 005 - the architecture profile is derived, recorded, and re-proved (BR-21).
+# The ACTIVE contract file is selected by scripts/arch-verify.mjs FROM
+# .proto-forge/architecture.json — importlinter/<style>.toml, one per profile —
+# never hardcoded here. See that gate and docs/ARCHITECTURE.md.

@@ -1,0 +1,14 @@
+{
+  "source": "fbf51b72c0efeeb86c0b4f6eccba619b9fde3a1cf95e8a4985a688494c96274f",
+  "captured": [
+    "docs/api/notes-create/examples/notes-create-happy-1.json",
+    "docs/api/notes-create/examples/notes-create-problem-1.json",
+    "docs/api/notes-delete/examples/notes-delete-happy-1.json",
+    "docs/api/notes-delete/examples/notes-delete-problem-1.json",
+    "docs/api/notes-delete/examples/notes-delete-problem-2.json",
+    "docs/api/notes-get/examples/notes-get-happy-1.json",
+    "docs/api/notes-get/examples/notes-get-problem-1.json",
+    "docs/api/notes-get/examples/notes-get-problem-2.json",
+    "docs/api/notes-list/examples/notes-list-happy-1.json"
+  ]
+}
