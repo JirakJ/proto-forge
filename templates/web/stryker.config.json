@@ -22,8 +22,12 @@
   "tempDirName": ".stryker-tmp/sandbox",
   "reporters": [
     "progress",
-    "clear-text"
+    "clear-text",
+    "json"
   ],
+  "jsonReporter": {
+    "fileName": "reports/mutation/mutation.json"
+  },
   "vitest": {
     "configFile": "vite.config.ts"
   }

@@ -4,3 +4,6 @@ coverage/
 .stryker-tmp/
 .env
 .proto-forge/outbox/
+# raw machine outputs — quality:report distils them into .proto-forge/quality.json
+reports/
+.proto-forge/e2e-results.json

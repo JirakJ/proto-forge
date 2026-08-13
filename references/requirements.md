@@ -976,6 +976,32 @@ documented provisioning commands — never a value in the tree.
   secret-shaped build ARG default fails"
 - **Decided in:** ADR 202 (prototype namespace)
 
+### BR-36 — The documentation carries the numbers of the last green verify
+
+**MUST.** `docs/STATUS.md` shows, between its markers, the machine facts of the
+verify run it shipped with: unit test counts, the four coverage percentages against
+their floors, the mutation score against its break, e2e/conformance counts, (for a
+service) contract operation and problem-type counts, and the full gate chain. The
+facts come from `.proto-forge/quality.json`, which the test gates' own machine
+reports produce during verify — never a typed claim, never a wall-clock stamp. The
+`status` gate re-renders the block from quality.json byte-wise and re-checks the
+config mirrors (thresholds ≡ the configs, chain ≡ package.json, operation counts ≡
+the committed contract), so a hand-edited number or a silently narrowed chain
+fails. CI renders the same table into the job summary and uploads quality.json.
+
+- **Why:** "How are we doing?" must have an answer that cannot flatter: a number in
+  a README written by hand stays green forever. A number that is a derivation of
+  the last green verify is the CI/CD view of the project, in the repo, for every
+  generated application.
+- **Scope:** web, api-node
+- **Enforced by:** `status:verify`; `quality:report` as the producer the chain runs
+  right before it
+- **Proven by:** `gates:selftest` → "status: a fresh quality report passes",
+  "status: a hand-edited STATUS block fails", "status: a threshold mirror
+  disagreeing with the config fails", "status: a gate chain mirror disagreeing with
+  package.json fails", "status: a missing quality.json fails"
+- **Decided in:** ADR 009 (prototype namespace)
+
 ### NFR-02 — No heavy runtime UI dependency
 
 **MUST.** The prototype ships no component-framework runtime beyond React. The owned
@@ -1167,6 +1193,31 @@ workflow identity and verified before rollout, with the image SBOM attested.
 - **Proven by:** `gates:selftest` → "deploy: a Dockerfile with a floating base tag
   fails", "deploy: render stages to the outbox without touching a cluster"
 - **Decided in:** ADR 202 (prototype namespace)
+
+### NFR-18 — Development failures fail with a name and a fix
+
+**MUST.** The known failure classes of developing and testing a generated
+application are handled before they cost an afternoon: `doctor` diagnoses the
+environment (toolchain pins vs what is installed, hooks installed after a clone,
+the installed tree agreeing with the lockfile, stale mutation caches, occupied
+ports, missing browsers, the env file) and every finding names its one-command
+fix; the test configuration pins the nondeterminism sources (TZ=UTC at config
+level, asserted by the test setup); and `docs/TROUBLESHOOTING.md` is the curated
+symptom → cause → fix catalogue of the classes that remain — including the ones
+this plugin's own construction hit. Tool-gated gates keep printing what was
+skipped and why, so an absent binary reads as a note, never as silence.
+
+- **Why:** "It does not work on my machine" is a catalogue of maybe a dozen causes
+  per stack, and every one of them is cheaper to detect than to debug. A failure
+  that names itself and its fix is a five-minute event; the same failure bare is
+  an afternoon.
+- **Scope:** web, api-node
+- **Enforced by:** `doctor` (the actionable diagnosis); the TZ pin asserted by the
+  test setup; the tool-gated skip-with-note discipline (prose, §21)
+- **Proven by:** `gates:selftest` → "doctor: a clean tree passes", "doctor: a stale
+  mutation cache is named with its fix", "doctor: a missing env file is named with
+  its fix"
+- **Decided in:** ADR 009 (prototype namespace)
 
 ### NFR-20 — One responsibility per module (SRP)
 

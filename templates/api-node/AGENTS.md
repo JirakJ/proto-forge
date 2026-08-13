@@ -25,7 +25,7 @@ Run `pnpm config:show` to see which gates are in force and whether any is curren
 
 ## When a gate is genuinely wrong
 
-Fix the code first — that is the answer roughly always. If the floor itself is wrong, write an ADR. To relax a **mandatory** gate (arch, contract, errors, migration, opid, docs, security, stub, consistency, snapshot, coverage, ignores, mutation, external, log, deps — the `MANDATORY_GATES` list in `scripts/config.mjs`) you also need a `waivers[]` entry in `.proto-forge/config.json` with a reason, that ADR, and an expiry date:
+Fix the code first — that is the answer roughly always. If the floor itself is wrong, write an ADR. To relax a **mandatory** gate (arch, contract, errors, migration, opid, docs, security, stub, consistency, snapshot, coverage, ignores, mutation, external, log, deps, env, deploy, status — the `MANDATORY_GATES` list in `scripts/config.mjs`) you also need a `waivers[]` entry in `.proto-forge/config.json` with a reason, that ADR, and an expiry date:
 
 ```json
 { "gate": "docs", "reason": "internal spike API for the October review", "adr": 150, "expires": "2026-10-31" }
@@ -49,6 +49,8 @@ Without a live waiver the setting is ignored and the gate runs at `error` anyway
 | `pnpm db:migrate` | Apply migrations to `DATABASE_URL` (operator tool) |
 | `pnpm test:e2e` | The conformance run: every harness scenario against the booted stack |
 | `pnpm gates:selftest` | Proves each gate still rejects what it claims to |
+| `pnpm doctor` | Fresh-machine pre-flight: toolchain pins, husky wiring, installed tree vs lockfile, stale mutation cache, port 3000, docker note, `.env` — every ✗ prints its fix |
+| `pnpm quality:report` · `pnpm status:verify` | Regenerate / verify the measured quality facts (`.proto-forge/quality.json` ≡ `docs/STATUS.md` ≡ the enforcing configs and contract) |
 | `pnpm sync:jira` · `pnpm sync:confluence` | Show what *would* be sent. `--commit` to actually send; every sent object gets an MDX record in `docs/external/`. |
 | `pnpm sync:pull --page <id> [--affects a,b]` | Fetch a Confluence page into a `pull` record. `affectedFiles` is yours to declare. |
 | `pnpm sync:status [--fail-on-drift]` | Which external records changed upstream, and which local files that touches |
