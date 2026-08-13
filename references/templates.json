@@ -1,0 +1,17 @@
+{
+  "$comment": "The template registry (single source, BR-15): every plugin-level gate — citations, template-integrity, verify-template, manifest-lint, CI — iterates over THIS list, never over hardcoded paths. Adding a template = one entry here plus the tree it names; every entry must ship a package.json with a verify script, scripts/gates-selftest.mjs, the .proto-forge pins (seed.lock, snapshot.json, config.json, config.schema.json) and docs/adr/ — manifest-lint enforces that shape. notAGate lists the entry's package.json scripts that build, serve, generate or send: each needs no register rule behind it.",
+  "templates": [
+    {
+      "id": "web",
+      "dir": "templates/web",
+      "kind": "frontend",
+      "stack": "ts",
+      "notAGate": [
+        "dev", "build", "preview", "verify", "prepare",
+        "i18n:extract", "docs:shots", "config:show", "snapshot", "seed:lock", "sbom",
+        "sync:jira", "sync:confluence", "sync:pull", "sync:status", "sync:auto",
+        "test:e2e"
+      ]
+    }
+  ]
+}

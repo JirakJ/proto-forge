@@ -10,7 +10,7 @@ This repository is the source of truth for proto-forge, and it installs directly
 `.claude-plugin/marketplace.json` at the repository root lists exactly one plugin,
 sourced from this directory. `plugin/.claude-plugin/plugin.json` is its manifest,
 and its `skills` entry points back at the repository root — the skill (`SKILL.md`,
-`references/`, `template/`) *is* the plugin, so nothing is duplicated here.
+`references/`, `templates/web/`) *is* the plugin, so nothing is duplicated here.
 
 Four files carry the version and must agree: `package.json`, `skill.json`,
 `plugin/.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json`.

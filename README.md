@@ -194,9 +194,9 @@ pnpm docs:shots     # re-capture the component screenshots
 `docs:verify` · `stub:scan` · `adr:lint` · `prompt:lint` · `dup:scan` ·
 `consistency` · `sec:scan` · `snapshot:diff` · `test:e2e`.
 
-The shipped `template/` includes a self-verifying demo feature (a Notes app). On
+The shipped `templates/web/` includes a self-verifying demo feature (a Notes app). On
 a real run the skill **deletes** the demo and builds your brief's features under
-the same per-feature Definition of Done — so `template/` is both the skeleton and
+the same per-feature Definition of Done — so `templates/web/` is both the skeleton and
 a working reference of the output standard.
 
 ---
@@ -252,7 +252,7 @@ references/
   decision-table.md          T1-T13 when→then rules + ADR ranges
   facets.schema.ts           canonical brief schema (Phase 0 target)
   adr-template.md            MADR ADR skeleton
-template/                    the fixed skeleton copied per run (a full working app)
+templates/web/                    the fixed skeleton copied per run (a full working app)
 plugin/                      packaging notes for the agentic-os marketplace
 ```
 

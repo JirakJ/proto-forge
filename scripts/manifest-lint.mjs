@@ -102,5 +102,48 @@ if (!Array.isArray(skills) || skills.length === 0) {
   }
 }
 
+// The template registry (ADR 007): every entry must be a complete, self-verifying
+// template — the shape every plugin gate loops over. A registry row pointing at a
+// half-template fails HERE, not in whichever gate happens to trip over it first.
+const REGISTRY = "references/templates.json";
+if (!existsSync(REGISTRY)) {
+  errors.push(`${REGISTRY} is missing — the template registry is the single source the plugin gates loop over`);
+} else {
+  const templates = readJson(REGISTRY).templates;
+  if (!Array.isArray(templates) || templates.length === 0) {
+    errors.push(`${REGISTRY}: templates[] must list at least one template`);
+  } else {
+    const ids = new Set();
+    for (const t of templates) {
+      const at = `${REGISTRY}: template "${t.id ?? "?"}"`;
+      for (const field of ["id", "dir", "kind", "stack"]) {
+        if (typeof t[field] !== "string" || t[field] === "") errors.push(`${at}: missing required field "${field}"`);
+      }
+      if (t.id !== undefined && ids.has(t.id)) errors.push(`${at}: duplicate id`);
+      ids.add(t.id);
+      if (t.kind !== undefined && !["frontend", "backend"].includes(t.kind)) {
+        errors.push(`${at}: kind must be frontend|backend, got "${t.kind}"`);
+      }
+      if (!Array.isArray(t.notAGate)) errors.push(`${at}: notAGate must be an array (may be empty)`);
+      if (typeof t.dir !== "string" || t.dir === "") continue;
+      const shape = [
+        "package.json",
+        "scripts/gates-selftest.mjs",
+        "scripts/snapshot-diff.mjs",
+        ".proto-forge/seed.lock",
+        ".proto-forge/snapshot.json",
+        ".proto-forge/config.json",
+        ".proto-forge/config.schema.json",
+        "docs/adr",
+      ];
+      for (const p of shape) {
+        if (!existsSync(join(t.dir, p))) errors.push(`${at}: ${t.dir}/${p} is missing`);
+      }
+      const pkg = existsSync(join(t.dir, "package.json")) ? readJson(join(t.dir, "package.json")) : {};
+      if (typeof pkg.scripts?.verify !== "string") errors.push(`${at}: ${t.dir}/package.json has no "verify" script`);
+    }
+  }
+}
+
 if (errors.length > 0) fail("manifest-lint FAILED", errors);
-ok(`manifest-lint: 4 manifests agree on "${distinctNames[0]}" v${distinctVersions[0]}`);
+ok(`manifest-lint: 4 manifests agree on "${distinctNames[0]}" v${distinctVersions[0]}; template registry well-formed`);
