@@ -8,7 +8,12 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  reporter: process.env.CI ? "github" : "list",
+  // The json reporter is quality:report's machine input (BR-36): the e2e counts
+  // land in test-results/e2e-results.json alongside the human reporter.
+  reporter: [
+    process.env.CI ? ["github" as const] : ["list" as const],
+    ["json" as const, { outputFile: "test-results/e2e-results.json" }],
+  ],
   use: {
     baseURL: "http://localhost:4173",
     trace: "on-first-retry",

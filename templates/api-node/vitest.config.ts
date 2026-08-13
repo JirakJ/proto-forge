@@ -6,6 +6,14 @@ export default defineConfig({
     environment: "node",
     setupFiles: ["./src/test/setup.ts"],
     include: ["src/**/*.test.ts"],
+    // Determinism (NFR-18): date/locale logic must not depend on the machine the
+    // suite happens to run on. The pin is config-level; src/test/setup.ts asserts
+    // it took, so a broken pin fails loudly instead of passing locally only.
+    env: { TZ: "UTC" },
+    // The json reporter is quality:report's machine input (BR-36): the run's own
+    // counts land in coverage/test-results.json, so the documented status is a
+    // derivation of this run, never a typed claim.
+    reporters: ["default", ["json", { outputFile: "coverage/test-results.json" }]],
     coverage: {
       provider: "v8",
       reporter: ["text", "json-summary"],

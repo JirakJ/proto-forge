@@ -37,6 +37,7 @@ export const MANDATORY_GATES = [
   "deps",
   "env",
   "deploy",
+  "status",
 ];
 
 const MODES = ["error", "warn", "off"];
@@ -102,6 +103,7 @@ export const DEFAULTS = {
     dup: { mode: "error" },
     env: { mode: "error" },
     deploy: { mode: "error" },
+    status: { mode: "error" },
   },
   // The single declaration every delivery artefact derives from. An environment
   // that is not enabled here has no values file, no docs-table row marked live

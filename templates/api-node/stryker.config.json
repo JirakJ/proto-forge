@@ -18,7 +18,10 @@
   "incremental": true,
   "incrementalFile": ".stryker-tmp/incremental.json",
   "tempDirName": ".stryker-tmp/sandbox",
-  "reporters": ["progress", "clear-text"],
+  "reporters": ["progress", "clear-text", "json"],
+  "jsonReporter": {
+    "fileName": "reports/mutation/mutation.json"
+  },
   "vitest": {
     "configFile": "vitest.config.ts"
   }

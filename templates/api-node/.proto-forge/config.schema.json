@@ -13,7 +13,7 @@
     },
     "gates": {
       "type": "object",
-      "description": "Per-gate settings. Tightening is always allowed. Relaxing a mandatory gate (the MANDATORY_GATES list in scripts/config.mjs — arch, contract, errors, migration, opid, docs, security, stub, consistency, snapshot, coverage, ignores, mutation, external, log, deps, env, deploy) below \"error\" additionally requires a live waivers[] entry — without one, config:check fails AND the gate runs at \"error\" regardless of what is written here.",
+      "description": "Per-gate settings. Tightening is always allowed. Relaxing a mandatory gate (the MANDATORY_GATES list in scripts/config.mjs — arch, contract, errors, migration, opid, docs, security, stub, consistency, snapshot, coverage, ignores, mutation, external, log, deps, env, deploy, status) below \"error\" additionally requires a live waivers[] entry — without one, config:check fails AND the gate runs at \"error\" regardless of what is written here.",
       "additionalProperties": false,
       "properties": {
         "arch": { "$ref": "#/$defs/simpleGate" },
@@ -36,7 +36,8 @@
         "prompt": { "$ref": "#/$defs/simpleGate" },
         "dup": { "$ref": "#/$defs/simpleGate" },
         "env": { "$ref": "#/$defs/simpleGate" },
-        "deploy": { "$ref": "#/$defs/simpleGate" }
+        "deploy": { "$ref": "#/$defs/simpleGate" },
+        "status": { "$ref": "#/$defs/simpleGate" }
       }
     },
     "environments": {

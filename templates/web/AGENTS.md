@@ -45,7 +45,7 @@ Across files, namespace them: `notes-submit`, not `submit`. The primitives make 
 
 ## When a gate is genuinely wrong
 
-Fix the code first — that is the answer roughly always. If the floor itself is wrong, write an ADR. To relax a **mandatory** gate (i18n, testid, layer, docs, security, stub, consistency, snapshot, overlay, coverage, ignores, mutation, external, env, deploy, client — the `MANDATORY_GATES` list in `scripts/config.mjs`) you also need a `waivers[]` entry in `.proto-forge/config.json` with a reason, that ADR, and an expiry date:
+Fix the code first — that is the answer roughly always. If the floor itself is wrong, write an ADR. To relax a **mandatory** gate (i18n, testid, layer, docs, security, stub, consistency, snapshot, overlay, coverage, ignores, mutation, external, env, deploy, client, status — the `MANDATORY_GATES` list in `scripts/config.mjs`) you also need a `waivers[]` entry in `.proto-forge/config.json` with a reason, that ADR, and an expiry date:
 
 ```json
 { "gate": "i18n", "reason": "single-locale pilot for the September demo", "adr": 150, "expires": "2026-09-30" }
@@ -65,6 +65,8 @@ Without a live waiver the setting is ignored and the gate runs at `error` anyway
 | `pnpm env:verify` | The delivery declaration in lockstep: `.env.example` ≡ EnvSchema, enabled environment ⇔ values file, docs table derived (`--write` regenerates), no secret-shaped values committed |
 | `pnpm deploy:verify` | Offline deploy-surface lint: Dockerfile digest pins, compose healthchecks, the securityContext contract, exposure ⇔ cluster type; renders and validates with helm/kubeconform/hadolint/docker when present (mandatory in CI) |
 | `pnpm gates:selftest` | Proves each gate still rejects what it claims to |
+| `pnpm doctor` | Fresh-machine pre-flight: toolchain pins, husky wiring, installed tree vs lockfile, stale mutation cache, ports, browsers, `.env` — every ✗ prints its fix |
+| `pnpm quality:report` · `pnpm status:verify` | Regenerate / verify the measured quality facts (`.proto-forge/quality.json` ≡ `docs/STATUS.md` ≡ the enforcing configs) |
 | `pnpm sync:jira` · `pnpm sync:confluence` | Show what *would* be sent. `--commit` to actually send; every sent object gets an MDX record in `docs/external/`. |
 | `pnpm sync:pull --page <id> [--affects a,b]` | Fetch a Confluence page into a `pull` record. `affectedFiles` is yours to declare. |
 | `pnpm sync:status [--fail-on-drift]` | Which external records changed upstream, and which local files that touches |

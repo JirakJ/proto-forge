@@ -1,4 +1,4 @@
-import { cpSync, existsSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, utimesSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname, resolve } from "node:path";
 import { execSync, spawnSync } from "node:child_process";
@@ -1703,6 +1703,111 @@ expect("client: an api facet with no recorded contract fails", "contract-client.
     return f;
   })(),
   { pass: false, matching: /no recorded openapi\.json/ });
+
+// --- status: the documented numbers are the measured numbers --------------------
+// BR-36. quality:report distils the tiers' machine outputs into quality.json and
+// regenerates the STATUS.md block; status:verify re-derives both and holds the
+// config mirrors to their sources. The fixtures fabricate the machine outputs the
+// reporters would have written, run the producer, then break exactly one copy.
+const MUTANTS = (killed, survived) => ({
+  files: {
+    "src/a.ts": {
+      mutants: [
+        ...Array.from({ length: killed }, () => ({ status: "Killed" })),
+        ...Array.from({ length: survived }, () => ({ status: "Survived" })),
+      ],
+    },
+  },
+});
+const statusProject = (over = {}) => ({
+  ".proto-forge/config.json": {},
+  "package.json": { scripts: { verify: "pnpm run test:unit && pnpm run status:verify" } },
+  "vite.config.ts": VITE(GOOD_THRESHOLDS, GOOD_EXCLUDE),
+  "stryker.config.json": { thresholds: { high: 95, low: 90, break: 90 } },
+  "coverage/coverage-summary.json": {
+    total: { statements: { pct: 100 }, branches: { pct: 100 }, functions: { pct: 100 }, lines: { pct: 100 } },
+  },
+  "coverage/test-results.json": { testResults: [{}, {}], numTotalTests: 5, numPassedTests: 5 },
+  "reports/mutation/mutation.json": MUTANTS(9, 1),
+  "test-results/e2e-results.json": { stats: { expected: 3, unexpected: 0, flaky: 0, skipped: 0 } },
+  "docs/STATUS.md": "# Quality status\n\n<!-- quality:begin -->\n<!-- quality:end -->\n",
+  ...over,
+});
+const writeQuality = (dir) => run("quality-report.mjs", dir);
+
+expect("status: a fresh quality report passes", "status-verify.mjs", statusProject(), {
+  pass: true,
+  prepare: writeQuality,
+});
+
+expect("status: a hand-edited STATUS block fails", "status-verify.mjs", statusProject(), {
+  pass: false,
+  matching: /hand-edited/,
+  prepare: (dir) => {
+    writeQuality(dir);
+    const doc = join(dir, "docs", "STATUS.md");
+    writeFileSync(doc, readFileSync(doc, "utf8").replace("5/5 passed", "999/999 passed"));
+  },
+});
+
+expect("status: a threshold mirror disagreeing with the config fails", "status-verify.mjs", statusProject(), {
+  pass: false,
+  matching: /thresholds\.mutation/,
+  prepare: (dir) => {
+    writeQuality(dir);
+    writeFileSync(
+      join(dir, "stryker.config.json"),
+      JSON.stringify({ thresholds: { high: 95, low: 90, break: 80 } }, null, 2),
+    );
+  },
+});
+
+expect("status: a gate chain mirror disagreeing with package.json fails", "status-verify.mjs", statusProject(), {
+  pass: false,
+  matching: /gates\.chain/,
+  prepare: (dir) => {
+    writeQuality(dir);
+    writeFileSync(join(dir, "package.json"), JSON.stringify({ scripts: { verify: "pnpm run test:unit" } }, null, 2));
+  },
+});
+
+expect("status: a missing quality.json fails", "status-verify.mjs", statusProject(), {
+  pass: false,
+  matching: /quality\.json is missing/,
+});
+
+// --- doctor ------------------------------------------------------------------
+// NFR-18. The doctor is a support tool, so the contract under test is the useful
+// half: a finding names its fix. PROTO_FORGE_DOCTOR_PORTS="" skips the port
+// probe so a dev server on the operator's machine cannot flake the selftest;
+// the engines fixture matches the running node so the clean case passes anywhere.
+const doctorBase = (over = {}) => ({
+  "package.json": { engines: { node: `>=${process.versions.node.split(".")[0]}` } },
+  ...over,
+});
+const noPorts = { PROTO_FORGE_DOCTOR_PORTS: "" };
+
+expect("doctor: a clean tree passes", "doctor.mjs", doctorBase(), { pass: true, env: noPorts });
+
+expect(
+  "doctor: a stale mutation cache is named with its fix",
+  "doctor.mjs",
+  doctorBase({ ".stryker-tmp/incremental.json": "{}", "src/a.ts": "export const a = 1;\n" }),
+  {
+    pass: false,
+    matching: /rm -rf \.stryker-tmp/,
+    env: noPorts,
+    // The cache predates the source by construction: epoch mtime, no clock math.
+    prepare: (dir) => utimesSync(join(dir, ".stryker-tmp", "incremental.json"), new Date(0), new Date(0)),
+  },
+);
+
+expect(
+  "doctor: a missing env file is named with its fix",
+  "doctor.mjs",
+  doctorBase({ ".env.example": "VITE_APP_BASE_URL=\n" }),
+  { pass: false, matching: /cp \.env\.example \.env/, env: noPorts },
+);
 
 // --- sec:scan ----------------------------------------------------------------
 // Only the deterministic half is self-testable: that the secret scan cannot be
