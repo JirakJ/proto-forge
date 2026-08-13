@@ -938,7 +938,11 @@ forces on us lives in a dated ignore ledger under the `.trivyignore` discipline
   a stranger. Configuration that a gate reads is the only kind that stays true
   after the third person edits it.
 - **Scope:** desktop
-- **Enforced by:** `shell:verify`
+- **Enforced by:** `shell:verify` for the posture and the ledger's discipline;
+  `sec:scan` (desktop-tauri) for the auditing half — the shell's Rust graph is
+  audited against that same ledger, since `pnpm audit` cannot see `Cargo.lock`
+  and a ledger no auditor reads is triage theatre. Every suppression prints with
+  its reason and expiry; an advisory on no entry fails.
 - **Proven by:** `gates:selftest` → "shell: the shipped shell configuration
   passes", "shell: a missing CSP fails", "shell: an unpinned shell dependency
   fails", "shell: a widened permission fails" (desktop-tauri), "shell: an undated
@@ -946,7 +950,9 @@ forces on us lives in a dated ignore ledger under the `.trivyignore` discipline
   (desktop-tauri), "shell: a disabled isolation flag fails" (desktop-electron),
   "shell: a dynamic isolation value fails" (desktop-electron), "shell: a bare
   window assignment in the preload fails" (desktop-electron), "shell: an enabled
-  publish feed fails" (desktop-electron)
+  publish feed fails" (desktop-electron), "shell: an advisory on no ledger entry
+  fails" (desktop-tauri), "shell: a ledger entry accepts the advisory's alias
+  too" (desktop-tauri)
 - **Decided in:** ADR 203 (prototype namespace)
 
 ### BR-27 — An environment exists only by declaration

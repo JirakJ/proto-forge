@@ -71,6 +71,7 @@
     "packages/proto-ui/src/tokens.test.ts",
     "packages/proto-ui/tokens.ts",
     "scripts/adr-lint.mjs",
+    "scripts/audit-ledger.mjs",
     "scripts/budget.mjs",
     "scripts/commit-lint.mjs",
     "scripts/component-dup-scan.mjs",
