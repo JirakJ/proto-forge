@@ -1,5 +1,89 @@
 # Changelog
 
+## 0.6.0 — 2026-08-13
+
+From one template to a platform: backend services, multi-environment DevSecOps
+delivery, workspace composition and a second skill — designed in
+`docs/specs/2026-08-13-v0.6.0-design.md`, held together by a register that grew
+from 28 to 50 rules with every one mechanically enforced across six templates.
+
+### The template registry (ADR 007 plugin)
+
+- `references/templates.json` is the single source every plugin gate loops over;
+  `template/` moved to `templates/web/` (seed pins survive — the tree hash is
+  cwd-relative). Rule **scopes** (`all | frontend | backend | e2e | workspace |
+  <id>`) with per-enforcer/per-case kind restrictors: an enforcer must exist in
+  EVERY covered template, so identical gate names across stacks are forced by the
+  `citations` gate, not by convention. Final count: 562 files cited, 6 templates,
+  zero gaps.
+
+### Backend templates — architecture and security as construction (BR-21..26, NFR-11..14, §13-§16)
+
+- **api-node** (Fastify 5 + zod 4 + Drizzle + PGlite at verify time — offline,
+  Docker-free), **api-java** (Spring Boot 3.5.16 exact, checksum-pinned Gradle
+  wrapper + dependency locks, ArchUnit, JaCoCo 1.00 on the core, PIT), and
+  **api-python** (FastAPI + Pydantic v2 + SQLAlchemy/Alembic, uv-locked,
+  import-linter, mutmut) — each a complete self-verifying service with the Note
+  demo, 27-gate verify, 100% coverage on the gated set and 100% mutation scores
+  at first release.
+- The architecture is **derived, never chosen**: pure facet counts (entities,
+  external systems, entity-graph components) select layered / modular monolith /
+  hexagonal (T15-T17); `arch:verify` re-derives on every run and re-proves the
+  dependency edges standalone. Contract discipline: `contract/openapi.json` as a
+  locked, canonical-JSON derivation of the route registry (BR-22) with a
+  dependency-free breaking-change diff; RFC 9457 problem catalogue as the
+  backend's i18n-catalogue equivalent (BR-23); append-only migrations (BR-24);
+  deterministic operationIds sharing the testid grammar (BR-25); captured docs
+  examples with freshness locks (BR-26).
+
+### CI/CD + DevSecOps (BR-27..29, NFR-15..17, §20-§21, ADRs 200-202)
+
+- `environments{}` — local, dev, sit, uat, test, prod — as the single declaration;
+  the promotion chain derives from the enabled flags and ships **dev-only**:
+  progressive delivery is a reviewed config diff. Digest-pinned non-root
+  containers valid under OpenShift restricted SCC and AKS baseline alike; one
+  Helm chart per app with per-env values, offline kubeconform validation against
+  vendored schemas; `env:verify` + `deploy:verify` join the mandatory set.
+- `package.yml` (build → trivy → SBOM → cosign keyless sign/attest → GHCR/ACR)
+  and `cd.yml` (config-driven plan, GitHub-environment approvals reconciled
+  against config per run, per-digest cosign verify, helm --atomic + smoke
+  asserting the served SHA). Operator deploys mirror the BR-20 consent doors —
+  staged render to the outbox, `--approve` or committed `autoDeploy`, a
+  kubeconfig-context match, and Secrets that are NEVER applied by tooling.
+- The shareable delivery corpus is pinned **byte-identical** across app templates
+  by the plugin's `deploy:sync` gate (ADR 009 plugin) — no fifth copy; drift
+  names its file.
+
+### Workspace composition + the cross-app layer (BR-34/35, §23, T14/T23)
+
+- A brief with a backend yields ONE WORKSPACE: a small git repo (`workspace.json`
+  manifest, shared brief, orchestration `ws:bootstrap/status/up`) whose parts —
+  `api/`, `web/`, `e2e/` — are separate git repositories with per-repo machinery
+  intact; `pairedBrief` agreement is gated. The **e2e template** carries the
+  flow suite derived from the flows facets plus consumer-driven contract checks
+  with a dependency-free response validator; the against-the-pair run belongs to
+  the workspace CI. The web side closes the loop with `contract:client`: the
+  typed client is a locked derivation of the BR-18-recorded contract.
+
+### The discovery skill (`proto-forge:discovery`, BR-30..33, §22, ADR 008 plugin)
+
+- Second skill in the plugin: brief + Figma + Confluence → one English
+  gap-analysis document per screen/feature/API area — SPIN with evidence,
+  DAPA-as-documents (Definition / Acceptance criteria / Prerequisites /
+  Assumptions), deterministic pre-allocated `data-testid`s, a fixed Q1-Q24
+  question taxonomy, images pinned by node id + sha256, and a `discovery.json`
+  bridge the main skill's Phase 0 ingests (facet hash untouched). Ships its own
+  dependency-free lint, run over the shipped sample in plugin verify and over
+  every output at runtime.
+
+### Norm and gate infrastructure
+
+- Facets v2: `facetsVersion` + optional `backend` subtree; brief identity is the
+  PAIR (version, hash) — BR-14 amended. Decision table T14-T23; ADR band
+  200-209 (delivery). The citations bullet parser now reads wrapped bullets
+  whole (continuation lines used to escape checks 4-6), case names normalize
+  across line wraps, and inline-block proofs register via `inlineCase()`.
+
 ## 0.5.0 — 2026-08-12
 
 The 38-finding remediation + auto-propagation release. A 44-agent adversarial audit of

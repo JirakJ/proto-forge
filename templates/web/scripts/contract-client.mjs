@@ -3,7 +3,9 @@ import { existsSync, readFileSync } from "node:fs";
 import { gateResult } from "./config.mjs";
 import { walk, read } from "./lib.mjs";
 
-// @adr 023 - the typed client is a locked derivation of the RECORDED contract (BR-22)
+// The typed client is a locked derivation of the RECORDED contract (BR-22). The
+// api facet's own ADR 023 — created at generation time (T6) — records the client
+// decision per prototype; the template ships the gate, not the decision.
 //
 // A paired backend owns contract/openapi.json (its BR-22); this side consumes it
 // through a BR-18 record under docs/external/api-contract/ — the provenance-carrying

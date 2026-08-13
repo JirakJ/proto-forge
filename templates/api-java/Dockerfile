@@ -16,9 +16,9 @@ RUN ./gradlew --no-daemon -q bootJar
 # --- runtime -----------------------------------------------------------------
 # non-root base: ubi9/openjdk-21-runtime (pinned digest, tag 1.24) runs as an
 # unprivileged user with group-0 permissions out of the box — arbitrary-UID-safe
-# under OpenShift's restricted SCC with no USER directive and no hardcoded UID.
-# The JVM writes to /tmp (default java.io.tmpdir); the chart mounts an emptyDir
-# there, so readOnlyRootFilesystem holds under any UID.
+# under OpenShift's restricted SCC. The JVM writes to /tmp (default
+# java.io.tmpdir); the chart mounts an emptyDir there, so readOnlyRootFilesystem
+# holds under any UID.
 FROM registry.access.redhat.com/ubi9/openjdk-21-runtime@sha256:718b05ae32e0b679d0200cd9d4144cbf12270ef980c0924d927fc05d931c1ebb
 WORKDIR /app
 COPY --from=build /app/build/libs/proto-forge-service-0.1.0.jar /app/app.jar
@@ -28,4 +28,9 @@ COPY --from=build /app/build/libs/proto-forge-service-0.1.0.jar /app/app.jar
 ARG GIT_SHA=unknown
 ENV GIT_SHA=$GIT_SHA
 EXPOSE 8080
+# The image's own unprivileged user, BY NAME — a numeric UID here would defeat
+# OpenShift's arbitrary-UID assignment (NFR-15), and no USER at all makes the
+# non-root property invisible to scanners.
+# hadolint ignore=DL3066
+USER default
 CMD ["java", "-jar", "/app/app.jar"]
