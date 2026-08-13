@@ -121,8 +121,8 @@ if (!existsSync(REGISTRY)) {
       }
       if (t.id !== undefined && ids.has(t.id)) errors.push(`${at}: duplicate id`);
       ids.add(t.id);
-      if (t.kind !== undefined && !["frontend", "backend"].includes(t.kind)) {
-        errors.push(`${at}: kind must be frontend|backend, got "${t.kind}"`);
+      if (t.kind !== undefined && !["frontend", "backend", "e2e", "workspace"].includes(t.kind)) {
+        errors.push(`${at}: kind must be frontend|backend|e2e|workspace, got "${t.kind}"`);
       }
       if (!Array.isArray(t.notAGate)) errors.push(`${at}: notAGate must be an array (may be empty)`);
       if (typeof t.dir !== "string" || t.dir === "") continue;
