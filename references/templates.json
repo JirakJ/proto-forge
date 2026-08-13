@@ -7,10 +7,26 @@
       "kind": "frontend",
       "stack": "ts",
       "notAGate": [
-        "dev", "build", "preview", "verify", "prepare",
-        "i18n:extract", "docs:shots", "config:show", "snapshot", "seed:lock", "sbom",
-        "sync:jira", "sync:confluence", "sync:pull", "sync:status", "sync:auto",
-        "test:e2e", "deploy:plan", "env:local", "env:remote"
+        "dev",
+        "build",
+        "preview",
+        "verify",
+        "prepare",
+        "i18n:extract",
+        "docs:shots",
+        "config:show",
+        "snapshot",
+        "seed:lock",
+        "sbom",
+        "sync:jira",
+        "sync:confluence",
+        "sync:pull",
+        "sync:status",
+        "sync:auto",
+        "test:e2e",
+        "deploy:plan",
+        "env:local",
+        "env:remote"
       ]
     },
     {
@@ -19,10 +35,27 @@
       "kind": "backend",
       "stack": "node",
       "notAGate": [
-        "dev", "start", "build", "verify", "prepare",
-        "config:show", "snapshot", "seed:lock", "sbom",
-        "sync:jira", "sync:confluence", "sync:pull", "sync:status", "sync:auto",
-        "test:e2e", "contract:generate", "docs:examples", "db:migrate"
+        "dev",
+        "start",
+        "build",
+        "verify",
+        "prepare",
+        "config:show",
+        "snapshot",
+        "seed:lock",
+        "sbom",
+        "sync:jira",
+        "sync:confluence",
+        "sync:pull",
+        "sync:status",
+        "sync:auto",
+        "test:e2e",
+        "contract:generate",
+        "docs:examples",
+        "db:migrate",
+        "deploy:plan",
+        "env:local",
+        "env:remote"
       ]
     },
     {
@@ -31,10 +64,28 @@
       "kind": "backend",
       "stack": "python",
       "notAGate": [
-        "dev", "start", "build", "verify", "prepare",
-        "config:show", "snapshot", "seed:lock", "sbom",
-        "sync:jira", "sync:confluence", "sync:pull", "sync:status", "sync:auto",
-        "test:e2e", "contract:generate", "docs:examples", "db:migrate", "gates:selftest:native"
+        "dev",
+        "start",
+        "build",
+        "verify",
+        "prepare",
+        "config:show",
+        "snapshot",
+        "seed:lock",
+        "sbom",
+        "sync:jira",
+        "sync:confluence",
+        "sync:pull",
+        "sync:status",
+        "sync:auto",
+        "test:e2e",
+        "contract:generate",
+        "docs:examples",
+        "db:migrate",
+        "gates:selftest:native",
+        "deploy:plan",
+        "env:local",
+        "env:remote"
       ]
     },
     {
@@ -43,10 +94,28 @@
       "kind": "backend",
       "stack": "java",
       "notAGate": [
-        "dev", "start", "build", "verify", "prepare",
-        "config:show", "snapshot", "seed:lock", "sbom",
-        "sync:jira", "sync:confluence", "sync:pull", "sync:status", "sync:auto",
-        "test:e2e", "contract:generate", "docs:examples", "db:migrate", "gates:selftest:native"
+        "dev",
+        "start",
+        "build",
+        "verify",
+        "prepare",
+        "config:show",
+        "snapshot",
+        "seed:lock",
+        "sbom",
+        "sync:jira",
+        "sync:confluence",
+        "sync:pull",
+        "sync:status",
+        "sync:auto",
+        "test:e2e",
+        "contract:generate",
+        "docs:examples",
+        "db:migrate",
+        "gates:selftest:native",
+        "deploy:plan",
+        "env:local",
+        "env:remote"
       ]
     },
     {
@@ -54,14 +123,29 @@
       "dir": "templates/workspace",
       "kind": "workspace",
       "stack": "node",
-      "notAGate": ["verify", "config:show", "ws:status", "ws:bootstrap", "ws:up", "snapshot", "seed:lock"]
+      "notAGate": [
+        "verify",
+        "config:show",
+        "ws:status",
+        "ws:bootstrap",
+        "ws:up",
+        "snapshot",
+        "seed:lock"
+      ]
     },
     {
       "id": "e2e",
       "dir": "templates/e2e",
       "kind": "e2e",
       "stack": "ts",
-      "notAGate": ["verify", "prepare", "config:show", "snapshot", "seed:lock", "test:e2e"]
+      "notAGate": [
+        "verify",
+        "prepare",
+        "config:show",
+        "snapshot",
+        "seed:lock",
+        "test:e2e"
+      ]
     }
   ]
 }

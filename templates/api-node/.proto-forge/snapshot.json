@@ -14,6 +14,9 @@
     "docs/adr/010-note-domain.md",
     "docs/adr/022-persistence-adapter.md",
     "docs/adr/030-example-api-slice.md",
+    "docs/adr/200-multi-environment-delivery.md",
+    "docs/adr/201-container-and-helm-baseline.md",
+    "docs/adr/202-pipeline-security.md",
     "scripts/adr-lint.mjs",
     "scripts/arch-verify.mjs",
     "scripts/commit-lint.mjs",
@@ -25,11 +28,17 @@
     "scripts/contract-verify.mjs",
     "scripts/coverage-policy.mjs",
     "scripts/db-migrate.mjs",
+    "scripts/deploy-cli.mjs",
+    "scripts/deploy-lib.mjs",
+    "scripts/deploy-verify.mjs",
     "scripts/deps-budget.mjs",
     "scripts/docs-examples.mjs",
     "scripts/docs-lib.mjs",
     "scripts/docs-verify.mjs",
     "scripts/e2e-conformance.mjs",
+    "scripts/env-local.mjs",
+    "scripts/env-remote.mjs",
+    "scripts/env-verify.mjs",
     "scripts/error-catalog.mjs",
     "scripts/external-verify.mjs",
     "scripts/external.mjs",
@@ -159,10 +168,26 @@
       "id": 30,
       "title": "The Notes API slice is the self-verifying example",
       "status": "accepted"
+    },
+    {
+      "id": 200,
+      "title": "Multi-environment delivery is one declaration, progressively enabled",
+      "status": "accepted"
+    },
+    {
+      "id": 201,
+      "title": "One non-root image, one chart, values per environment",
+      "status": "accepted"
+    },
+    {
+      "id": 202,
+      "title": "The pipeline scans, signs and verifies — and verify stays offline",
+      "status": "accepted"
     }
   ],
   "gates": [
     "config:check",
+    "env:verify",
     "gates:selftest",
     "lint",
     "typecheck",
@@ -171,6 +196,7 @@
     "test:unit",
     "test:mutation",
     "build",
+    "deploy:verify",
     "deps:budget",
     "arch:verify",
     "opid:scan",

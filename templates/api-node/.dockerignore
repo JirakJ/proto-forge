@@ -1,0 +1,21 @@
+# Keep the build context to what `pnpm install` + `pnpm build` actually read:
+# sources, the lockfile and the tsconfigs. Everything else is repo furniture.
+node_modules
+dist
+coverage
+.stryker-tmp
+.git
+.github
+.husky
+.claude
+.prompts
+docs
+db
+contract
+scripts
+deploy
+*.local
+.env
+.DS_Store
+Dockerfile
+.dockerignore

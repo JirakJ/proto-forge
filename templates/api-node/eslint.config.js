@@ -64,6 +64,9 @@ export default tseslint.config(
       "node_modules/**",
       ".stryker-tmp/**",
       "scripts/**",
+      // The deploy surface, like scripts/**, is gate corpus: deploy:verify and
+      // the gates-selftest are its tests, and it shares no app globals.
+      "deploy/**",
       // Config files and the .proto-forge reference copies are not app code; the
       // typed-lint project (tsconfig include) deliberately covers src/** only.
       "**/*.config.{ts,js,mjs}",

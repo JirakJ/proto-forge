@@ -1,0 +1,26 @@
+{{- if eq .Values.expose.kind "route" }}
+# Rendered only when expose.kind is "route" — OpenShift environments only;
+# deploy:verify fails a Route pointed at any other cluster type. TLS terminates
+# at the router (edge), plain HTTP is redirected, and HSTS rides the router
+# annotation because the TLS edge is the only honest place to promise it.
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: {{ include "app.fullname" . }}
+  labels:
+    {{- include "app.labels" . | nindent 4 }}
+  annotations:
+    haproxy.router.openshift.io/hsts_header: max-age=63072000; includeSubDomains; preload
+spec:
+  {{- if .Values.expose.host }}
+  host: {{ .Values.expose.host | quote }}
+  {{- end }}
+  to:
+    kind: Service
+    name: {{ include "app.fullname" . }}
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+{{- end }}

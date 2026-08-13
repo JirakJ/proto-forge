@@ -1,0 +1,31 @@
+# Keep the build context to what `uv sync --frozen` actually reads: the project
+# metadata, the lockfile and src/. Everything else is repo furniture. The
+# Dockerfile COPYs pyproject.toml, uv.lock and src explicitly, so this file
+# mostly guards the odd `COPY . .` refactor from dragging caches in.
+.venv
+__pycache__
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.import_linter_cache
+mutants
+node_modules
+coverage
+.coverage
+.git
+.github
+.husky
+.claude
+.prompts
+docs
+alembic
+contract
+scripts
+deploy
+importlinter
+tests
+*.local
+.env
+.DS_Store
+Dockerfile
+.dockerignore

@@ -35,9 +35,48 @@ export const MANDATORY_GATES = [
   "external",
   "log",
   "deps",
+  "env",
+  "deploy",
 ];
 
 const MODES = ["error", "warn", "off"];
+
+// The delivery chain, in promotion order. `local` is a developer convenience and
+// never part of promotion; everything after it is a remote environment that
+// exists ONLY by being declared here — values files, the docs table and the CD
+// plan are all derived from (and checked against) this declaration.
+export const ENV_ORDER = ["local", "dev", "sit", "uat", "test", "prod"];
+export const REMOTE_ENVS = ENV_ORDER.slice(1);
+
+/** The enabled remote environments, in ENV_ORDER — the promotion chain a release walks. */
+export function promotionChain(cfg = loadConfig()) {
+  return REMOTE_ENVS.filter((e) => cfg.environments?.[e]?.enabled === true);
+}
+
+// Every remote environment carries the same shape so enabling one is a config
+// diff, never a schema change. `*Env` fields name environment VARIABLES — the
+// config never holds a credential, only the name of where one lives at deploy
+// time (same doctrine as integrations.*.tokenEnv).
+const remoteEnvDefaults = (over = {}) => ({
+  enabled: false,
+  url: "",
+  cluster: { type: "generic", server: "", namespace: "", registry: "" },
+  approval: "required",
+  // Standing consent for an UNATTENDED operator deploy to this env — the
+  // deploy analogue of integrations.*.autoPropagate: it stands in for the
+  // per-run --approve of an operator deploy and for nothing else. CI promotion
+  // consent is the committed workflow plus GitHub environment reviewers.
+  autoDeploy: false,
+  auth: {
+    method: "kubeconfig",
+    tokenEnv: "KUBE_TOKEN",
+    kubeconfigEnv: "KUBECONFIG",
+    azureClientIdEnv: "AZURE_CLIENT_ID",
+    azureTenantIdEnv: "AZURE_TENANT_ID",
+    azureSubscriptionIdEnv: "AZURE_SUBSCRIPTION_ID",
+  },
+  ...over,
+});
 
 export const DEFAULTS = {
   policy: "strict",
@@ -61,6 +100,36 @@ export const DEFAULTS = {
     adr: { mode: "error" },
     prompt: { mode: "error" },
     dup: { mode: "error" },
+    env: { mode: "error" },
+    deploy: { mode: "error" },
+  },
+  // The single declaration every delivery artefact derives from. An environment
+  // that is not enabled here has no values file, no docs-table row marked live
+  // and no CD job — and env:verify fails when any of those exist anyway.
+  // Progressive enablement: the template ships with only dev enabled; turning
+  // on sit/uat/test/prod is a reviewed config diff, never a regeneration.
+  environments: {
+    local: { enabled: true, url: "http://localhost:8080" },
+    dev: remoteEnvDefaults({
+      enabled: true,
+      approval: "none",
+      // "dev" is a real namespace default, not a placeholder: point
+      // cluster.server at a cluster and this is where the app lands.
+      cluster: { type: "generic", server: "", namespace: "dev", registry: "" },
+    }),
+    sit: remoteEnvDefaults({ approval: "none" }),
+    uat: remoteEnvDefaults(),
+    test: remoteEnvDefaults(),
+    prod: remoteEnvDefaults(),
+  },
+  // How the application ships. `helm` is the cluster path (dev and beyond);
+  // `compose` is the single-host simple mode and cannot serve a multi-env chain.
+  deployment: {
+    flavor: "helm",
+    imageRegistry: "",
+    sign: true,
+    scan: { image: true, severityThreshold: "high" },
+    helm: { chartPath: "deploy/chart", keepHistory: 5 },
   },
   integrations: {
     jira: {
@@ -96,8 +165,17 @@ export const DEFAULTS = {
     // No gate, script or hook opens a socket unless this says so, and then only
     // to a host on the allowlist. The integrations honour it at --commit time.
     network: { allow: false, allowedHosts: [] },
-    // Outward-facing effects an operator must confirm interactively.
-    requireApproval: ["jira.create", "confluence.publish"],
+    // Outward-facing effects an operator must confirm interactively. Deploys are
+    // listed per environment so removing prod's door never removes dev's.
+    requireApproval: [
+      "jira.create",
+      "confluence.publish",
+      "deploy.dev",
+      "deploy.sit",
+      "deploy.uat",
+      "deploy.test",
+      "deploy.prod",
+    ],
     // Paths a hook refuses to let an agent edit (the byte-pinned seed, the locks).
     // The platform kernel is this template's byte-pinned seed (BRS §17.2).
     protectedPaths: [
@@ -180,6 +258,106 @@ export function gateResult(name, okMessage, errors) {
   fail(`${name} FAILED`, errors);
 }
 
+// A value that is a credential is not a NAME for one. The pattern is the
+// mechanical half of "no secrets in config": an env var name is SCREAMING_SNAKE,
+// and anything else pasted into a *Env field is almost certainly the secret itself.
+const ENV_NAME = /^[A-Z][A-Z0-9_]*$/;
+
+/** Every `*Env` value anywhere in the config must be an env var NAME, never a value. */
+function checkEnvVarNames(node, path, errors) {
+  if (!isObject(node)) return;
+  for (const [k, v] of Object.entries(node)) {
+    if (k.endsWith("Env") && typeof v === "string" && v !== "" && !ENV_NAME.test(v)) {
+      errors.push(`${path}.${k}: ${JSON.stringify(v)} — this looks like a value, not an env var name`);
+    }
+    if (isObject(v)) checkEnvVarNames(v, `${path}.${k}`, errors);
+  }
+}
+
+/** The environments/deployment half of checkConfig — the delivery declaration. */
+function checkEnvironments(cfg, errors, warnings) {
+  const envs = cfg.environments ?? {};
+  const deployment = cfg.deployment ?? {};
+
+  for (const name of Object.keys(envs)) {
+    if (!ENV_ORDER.includes(name)) {
+      errors.push(`unknown environment "${name}" — the chain is fixed: ${ENV_ORDER.join(", ")}`);
+    }
+  }
+
+  // local is where the prototype actually runs; a config that disables it
+  // describes a project nobody can start.
+  if (envs.local?.enabled !== true) errors.push("environments.local is not optional — local must stay enabled");
+
+  const enabledRemote = REMOTE_ENVS.filter((e) => envs[e]?.enabled === true);
+
+  for (const name of enabledRemote) {
+    const env = envs[name];
+    const cluster = env.cluster ?? {};
+    if (!cluster.namespace) {
+      errors.push(`environments.${name} is enabled but cluster.namespace is empty — an environment is a namespace on a cluster, name it`);
+    }
+    if (!["openshift", "aks", "generic"].includes(cluster.type)) {
+      errors.push(`environments.${name}.cluster.type must be openshift|aks|generic, got ${JSON.stringify(cluster.type)}`);
+    }
+    if (!["none", "required"].includes(env.approval)) {
+      errors.push(`environments.${name}.approval must be none|required, got ${JSON.stringify(env.approval)}`);
+    }
+    if (env.auth !== undefined && !["oidc", "token", "kubeconfig"].includes(env.auth.method)) {
+      errors.push(`environments.${name}.auth.method must be oidc|token|kubeconfig, got ${JSON.stringify(env.auth.method)}`);
+    }
+    if (!env.url) warnings.push(`environments.${name} is enabled with an empty url — the smoke test has no target yet`);
+    if (cluster.server) {
+      let host = null;
+      try {
+        host = new URL(cluster.server).hostname;
+      } catch {
+        errors.push(`environments.${name}.cluster.server ${JSON.stringify(cluster.server)} is not a URL`);
+      }
+      const allowed = cfg.guardrails?.network?.allowedHosts ?? [];
+      if (host !== null && !allowed.some((a) => host === a || host.endsWith(`.${a}`))) {
+        warnings.push(
+          `environments.${name}.cluster.server host "${host}" is not on guardrails.network.allowedHosts — ` +
+            "operator deploys to it will be refused until it is",
+        );
+      }
+    }
+  }
+
+  // A chain that STARTS at prod has no environment to have proven the release in.
+  if (envs.prod?.enabled === true && enabledRemote[0] === "prod") {
+    errors.push("prod cannot be the first environment — enable at least one pre-prod environment (dev, sit, uat or test) first");
+  }
+  if (envs.prod?.enabled === true && envs.prod.approval === "none") {
+    errors.push('environments.prod.approval is "none" — a prod deploy nobody approved is not a policy, it is an accident');
+  }
+  for (const name of ["uat", "test"]) {
+    if (envs[name]?.enabled === true && envs[name].approval === "none") {
+      warnings.push(`environments.${name}.approval is "none" — ${name} usually carries sign-off; confirm this is deliberate`);
+    }
+  }
+
+  checkEnvVarNames(envs, "environments", errors);
+  checkEnvVarNames(cfg.integrations ?? {}, "integrations", errors);
+
+  if (!["helm", "compose"].includes(deployment.flavor)) {
+    errors.push(`deployment.flavor must be helm|compose, got ${JSON.stringify(deployment.flavor)}`);
+  }
+  if (deployment.flavor === "compose" && enabledRemote.some((e) => e !== "dev")) {
+    errors.push(
+      "deployment.flavor \"compose\" cannot serve a multi-environment chain — " +
+        "compose is the single-host simple mode; switch to helm before enabling sit/uat/test/prod",
+    );
+  }
+  if (deployment.scan !== undefined && !["critical", "high", "medium"].includes(deployment.scan.severityThreshold)) {
+    errors.push(`deployment.scan.severityThreshold must be critical|high|medium, got ${JSON.stringify(deployment.scan.severityThreshold)}`);
+  }
+  const keep = deployment.helm?.keepHistory;
+  if (keep !== undefined && (!Number.isInteger(keep) || keep < 2)) {
+    errors.push(`deployment.helm.keepHistory must be an integer >= 2 (a rollback needs a release to roll back to), got ${JSON.stringify(keep)}`);
+  }
+}
+
 /** Validates the merged config itself. Used by `pnpm config:check` and by verify. */
 export function checkConfig(cfg = loadConfig()) {
   const errors = [];
@@ -226,6 +404,8 @@ export function checkConfig(cfg = loadConfig()) {
       warnings.push(`${at}: waiver for "${w.gate}" expired on ${w.expires} — gate is back at "error"`);
     }
   }
+
+  checkEnvironments(cfg, errors, warnings);
 
   // The other half: a mandatory gate relaxed WITHOUT a waiver is a hard error.
   for (const name of MANDATORY_GATES) {

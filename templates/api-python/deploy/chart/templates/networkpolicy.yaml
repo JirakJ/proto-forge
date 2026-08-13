@@ -1,0 +1,19 @@
+# Default-deny ingress, then allow exactly the service port. Selecting this
+# app's pods with policyTypes [Ingress] denies everything the rule below does
+# not name — there is no separate "deny" object to forget.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "app.fullname" . }}
+  labels:
+    {{- include "app.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "app.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+  ingress:
+    - ports:
+        - port: {{ .Values.port }}
+          protocol: TCP
