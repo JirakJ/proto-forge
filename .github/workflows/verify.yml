@@ -85,7 +85,7 @@ jobs:
             echo "this template's sec:scan does not use osv-scanner"
           fi
       - name: set up JDK
-        if: matrix.template.stack == 'java'
+        if: contains(fromJson('["java", "kotlin"]'), matrix.template.stack)
         uses: actions/setup-java@v4
         with:
           distribution: temurin
