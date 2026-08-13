@@ -82,7 +82,7 @@ export function Dialog({ open, onClose, title, children, "data-testid": testid }
   // scrim is ::backdrop; on the fallback it is an element of our own.
   const platformOwnsLayering = capabilities.popover;
 
-  usePromotion(surfaceRef, open, capabilities);
+  usePromotion({ ref: surfaceRef, open, capabilities });
 
   // The library owns all three, on both paths. A manual popover gives no native focus
   // containment and no native inertness -- deliberately, because the native versions
@@ -90,22 +90,24 @@ export function Dialog({ open, onClose, title, children, "data-testid": testid }
   useFocusScope({ ref: surfaceRef, active: open, trap: true });
   useScrollLock(open);
   useInertBackground(open);
-  useDismiss({
-    ref: surfaceRef,
-    slot,
-    onDismiss: onClose,
-    enabled: open,
-    // A modal's outside click is its scrim's click, handled below, so the dialog does
-    // not also close on a click that lands on the backdrop.
-    outsidePointer: false,
-  });
+  // A modal is NOT light-dismissed: Escape and the caller's own controls are the ways
+  // out, on BOTH paths (NFR-24 — v0.4.0 closed on scrim click on the fallback path
+  // only, and that asymmetry is where the one-gesture-two-closes defect lived). The
+  // scrim is purely visual and carries no onClick; outsidePointer: false makes the
+  // dismiss walk SKIP this surface, so an outside gesture still reaches and dismisses
+  // a newer surface above it (a menu raised from inside the dialog) — proven by e2e
+  // case 14: the page behind stays inert and the dialog stays up.
+  useDismiss({ ref: surfaceRef, slot, onDismiss: onClose, enabled: open, outsidePointer: false });
 
   if (!open) return null;
 
   return (
     <Portal>
       {platformOwnsLayering ? null : (
-        <div data-testid={`${testid}-scrim`} onClick={onClose} style={scrimStyle(slot)} />
+        // Purely visual. Dismissal happens in useDismiss on pointerdown; an onClick here
+        // would re-close on the click half of a gesture whose pointerdown already
+        // dismissed a higher surface.
+        <div data-testid={`${testid}-scrim`} style={scrimStyle(slot)} />
       )}
       <div
         ref={surfaceRef}

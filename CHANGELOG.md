@@ -1,5 +1,71 @@
 # Changelog
 
+## 0.5.0 — 2026-08-12
+
+The 38-finding remediation + auto-propagation release. A 44-agent adversarial audit of
+v0.4.0 confirmed 38 findings (docs-vs-code drift, gate blind spots, CI misconfiguration);
+every one is fixed here, and each repaired gate gained the self-test case that would have
+caught it. New feature: standing-consent propagation to Confluence/JIRA.
+
+### autoPropagate — implemented work propagates when the operator said so (ADR 005 plugin, BR-20)
+
+- `integrations.<name>.autoPropagate: true` committed in `.proto-forge/config.json` is
+  standing, reviewed consent for unattended live writes. It stands in for the per-run
+  `--approve` and **nothing else** — enabled, `dryRun: false`, the network allowlist and
+  credentials still apply.
+- New `pnpm sync:auto`: run after each accepted-ADR commit and at release; stages always,
+  sends live only for integrations with all doors open, prints which door is closed
+  otherwise. Defaults ship `false` — with defaults, "no pipeline phase ever calls out"
+  holds verbatim.
+- The semantics are register-level (new **BR-20**) and pinned by four gate self-tests
+  (stands in for approve; does not bypass dry-run; does not open the network guardrail).
+
+### Gate blind spots closed (each with its new self-test)
+
+- **commit-lint** now checks the *diff half* of BR-06: exactly one `- Status: accepted`
+  transition in the staged ADR diff, and it must be the ADR the trailer names.
+- **adr:lint** errors when two files share an ADR number (was silent last-write-wins —
+  exactly what a generator allocating "the low end of the band" next to the pre-written
+  020/100 would trigger).
+- **coverage:policy** scan anchored on the line-ending `],` — a character-class glob
+  (`src/[a-z]*/**`) can no longer truncate the exclude scan and smuggle entries past the
+  allow-list.
+- **stub:scan** bans inline `eslint-disable` of the gated i18n/testid/layering rules in
+  production code — BR-08's "no escape hatch" is now mechanical, not aspirational.
+- **consistency** rejects a runtime `dependencies` entry nothing imports (found the live
+  counterexample: the stale `@radix-ui` entry in the seed's manifest, now removed —
+  lockfile resolves zero radix packages).
+- **guard-write hook** also freezes the mutation-score floor, the `mutate[]` scope, the
+  duplication threshold and its ignore list (`stryker.config.json`, `.jscpd.json`).
+- **useDismiss**: one outside gesture dismisses exactly one surface, and a topmost
+  tooltip no longer shields the menu below it; the pure ordering (`newestFirst`) is
+  exported and unit-tested. **usePromotion** takes an options object (`resignal`
+  re-promotes a toast region). **A modal is not light-dismissed** on either path —
+  v0.4.0's platform behaviour, now consistent (the fallback's scrim-click close was
+  the asymmetry the double-close defect lived in); the walk skips the modal so an
+  outside gesture still reaches a menu above it. Seed re-cut recorded in plugin ADR 006.
+
+### CI made true
+
+- Root workflow: gitleaks installed as a **pinned binary** (the previous
+  `gitleaks-action` + `continue-on-error` combination installed nothing and could never
+  fail); the template job now runs `verify-template.mjs` — the standalone proof — instead
+  of an in-place verify.
+- Template workflow: new **append-only `.prompts/` step** (history diff against the
+  branch base), making ADR 002/BR-13/NFR-10's CI claim true.
+
+### Documentation now states what the code does
+
+- Mandatory-gate enumerations corrected to all **13** in five places (SKILL, AGENTS,
+  decision-table, ADR 009, config comment). SECURITY.md and ADR 100 state the honest CSP
+  story (strict script-src ships in *preview*; dev relaxes for HMR; style nonces cannot
+  cover React's style attributes). Preview CSP hardened: scheme-only `ws:` dropped from
+  `connect-src`. BR-11 re-homed to ADRs 008/020 (021 retired, recorded in §19.8).
+  Scaffold record, README layout (`gallery/` → `harness/`), locales default (`["en"]`,
+  pseudo is generated) and the ADR band table (pre-written 020/100, first security ADR
+  is 101) all corrected. Overrides section points at `pnpm-workspace.yaml` as the single
+  source (eight pins, advisory ids inline).
+
 ## 0.4.0 — 2026-08-12
 
 Production-grade release. Four workstreams, each with its decision record; the design

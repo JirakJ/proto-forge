@@ -25,7 +25,7 @@ traps and crops an in-place modal — it stays whole and on top:
 | Prop | Type | Notes |
 | --- | --- | --- |
 | `open` | `boolean` | Fully controlled. Closed renders `null`, not a hidden node. |
-| `onClose` | `() => void` | Called by Escape when this is the topmost surface, and by a scrim click on the fallback path. |
+| `onClose` | `() => void` | Called by Escape when this is the topmost surface. A modal is not light-dismissed: an outside click never closes it, on either path. |
 | `title` | `string` | **Required**, already translated. Becomes the accessible name and the visible `<h2>`. |
 | `data-testid` | `string` | **Required.** Heading is `<testid>-title`; the fallback scrim is `<testid>-scrim`. |
 

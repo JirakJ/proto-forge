@@ -11,8 +11,8 @@ import { fail, note, ok } from "./lib.mjs";
 // PROTO_FORGE_CONFIG overrides (3) for one-off runs.
 //
 // The asymmetry is deliberate (BR-17): TIGHTENING a gate is free, RELAXING a
-// mandatory one is not. Turning i18n/testid/layer/docs/security/stub/consistency/
-// snapshot below "error" requires a matching entry in `waivers[]` carrying a
+// mandatory one is not. Turning any gate in MANDATORY_GATES below "error"
+// requires a matching entry in `waivers[]` carrying a
 // reason, an ADR number and an expiry date. Without it `config:check` fails; with
 // it the run is stamped conformance:"waived" and the relaxation is printed on
 // every single verify, then expires by itself. That way "everything is
@@ -73,6 +73,11 @@ export const DEFAULTS = {
     jira: {
       enabled: false,
       dryRun: true,
+      // Standing operator consent for UNATTENDED live writes: with autoPropagate on
+      // (plus dryRun:false, the network allowlist and credentials), `pnpm sync:auto`
+      // sends without a per-run --approve. Committing this flag to the repo IS the
+      // recorded approval — it is visible in review, unlike a flag typed once.
+      autoPropagate: false,
       baseUrl: "",
       projectKey: "",
       issueType: "Task",
@@ -85,6 +90,7 @@ export const DEFAULTS = {
     confluence: {
       enabled: false,
       dryRun: true,
+      autoPropagate: false,
       baseUrl: "",
       spaceKey: "",
       parentPageId: "",

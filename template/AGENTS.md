@@ -45,7 +45,7 @@ Across files, namespace them: `notes-submit`, not `submit`. The primitives make 
 
 ## When a gate is genuinely wrong
 
-Fix the code first — that is the answer roughly always. If the floor itself is wrong, write an ADR. To relax a **mandatory** gate (i18n, testid, layer, overlay, docs, security, stub, consistency, snapshot) you also need a `waivers[]` entry in `.proto-forge/config.json` with a reason, that ADR, and an expiry date:
+Fix the code first — that is the answer roughly always. If the floor itself is wrong, write an ADR. To relax a **mandatory** gate (i18n, testid, layer, docs, security, stub, consistency, snapshot, overlay, coverage, ignores, mutation, external — the `MANDATORY_GATES` list in `scripts/config.mjs`) you also need a `waivers[]` entry in `.proto-forge/config.json` with a reason, that ADR, and an expiry date:
 
 ```json
 { "gate": "i18n", "reason": "single-locale pilot for the September demo", "adr": 150, "expires": "2026-09-30" }
@@ -66,4 +66,5 @@ Without a live waiver the setting is ignored and the gate runs at `error` anyway
 | `pnpm sync:jira` · `pnpm sync:confluence` | Show what *would* be sent. `--commit` to actually send; every sent object gets an MDX record in `docs/external/`. |
 | `pnpm sync:pull --page <id> [--affects a,b]` | Fetch a Confluence page into a `pull` record. `affectedFiles` is yours to declare. |
 | `pnpm sync:status [--fail-on-drift]` | Which external records changed upstream, and which local files that touches |
+| `pnpm sync:auto` | Run after each accepted-ADR commit and at release. Sends live only for an integration with committed `autoPropagate: true` (+ enabled, `dryRun: false`, allowlisted host, credentials); otherwise stages and says why nothing was sent. |
 | `pnpm external:verify` | Provenance of every record in `docs/external/` (part of `verify`) |

@@ -10,7 +10,7 @@ Every prompt that shaped the code must be recorded for provenance (BR-13, NFR-10
 
 ## Decision
 
-Store prompts as one Markdown file per prompt under `.prompts/NNNN-slug.md`. Append-only is enforced by a CI diff check (git history), not a database. Each accepted ADR back-references ≥1 entry.
+Store prompts as one Markdown file per prompt under `.prompts/NNNN-slug.md`. Append-only is enforced twice, not by a database: a local hook blocks edits to existing entries at write time, and a CI step diffs `.prompts/` against the branch base and fails on modified or deleted files (a force-push can evade a history diff — protect the default branch). Each accepted ADR back-references ≥1 entry.
 
 ## Consequences
 

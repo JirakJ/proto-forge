@@ -41,7 +41,16 @@ if (hit !== undefined) {
 // --- 2. quality floors -------------------------------------------------------
 if (rails.freezeThresholds === false || process.env.PROTO_FORGE_ALLOW_THRESHOLD_EDIT === "1") allow();
 
-const FLOOR_FILES = ["vite.config.ts", "scripts/budget.mjs", "eslint.config.js", ".proto-forge/config.json"];
+const FLOOR_FILES = [
+  "vite.config.ts",
+  "scripts/budget.mjs",
+  "eslint.config.js",
+  ".proto-forge/config.json",
+  // Quality floors live in more than one config: the mutation-score break, the mutate[]
+  // scope and the duplication threshold are floors as surely as a coverage number.
+  "stryker.config.json",
+  ".jscpd.json",
+];
 if (!FLOOR_FILES.includes(file)) allow();
 
 // Write replaces the whole file, so there is no incoming fragment to inspect.
@@ -54,6 +63,10 @@ const SUSPECT = [
   [/"(requireTranslated|failOnOrphanKeys|failOnDynamicKeys|requireUnique|requireScreenshots|requireFreshScreenshots|requirePluralCompleteness)"\s*:\s*false/, "a mandatory gate option"],
   [/"allowIdenticalToDefault"\s*:\s*true/, "the untranslated-value allowance"],
   [/:\s*"off"/, "a lint rule being switched off"],
+  [/"(break|high|low)"\s*:\s*\d+/, "a mutation-score floor"],
+  [/"mutate"\s*:/, "the mutation scope"],
+  [/"threshold"\s*:\s*[1-9]/, "the duplication threshold above zero"],
+  [/"ignore"\s*:/, "the duplication ignore list"],
 ];
 
 const found = SUSPECT.find(([re]) => re.test(incoming));

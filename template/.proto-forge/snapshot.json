@@ -102,6 +102,7 @@
     "scripts/snapshot-diff.mjs",
     "scripts/storage-to-md.mjs",
     "scripts/stub-scan.mjs",
+    "scripts/sync-auto.mjs",
     "scripts/sync-confluence.mjs",
     "scripts/sync-jira.mjs",
     "scripts/sync-pull.mjs",
@@ -260,6 +261,7 @@
     "test:e2e"
   ],
   "ignores": 0,
+  "conformance": "strict",
   "templateVersion": "0.1.0",
-  "protoUiVersion": "0.3.0"
+  "protoUiVersion": "0.4.0"
 }

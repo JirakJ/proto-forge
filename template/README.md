@@ -26,7 +26,9 @@ src/
   infra/               real adapters (persistence/api/auth) implementing ports
   i18n/                i18next setup, catalogues, identical-ok allowlist
   features/<feature>/  slices composed from proto-ui (ui + hooks + tests + e2e)
-  gallery/             component catalogue for screenshots — never in a production build
+  harness/             component catalogue (cases.ts + mounts.tsx) for screenshots and the
+                       generated browser suite — built only when VITE_HARNESS=1 (root harness.html),
+                       never in a production build
   shared/SafeHtml.tsx  the only sanitized-HTML entry point
 docs/adr/              ADR ledger (one accepted ADR = one commit)
 docs/components/<C>/   per-component page + screenshots + .shot.lock
@@ -42,7 +44,7 @@ e2e/                   Playwright specs (+ axe, + the overlay layering proofs)
 
 1. **Everything is translated.** Every locale, every key, every prop — not just JSX text. A value copy-pasted from English fails.
 2. **Every interactive and semantic element has a unique `data-testid`.** Enforced by TypeScript on the primitives, by lint in your files, across files by a scan, and in the rendered DOM by every test.
-3. **Popups go through `<Portal>` and take their z-index from `tokens.layer.*`.** Proven against real browser paint order in `e2e/overlay.e2e.ts`, not by reading back a style value.
+3. **Overlays are promoted into the browser's top layer, ordered by when they opened.** No per-kind z-index scale exists; the no-top-layer fallback z-index comes from the overlay stack, and surfaces portal to a body-level root. Proven against real browser paint order in `e2e/overlay-layering.e2e.ts`, not by reading back a style value.
 4. **A component is not done until it is documented and photographed.** `pnpm docs:shots` captures it; the lock file makes a stale screenshot fail.
 
 ## The example feature is a demo

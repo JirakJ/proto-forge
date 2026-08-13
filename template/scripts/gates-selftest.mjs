@@ -472,6 +472,58 @@ expect(
   { pass: false, matching: /network access is disabled/, args: ["--commit", "--approve"] },
 );
 
+// autoPropagate is standing consent for exactly one thing: the per-run --approve.
+// The credential check sits AFTER the approval check, so "fails asking for the
+// token" proves the approval was satisfied — without contacting anything.
+const autoPropagateConfig = (over = {}) =>
+  withConfig({
+    integrations: {
+      jira: {
+        enabled: true,
+        dryRun: false,
+        autoPropagate: true,
+        baseUrl: "https://acme.atlassian.net",
+        projectKey: "PF",
+        createFor: ["adr"],
+        ...over,
+      },
+    },
+    guardrails: { network: { allow: true, allowedHosts: ["acme.atlassian.net"] } },
+  });
+
+expect(
+  "integrations: autoPropagate stands in for --approve",
+  "sync-jira.mjs",
+  autoPropagateConfig(),
+  { pass: false, matching: /JIRA_API_TOKEN is not set/, args: ["--commit"], env: { JIRA_API_TOKEN: "", JIRA_USER_EMAIL: "" } },
+);
+
+expect(
+  "integrations: without autoPropagate the same --commit still demands --approve",
+  "sync-jira.mjs",
+  autoPropagateConfig({ autoPropagate: false }),
+  { pass: false, matching: /requires explicit approval/, args: ["--commit"], env: { JIRA_API_TOKEN: "", JIRA_USER_EMAIL: "" } },
+);
+
+expect(
+  "integrations: autoPropagate does not bypass dry-run",
+  "sync-jira.mjs",
+  autoPropagateConfig({ dryRun: true }),
+  { pass: false, matching: /dry-run/, args: ["--commit"] },
+);
+
+expect(
+  "integrations: autoPropagate does not open the network guardrail",
+  "sync-jira.mjs",
+  withConfig({
+    integrations: {
+      jira: { enabled: true, dryRun: false, autoPropagate: true, baseUrl: "https://acme.atlassian.net", projectKey: "PF", createFor: ["adr"] },
+    },
+    guardrails: { network: { allow: false } },
+  }),
+  { pass: false, matching: /network access is disabled/, args: ["--commit"] },
+);
+
 // --- guardrail hooks ----------------------------------------------------------
 function hook(name, script, payload, files, { blocked, matching }) {
   const dir = project(files);
@@ -542,6 +594,38 @@ hook(
   { tool_name: "Edit", tool_input: { file_path: ".proto-forge/config.json", new_string: '"mode": "warn"' } },
   { ".proto-forge/config.json": {} },
   { blocked: true, matching: /gate mode/ },
+);
+
+hook(
+  "hook: lowering the mutation-score floor is blocked",
+  "guard-write.mjs",
+  { tool_name: "Edit", tool_input: { file_path: "stryker.config.json", new_string: '"break": 40,' } },
+  { ".proto-forge/config.json": {} },
+  { blocked: true, matching: /mutation-score floor/ },
+);
+
+hook(
+  "hook: narrowing the mutation scope is blocked",
+  "guard-write.mjs",
+  { tool_name: "Write", tool_input: { file_path: "stryker.config.json", content: '{ "mutate": ["src/one.ts"] }' } },
+  { ".proto-forge/config.json": {} },
+  { blocked: true, matching: /mutation scope/ },
+);
+
+hook(
+  "hook: raising the duplication threshold is blocked",
+  "guard-write.mjs",
+  { tool_name: "Edit", tool_input: { file_path: ".jscpd.json", new_string: '"threshold": 3,' } },
+  { ".proto-forge/config.json": {} },
+  { blocked: true, matching: /duplication threshold/ },
+);
+
+hook(
+  "hook: widening the duplication ignore list is blocked",
+  "guard-write.mjs",
+  { tool_name: "Edit", tool_input: { file_path: ".jscpd.json", new_string: '"ignore": ["src/**"]' } },
+  { ".proto-forge/config.json": {} },
+  { blocked: true, matching: /duplication ignore/ },
 );
 
 hook(
@@ -748,6 +832,13 @@ expect("coverage: an allow-listed exclusion without its reason fails", "coverage
   "vite.config.ts": VITE(GOOD_THRESHOLDS, '        "**/*.test.*",'),
 }, { pass: false, matching: /no reason comment/ });
 
+// The tamper-guard must not be blinded by the tamper it guards against: a glob with a
+// character class contains "]", and a scan anchored on the FIRST "]" would truncate
+// there, letting every entry after it escape the allow-list unseen.
+expect("coverage: a character-class glob cannot truncate the exclude scan", "coverage-policy.mjs", {
+  "vite.config.ts": VITE(GOOD_THRESHOLDS, GOOD_EXCLUDE + '\n        // convenient\n        "src/[a-z]*/**",'),
+}, { pass: false, matching: /"src\/\[a-z\]\*\/\*\*" is not on the allow-list/ });
+
 // --- overlay:matrix ------------------------------------------------------------
 // The no-gaps gate: component × (unit test, harness case, browser test, docs). Each
 // cell has its own gate elsewhere; this is the one that asks per component, so a new
@@ -883,6 +974,16 @@ expect("stub: a fixture exporting a bare literal fails", "stub-scan.mjs", {
     'export const notes = [{ id: "1", text: "hand-written" }];\n',
 }, { pass: false, matching: /defineFactory/ });
 
+// BR-08/BR-02 have no eslint-disable escape hatch: a disable comment for a gated rule
+// is a shortcut marker, exactly like TODO.
+expect("stub: disabling a gated lint rule inline fails", "stub-scan.mjs", {
+  "src/features/f.ts": '// eslint-disable-next-line i18next/no-literal-string\nexport const f = () => "Save";\n',
+}, { pass: false, matching: /no escape hatch/ });
+
+expect("stub: a disable for an ungated rule is not this gate's business", "stub-scan.mjs", {
+  "src/features/f.ts": "// eslint-disable-next-line max-params\nexport const f = () => 1;\n",
+}, { pass: true });
+
 // --- adr:lint ----------------------------------------------------------------
 const adr = (num, status, extra = "") =>
   `# ADR ${num}: A decision\n\n- Status: ${status}\n- Date: 2026-08-12\n${extra}\n## Context\n\nx\n`;
@@ -919,6 +1020,16 @@ expect("adr: a prompt-log reference pointing at nothing fails", "adr-lint.mjs", 
   "docs/adr/010-a-decision.md": adr("010", "accepted", "- Prompt-log: .prompts/0009-absent.md\n"),
   "src/domain/note/model.ts": "// @adr 010 - the note domain\nexport type Note = { id: string };\n",
 }, { pass: false, matching: /does not exist/ });
+
+// Two files sharing a number would shadow each other in every by-number lookup, and a
+// generator allocating "the low end of the band" next to a pre-written ADR is exactly
+// how it happens. An error, never last-write-wins.
+expect("adr: the same number on two files fails", "adr-lint.mjs", {
+  "docs/adr/010-a-decision.md": adr("010", "accepted", "- Prompt-log: .prompts/0001-x.md\n"),
+  "docs/adr/010-a-rival.md": adr("010", "accepted", "- Prompt-log: .prompts/0001-x.md\n"),
+  ".prompts/0001-x.md": promptEntry,
+  "src/domain/note/model.ts": "// @adr 010 - the note domain\nexport type Note = { id: string };\n",
+}, { pass: false, matching: /used twice/ });
 
 // --- prompt:lint -------------------------------------------------------------
 expect("prompt: well-formed, strictly increasing entries pass", "prompt-log-lint.mjs", {
@@ -963,6 +1074,40 @@ expect("dup: a raw <button> in a feature fails", "component-dup-scan.mjs", {
 expect("dup: a raw element wearing a primitive role fails", "component-dup-scan.mjs", {
   "src/features/notes/ui/Notes.tsx": 'export const N = () => <div role="dialog" data-testid="n" />;\n',
 }, { pass: false, matching: /primitive role/ });
+
+// --- commit-lint ---------------------------------------------------------------
+// The message half is testable anywhere; the diff half (BR-06: one accepted ADR = one
+// commit, and the diff must agree with the trailer) needs real staged changes, so
+// `prepare` builds a throwaway git repository around the fixture files. HOME points
+// at the fixture so an operator's ~/.gitconfig cannot change the outcome.
+const stageAll = (dir) => {
+  const git = (...args) => spawnSync("git", args, { cwd: dir, env: { ...process.env, HOME: dir } });
+  git("init", "-q");
+  git("add", "-A");
+};
+const MSG_OK = "feat: accept the note domain decision\n\nADR: 010\nPrompt-Log: .prompts/0001-x.md\n";
+
+expect("commit: a trailer matching the one staged acceptance passes", "commit-lint.mjs", {
+  "msg.txt": MSG_OK,
+  "docs/adr/010-a-decision.md": adr("010", "accepted"),
+}, { pass: true, args: ["msg.txt"], prepare: stageAll });
+
+expect("commit: a non-conventional subject fails", "commit-lint.mjs", {
+  "msg.txt": "accepted some stuff\n\nADR: 010\nPrompt-Log: .prompts/0001-x.md\n",
+  "docs/adr/010-a-decision.md": adr("010", "accepted"),
+}, { pass: false, matching: /Conventional Commits/, args: ["msg.txt"], prepare: stageAll });
+
+expect("commit: staging two acceptances under one trailer fails", "commit-lint.mjs", {
+  "msg.txt": MSG_OK,
+  "docs/adr/010-a-decision.md": adr("010", "accepted"),
+  "docs/adr/011-a-rival.md": adr("011", "accepted"),
+}, { pass: false, matching: /one decision, one commit/, args: ["msg.txt"], prepare: stageAll });
+
+expect("commit: a trailer naming a different ADR than the diff accepts fails", "commit-lint.mjs", {
+  "msg.txt": "feat: accept the note domain decision\n\nADR: 011\nPrompt-Log: .prompts/0001-x.md\n",
+  "docs/adr/010-a-decision.md": adr("010", "accepted"),
+  "docs/adr/011-a-rival.md": adr("011", "proposed"),
+}, { pass: false, matching: /trailer names ADR 011 but the staged diff accepts ADR 010/, args: ["msg.txt"], prepare: stageAll });
 
 // --- consistency -------------------------------------------------------------
 const consistencyBase = (over = {}) => ({
@@ -1020,6 +1165,18 @@ expect("consistency: a camelCase token resolves to its kebab-case custom propert
   // primaryFg -> --pf-color-primary-fg, and the top-level scalar focusRing -> --pf-focus-ring.
   "packages/proto-ui/src/overlay/overlay.css":
     "dialog[open] { color: var(--pf-color-primary-fg); box-shadow: var(--pf-focus-ring); }\n",
+}), { pass: true });
+
+// BR-12's dead-weight corollary: a runtime dependency nothing imports ships attack
+// surface for no behaviour. Scoped to `dependencies` — devDependencies are wired
+// through configs and CLIs, where "is it used?" has no cheap mechanical answer.
+expect("consistency: a runtime dependency nothing imports fails", "consistency.mjs", consistencyBase({
+  "package.json": { dependencies: { "left-pad": "^1.3.0" } },
+}), { pass: false, matching: /"left-pad" is imported by nothing/ });
+
+expect("consistency: an imported runtime dependency passes", "consistency.mjs", consistencyBase({
+  "package.json": { dependencies: { zod: "^3.25.0" } },
+  "src/features/uses.ts": 'import { z } from "zod";\nexport const S = z.string();\n',
 }), { pass: true });
 
 // --- snapshot:diff -----------------------------------------------------------

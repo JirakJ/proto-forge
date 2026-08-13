@@ -10,7 +10,7 @@
 
 ## Decision
 
-`src/shared/SafeHtml.tsx` is the only component allowed to render raw HTML; it passes input through DOMPurify. Lint bans `dangerouslySetInnerHTML` and unsanitized sinks everywhere else (`react/no-danger`, `no-unsanitized/*`) — disabled only inside `SafeHtml`. A strict CSP (`default-src 'self'`, no `unsafe-inline` scripts) ships in the dev/preview servers and is documented for prod.
+`src/shared/SafeHtml.tsx` is the only component allowed to render raw HTML; it passes input through DOMPurify. Lint bans `dangerouslySetInnerHTML` and unsanitized sinks everywhere else (`react/no-danger`, `no-unsanitized/*`) — disabled only inside `SafeHtml`. A strict CSP (`default-src 'self'`, `script-src 'self'`) ships in the **preview** server and is documented for prod; the dev server deliberately relaxes script-src (`'unsafe-inline' 'unsafe-eval'`) for HMR/react-refresh and is not the security model.
 
 ## Consequences
 

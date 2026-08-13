@@ -38,7 +38,7 @@ export function Tooltip({ label, children, "data-testid": testid }: TooltipProps
   const show = useCallback(() => setOpen(true), []);
   const hide = useCallback(() => setOpen(false), []);
 
-  usePromotion(surfaceRef, open, capabilities);
+  usePromotion({ ref: surfaceRef, open, capabilities });
 
   // Escape dismisses, because a tooltip that will not go away is worse than no tooltip.
   // No outside-pointer dismissal: pointer-leave already covers it, and claiming outside

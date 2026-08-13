@@ -23,6 +23,16 @@ for (const f of allSource) {
   if (firstPartyMock.test(read(f))) errors.push(`${f}: mocks a first-party module (BR-12)`);
 }
 
+// BR-08 has no eslint-disable escape hatch BY DESIGN — the fix is always t('...') — and
+// the same goes for addressability and layering rules. A disable comment for any of
+// them is a shortcut marker like TODO, and it is caught here for the same reason.
+const GATED_RULES = /eslint-disable[^\n]*(no-user-facing-literal|no-literal-string|require-testid|unique-testid|boundaries\/element-types)/;
+for (const f of prod) {
+  if (GATED_RULES.test(read(f))) {
+    errors.push(`${f}: disables a gated lint rule inline — these rules have no escape hatch; fix the code (BR-08/BR-02)`);
+  }
+}
+
 // A __fixtures__ module may export only schema-checked factories (defineFactory), the
 // zod schemas they parse against, and types. A bare literal export is exactly the
 // hand-written fixture that drifts from the domain without anything failing (BR-12).

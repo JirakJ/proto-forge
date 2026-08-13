@@ -1,5 +1,6 @@
 import { useEffect, useRef, type RefObject } from "react";
 import type { OverlaySlot } from "./OverlayStack";
+import type { OverlayKind } from "./types";
 
 // @adr 008 - one dismiss owner for the whole library
 //
@@ -32,6 +33,8 @@ type Latest = {
   /** The control that opened the surface, if it toggles. See `ignore` below. */
   ignore: RefObject<HTMLElement | null> | undefined;
   ordinal: number;
+  /** Whether the surface blocks the page — a modal ends the outside-click walk. */
+  kind: OverlayKind;
   escape: boolean;
   outsidePointer: boolean;
 };
@@ -40,25 +43,28 @@ const entries = new Map<string, RefObject<Latest>>();
 let listening = false;
 
 /**
- * The surface Escape belongs to: the one nothing is painted above.
+ * Order entries newest-first. ONE definition for Escape and for outside pointers, and
+ * exported (module-internally, not through the library surface) so its edge case is
+ * unit-testable directly.
  *
- * An entry can be at ordinal -1 for one render: it registers here in its first effect,
- * and the stack assigns its number a re-render later. An event landing in that window —
- * a browser test proved it does, by pressing Escape straight after opening a second
- * dialog and closing the FIRST one — must still hit the newest surface. Within this
- * map, -1 therefore means "just opened", which is newer than everything already
- * numbered, and among several it is the latest-registered one: the map's insertion
- * order IS open order, which is the same fact the stack formalises one render later.
+ * An entry can be at ordinal -1 for one render: it registers in its first effect, and
+ * the stack assigns its number a re-render later. An event landing in that window — a
+ * browser test proved it does, by pressing Escape straight after opening a second
+ * dialog and closing the FIRST one — must still hit the newest surface. -1 therefore
+ * sorts newest, and among several -1s the latest-inserted wins: insertion order IS
+ * open order, the same fact the stack formalises one render later.
  */
+export function newestFirst<T extends { ordinal: number }>(all: readonly T[]): T[] {
+  const rank = (entry: T) => (entry.ordinal === -1 ? Number.MAX_SAFE_INTEGER : entry.ordinal);
+  return all
+    .map((entry, index) => ({ entry, index }))
+    .sort((a, b) => rank(b.entry) - rank(a.entry) || b.index - a.index)
+    .map(({ entry }) => entry);
+}
+
+/** The surface Escape belongs to: the one nothing is painted above. */
 function topmost(): Latest | undefined {
-  let best: Latest | undefined;
-  for (const entry of entries.values()) {
-    const current = entry.current;
-    if (best === undefined || current.ordinal === -1 || (best.ordinal !== -1 && current.ordinal > best.ordinal)) {
-      best = current;
-    }
-  }
-  return best;
+  return newestFirst([...entries.values()].map((entry) => entry.current))[0];
 }
 
 function handleKeyDown(event: KeyboardEvent): void {
@@ -84,11 +90,25 @@ function insideOwnTerritory(entry: Latest, target: Node): boolean {
   return toggle !== null && toggle !== undefined && toggle.contains(target);
 }
 
+/**
+ * An outside pointer walks the stack from the top, not just its first entry: a tooltip
+ * on top (which never claims outside clicks) must not swallow the click a menu below it
+ * needed to dismiss itself. Rules, top-down per surface:
+ *
+ *   - the target is inside its territory  -> stop; the click belongs to it
+ *   - it opted out of outside dismissal   -> skip it (a tooltip is not a shield)
+ *   - otherwise                           -> dismiss it and STOP: one gesture closes
+ *     one surface, so a click on a dialog's scrim closes the menu inside it first and
+ *     the dialog only on the next gesture.
+ */
 function handlePointerDown(event: Event): void {
-  const entry = topmost();
-  if (entry === undefined || !entry.outsidePointer) return;
-  if (insideOwnTerritory(entry, event.target as Node)) return;
-  entry.onDismiss();
+  const target = event.target as Node;
+  for (const entry of newestFirst([...entries.values()].map((e) => e.current))) {
+    if (insideOwnTerritory(entry, target)) return;
+    if (!entry.outsidePointer) continue;
+    entry.onDismiss();
+    return;
+  }
 }
 
 function sync(): void {
@@ -132,7 +152,7 @@ export function useDismiss({
   escape = true,
   outsidePointer = true,
 }: UseDismissOptions): void {
-  const state: Latest = { onDismiss, ref, ignore, ordinal: slot.ordinal, escape, outsidePointer };
+  const state: Latest = { onDismiss, ref, ignore, ordinal: slot.ordinal, kind: slot.kind, escape, outsidePointer };
   const latest = useRef<Latest>(state);
   latest.current = state;
 
