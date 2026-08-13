@@ -1,0 +1,72 @@
+name: package
+
+# ADR 203 / NFR-16: packaging is a CI STAGE, never a gate — `pnpm verify` proves
+# the committed shell configuration statically (shell:verify), and THIS workflow
+# is the only place installers are built. One green verify per commit feeds one
+# packaging run per OS; nothing here re-tests, nothing here deploys.
+#
+# Signing posture (docs/DELIVERY.md): this workflow holds NO signing secrets and
+# produces UNSIGNED artifacts on purpose — CSC_IDENTITY_AUTO_DISCOVERY is pinned
+# off so a certificate lying around a runner keychain can never sign a template
+# build by accident. Developer ID + notarization (macOS), Authenticode (Windows)
+# and repo signing (Linux) are release-channel concerns a real product wires in
+# with its own certificates — never template defaults.
+#
+# House rules in force:
+#   - GitHub context reaches run: scripts only through env: indirection — ${{ }}
+#     interpolated into a script is the classic Actions shell-injection vector.
+#   - No third-party actions; first-party actions/* follow verify.yml's pinning.
+on:
+  workflow_run:
+    workflows: [verify]
+    types: [completed]
+    branches: [main]
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    # workflow_run fires on every completion; only a green verify packages.
+    if: github.event_name == 'push' || github.event.workflow_run.conclusion == 'success'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      # Never auto-sign: unsigned template artifacts are the deliberate posture.
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # For workflow_run events GITHUB_SHA is main's tip at trigger time;
+          # package exactly the commit whose verify succeeded.
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - run: corepack enable
+      # The electron binary downloads here, in CI, where the network belongs —
+      # verify itself never needs it (shell:verify is static).
+      - run: pnpm install --frozen-lockfile
+      # `pnpm build` = typecheck + vite build + the shell build (esbuild → CJS
+      # main/preload under dist-electron/) — the same output verify measured.
+      - run: pnpm build
+      # electron-builder bundles per-OS: .dmg/.zip on macOS, NSIS .exe on
+      # Windows, .AppImage/.deb on Linux. --publish never belts the yml's
+      # `publish: null` suspenders: no feed, no upload, artifacts only.
+      - name: electron-builder (unsigned)
+        run: pnpm exec electron-builder --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.os }}
+          path: |
+            release/*.dmg
+            release/*.zip
+            release/*.exe
+            release/*.AppImage
+            release/*.deb
+          if-no-files-found: error

@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <RootNamespace>App</RootNamespace>
+    <AssemblyName>App</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="App.Tests" />
+  </ItemGroup>
+
+  <!-- @adr 007 - the runtime dependency surface (NFR-13). ASP.NET Core rides the
+       framework reference, not a package; the ONE declared runtime dependency is
+       the Postgres EF provider (it carries EF Core and Npgsql transitively - all
+       locked in packages.lock.json and audited by sec:scan). Design is dev-only
+       (PrivateAssets) and never ships. deps:budget holds this list to its
+       allowlist and ceiling. -->
+  <ItemGroup>
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.4" PrivateAssets="all" />
+  </ItemGroup>
+
+</Project>

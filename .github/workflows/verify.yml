@@ -100,6 +100,16 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           global-json-file: templates/${{ matrix.template.id }}/global.json
+      - name: set up Rust and the GTK shell libraries
+        # shell:verify's tool half (`cargo check --locked`) is mandatory in CI, and
+        # tauri's linux build needs webkit2gtk. Keyed on the tree — a template with
+        # no src-tauri asks for none of this.
+        if: hashFiles(format('templates/{0}/src-tauri/Cargo.toml', matrix.template.id)) != ''
+        run: |
+          rustup toolchain install 1.97.1 --profile minimal --no-self-update
+          rustup default 1.97.1
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
       - name: install the deploy toolchain
         # deploy:verify hard-fails in CI when its tools are absent (NFR-16), so every
         # template that SHIPS the gate needs them — the condition reads the tree, not a

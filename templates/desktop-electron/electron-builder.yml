@@ -1,0 +1,25 @@
+# @adr 203 - packaging is a CI stage, never a gate (NFR-16)
+# shell:verify parses this file on every verify: asar must stay on, publish must
+# stay disabled (the auto-update posture — docs/DELIVERY.md), and the electron /
+# electron-builder devDependencies driving it must be pinned exact (NFR-11).
+appId: com.proto-forge.prototype
+productName: proto-forge-desktop
+directories:
+  output: release
+files:
+  - dist/**
+  - dist-electron/**
+  - package.json
+asar: true
+# No update feed: `publish: null` + `--publish never` in every packaging path.
+# Enabling electron-updater is a reviewed sequence (feed, signing, ADR) — see
+# docs/DELIVERY.md; shell:verify refuses any in-between state.
+publish: null
+mac:
+  target: [dmg, zip]
+  category: public.app-category.developer-tools
+win:
+  target: [nsis]
+linux:
+  target: [AppImage, deb]
+  category: Utility

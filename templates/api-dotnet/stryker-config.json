@@ -1,0 +1,17 @@
+{
+  "stryker-config": {
+    "project": "App.csproj",
+    "test-projects": ["tests/App.Tests/App.Tests.csproj"],
+    "test-case-filter": "Category!=native&Category!=capture",
+    "mutate": [
+      "**/Domain/**/*.cs",
+      "**/Application/**/*.cs"
+    ],
+    "thresholds": {
+      "high": 95,
+      "low": 90,
+      "break": 85
+    },
+    "reporters": ["json", "progress"]
+  }
+}

@@ -26,6 +26,7 @@ Map normalized brief facets to fixed actions. Exhaustive for the supported surfa
 | T20 | Always (backend Phase 3)    | Generate `contract/openapi.json` from code, normalize, commit + lock (BR-22). Every operation carries a stable deterministic `operationId` (BR-25); every error a registered problem type (BR-23). | ADR 008 (pre-written) |
 | T21 | backend: authModel ≠ none   | AuthN skeleton per model (apiKey header / jwt resource-server / oidc) + authz on every route + authz tests. | ADR 040-049 |
 | T22 | Brief names an off-table value (2nd persistence engine, unnamed or 2nd stack, a style contradicting T15-T17…) | Escalation rule, unchanged — never a silent override. | — |
+| T24 | Brief asks for a desktop/standalone application | Target = `desktop-<shell>` per `references/templates.json`. The brief names the shell or it escalates with the conservative default **Tauri** (deny-by-default capabilities, small binaries) recorded in the ADR. The UI half is the web template's, unchanged; delivery is packaging-as-CI-stage, never a promotion chain (§24). | ADR 203 (pre-written) |
 | T23 | ≥2 parts in the workspace | Generate the e2e part from `templates/e2e/`: flow cases derived from the flows facets into `src/flows/cases.ts` (each case object opens with its `id` field — `registry:verify` parses on that), implementations keyed by quoted case id; contract cases per operation of the consumed contract. The against-the-pair run belongs to the workspace CI (BR-35). | — |
 
 ## Escalation rule (guard against improvisation, BRS §11.1)

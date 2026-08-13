@@ -1,0 +1,53 @@
+# Local single-host run of the SAME image the chain deploys — compose is the
+# simple mode (deployment.flavor "compose", dev at most), never the multi-env
+# path. The runtime constraints mirror the chart on purpose: read-only root
+# filesystem with a tmpfs over /tmp (the JVM's tmpdir), so "works in compose,
+# crashes on the cluster" cannot hide here. Secrets travel by name: the database
+# password is a host env var reference with a local-only default, never a
+# committed value (BR-29).
+services:
+  app:
+    build:
+      context: ../..
+      args:
+        # Pass the real sha for an honest /version: GIT_SHA=$(git rev-parse HEAD)
+        GIT_SHA: ${GIT_SHA:-unknown}
+    image: proto-forge-service:dev
+    ports:
+      - "8080:8080"
+    environment:
+      DATABASE_URL: jdbc:postgresql://db:5432/app?user=app&password=${POSTGRES_PASSWORD:-app}
+    depends_on:
+      db:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp
+    healthcheck:
+      # Same probe target as the chart's readiness probe; the runtime image
+      # carries no curl/wget, so the probe speaks HTTP over bash's /dev/tcp.
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /healthz HTTP/1.0\\r\\n\\r\\n' >&3 && grep -q '200' <&3"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+  db:
+    # The engine the service actually speaks to in every environment (BR-12: no
+    # in-memory stand-in past verify) — digest-pinned like every other base.
+    image: postgres:16-alpine@sha256:57c72fd2a128e416c7fcc499958864df5301e940bca0a56f58fddf30ffc07777
+    environment:
+      POSTGRES_DB: app
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-app}
+    ports:
+      - "5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d app"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+volumes:
+  db-data:

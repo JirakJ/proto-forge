@@ -269,6 +269,7 @@ prop.
 - **Why:** Without stable addressing, tests reach for text content, which changes with
   every locale; and a duplicated testid makes `getByTestId` silently return the first of
   ten rows forever. Neither failure announces itself.
+- **Scope:** frontend, desktop
 - **Enforced by:** `lint` (`local/require-testid`, `local/unique-testid`), `testid:scan`,
   an assertion after every component test in `src/test/setup.ts`, and a rendered-DOM
   sweep in `test:e2e`
@@ -305,7 +306,7 @@ resolving `Prompt-Log:` trailer.
   a commit accepting two decisions makes the gates that guarded it ambiguous. The
   message can promise anything; the staged diff is what the commit actually does, and
   the two must agree.
-- **Scope:** frontend, backend
+- **Scope:** frontend, backend, desktop
 - **Enforced by:** `commit-lint` via the `commit-msg` hook — both halves: the message
   (subject, exactly one `ADR:` trailer, a resolving `Prompt-Log:`) and the staged diff
   (exactly one `- Status: accepted` transition, in the ADR the trailer names). Outside
@@ -324,7 +325,7 @@ catalogues are exempt, and `pseudo` is deliberately decorated.
 
 - **Why:** A mixed-language codebase costs every later reader, and a non-English literal
   in code is almost always a string that should have been a catalogue key (BR-08).
-- **Scope:** frontend, backend
+- **Scope:** frontend, backend, desktop
 - **Enforced by:** `consistency`
 - **Proven by:** `gates:selftest` → "consistency: a non-English script in code fails"
 - **Decided in:** ADR 004
@@ -342,6 +343,7 @@ holds no copy of its own and takes every string as a prop. There is no
 - **Why:** The strings that used to ship untranslated were never JSX text — they were
   props (`<Dialog title="Delete note">`, `notify("Saved")`, `{ header: "Name" }`) and
   library-internal `aria-label`s, and every gate stayed green.
+- **Scope:** frontend, desktop
 - **Enforced by:** `lint` (`i18next/no-literal-string`, `local/no-user-facing-literal`),
   `i18n:verify`, and `stub:scan`, which bans an inline `eslint-disable` of any gated
   rule in production code — the comment is a shortcut marker exactly like `TODO`
@@ -366,6 +368,7 @@ itself checked for stale entries. Catalogue keys no code uses fail. A computed k
 - **Why:** Adding `cs.json` full of English values, or of empty strings, is what an
   untranslated locale looks like from the outside, and both used to pass. Czech needs
   `few` and `many` where English needs neither, so key parity alone is not completeness.
+- **Scope:** frontend, desktop
 - **Enforced by:** `i18n:verify`
 - **Proven by:** `gates:selftest` → "i18n: a fully translated locale passes", "i18n: an
   untranslated value copied from English fails", "i18n: an empty value fails", "i18n: a
@@ -388,7 +391,7 @@ intrinsics. Code clones over 30 tokens fail, except among library primitives.
 - **Why:** A primitive re-implemented in a feature carries none of the library's
   accessibility work and none of its tests, and the divergence is invisible until a
   screen reader meets it.
-- **Scope:** frontend, backend
+- **Scope:** frontend, backend, desktop
 - **Enforced by:** `dup:scan`, which runs jscpd for clones and component-dup-scan for
   re-implemented primitives
 - **Proven by:** `gates:selftest` → "dup: a feature composing proto-ui primitives
@@ -404,6 +407,7 @@ both pull, the resolution is recorded as a decision rather than left to preferen
 
 - **Why:** Writing a focus trap by hand reproduces known bugs; hard-depending on a
   headless UI library contradicts the owned-library claim and NFR-02.
+- **Scope:** frontend, desktop
 - **Enforced by:** ADR review; the shared component test suite, which must pass against
   whatever implementation the current decision selects
 - **Proven by:** the primitive test suites under `packages/proto-ui/src/**`, which are
@@ -422,7 +426,7 @@ first-party path (`@/`, `@jj/`, relative).
 - **Why:** A prototype whose persistence is faked has not demonstrated the thing a
   prototype exists to demonstrate. And a test that mocks its own module under test
   asserts the mock.
-- **Scope:** frontend, backend, e2e
+- **Scope:** frontend, backend, desktop, e2e
 - **Enforced by:** `stub:scan`; `consistency` (frontend, backend) for the dead-weight
   corollary — a runtime *dependencies* entry nothing in `src/` or `packages/` imports
   fails (devDependencies are wired through configs and CLIs, where "is it used?" has
@@ -489,7 +493,7 @@ supersede link.
 
 - **Why:** A second definition of the default locale, the token set or the route table
   does not announce itself; it produces two behaviours that agree until they do not.
-- **Scope:** frontend, backend
+- **Scope:** frontend, backend, desktop
 - **Enforced by:** `consistency`
 - **Proven by:** `gates:selftest` → "consistency: one definition per single-source
   registry passes", "consistency: design tokens defined twice fails" (web), "consistency: two
@@ -524,6 +528,7 @@ layer base; fixed surfaces in the library live under `overlay/`; the scale stays
   ignored. Rules 4-9 apply that lesson to the composition itself: a primitive that quietly
   grows its own keydown listener reintroduces "Escape closes everything", and without a
   rule nothing would notice.
+- **Scope:** frontend, desktop
 - **Enforced by:** `layer:scan`
 - **Proven by:** `gates:selftest` → "layer: a portalled overlay on a layer token
   passes", "layer: a hardcoded z-index fails", "layer: an out-of-flow element without a
@@ -588,7 +593,7 @@ to the local documents it concerns.
   which revision did we last see, and which of our files does this touch. A record that
   cannot answer the third (`affectedFiles: []`) asserts the object concerns nothing
   here, which is worse than no record: the drift report it feeds would name no work.
-- **Scope:** frontend, backend
+- **Scope:** frontend, backend, desktop
 - **Enforced by:** `external:verify`
 - **Proven by:** `gates:selftest` → "external: a complete record passes", "external: a
   record with no url fails", "external: a url on the wrong host fails when the
@@ -611,6 +616,7 @@ image was taken from, so **a screenshot of older code fails** rather than flatte
   not three. Where documentation is a follow-up it does not happen, and where a
   screenshot is not tied to the code it depicts it stays green forever while quietly
   becoming fiction — which is worse than no picture, because a reader trusts it.
+- **Scope:** frontend, desktop
 - **Enforced by:** `docs:verify` for pages and screenshot freshness, and `overlay:matrix`
   for the whole row: every exported component must be classified (surface | visual |
   structural — the default is not "exempt"), exercised by a unit test, present in the
@@ -646,7 +652,7 @@ unattended. `autoPropagate` stands in for `--approve` and for nothing else.
   review; a typed flag is a decision for one run; a default is neither. And one flag
   must not open two doors — if `autoPropagate` also implied `dryRun: false`, a reviewer
   reading the diff would not see the dry-run door swing open.
-- **Scope:** frontend, backend
+- **Scope:** frontend, backend, desktop
 - **Enforced by:** `sync:jira` / `sync:confluence` through `assertMayCommit`
   (`templates/web/scripts/outbox.mjs`, ordered cheapest-first with the credential check
   after the approval check), `sync:auto` for the unattended path
@@ -909,6 +915,40 @@ job (§23), tool-gated locally.
   a shape the contract forbids"
 - **Decided in:** ADR 001 (prototype namespace)
 
+### BR-37 — The desktop shell's security posture is configuration under a gate
+
+**MUST.** A desktop app's shell is the boundary between web code and the machine,
+and its posture is stated in configuration the build reads — so it is checked
+mechanically, not remembered. **Electron**: `contextIsolation`, `sandbox`,
+`nodeIntegration: false`, `webSecurity` and the navigation lock carry their safe
+values literally (a dynamically computed value fails — a flag whose value cannot
+be read is a flag nobody reviewed), the strict CSP is injected on every response,
+the preload exposes exclusively through `contextBridge`, and the packager's
+publish feed is off unless a decision turned it on. **Tauri**: the capability
+allowlist is minimal and explicit — every permission beyond the core defaults is
+a gate edit plus an ADR — the CSP is present, the updater is disabled or its
+endpoints and public key are pinned, and the Rust lockfile is committed with the
+shell dependency exact-pinned. Both: an unmaintained-crate advisory the toolchain
+forces on us lives in a dated ignore ledger under the `.trivyignore` discipline
+(a reason and an expiry, or the gate fails), never in silence.
+
+- **Why:** Every one of these is a default that ships *wrong* in an example
+  somewhere on the internet, invisible in review, and fatal in effect: a preload
+  that leaks `require`, a window that follows any link, an updater pointing at
+  a stranger. Configuration that a gate reads is the only kind that stays true
+  after the third person edits it.
+- **Scope:** desktop
+- **Enforced by:** `shell:verify`
+- **Proven by:** `gates:selftest` → "shell: the shipped shell configuration
+  passes", "shell: a missing CSP fails", "shell: an unpinned shell dependency
+  fails", "shell: a widened permission fails" (desktop-tauri), "shell: an undated
+  rustsec ignore fails" (desktop-tauri), "shell: an expired rustsec ignore fails"
+  (desktop-tauri), "shell: a disabled isolation flag fails" (desktop-electron),
+  "shell: a dynamic isolation value fails" (desktop-electron), "shell: a bare
+  window assignment in the preload fails" (desktop-electron), "shell: an enabled
+  publish feed fails" (desktop-electron)
+- **Decided in:** ADR 203 (prototype namespace)
+
 ### BR-27 — An environment exists only by declaration
 
 **MUST.** `environments{}` in the committed config is the single source of which
@@ -1009,6 +1049,7 @@ library has zero runtime dependencies of its own.
 
 - **Why:** A prototype that pulls a full design-system runtime cannot demonstrate its own
   performance budget, and the budget is what makes the claim checkable.
+- **Scope:** frontend, desktop
 - **Enforced by:** `budget` (300 kB JS / 60 kB CSS / 250 kB per chunk, gzipped)
 - **Proven by:** `gates:selftest` → "budget: a small production bundle passes", "budget:
   JS over the gzipped ceiling fails", "budget: no dist fails rather than reporting zero",
@@ -1025,7 +1066,7 @@ application.
 
 - **Why:** A domain that imports its persistence cannot be tested without it, and the
   dependency direction is the only thing keeping the layers meaningful.
-- **Scope:** frontend, backend, e2e
+- **Scope:** frontend, backend, desktop, e2e
 - **Enforced by:** `lint` (`boundaries/element-types`)
 - **Proven by:** `lint` running over the template's own tree, which contains one module
   per layer
@@ -1038,7 +1079,7 @@ lockfile is committed; CI installs with `--frozen-lockfile`.
 
 - **Why:** A prototype that builds differently on two machines has not demonstrated it
   builds.
-- **Scope:** frontend, backend
+- **Scope:** frontend, backend, desktop
 - **Enforced by:** `sec:scan` (audit against the committed lockfile), CI's
   `--frozen-lockfile` install, `template:integrity` at the plugin level
 - **Proven by:** `gates:selftest` → "security: the secret scan cannot be skipped in CI"
@@ -1259,7 +1300,7 @@ platform call.
   layering in one file, and each of those was untestable without the other three. The
   reason the two-modal and menu-in-modal defects went unnoticed for so long is that no
   test could address the pieces separately.
-- **Scope:** frontend, backend, e2e
+- **Scope:** frontend, backend, desktop, e2e
 - **Enforced by:** `lint` (the SRP ceilings: max-lines 200, max-lines-per-function 60,
   complexity 8, max-depth 3, max-params 3 — every template), and `layer:scan` (web) for
   the overlay composition: one dismiss owner, one reader of the fallback scale, one
@@ -1279,6 +1320,7 @@ case and documentation, and it does not change the behaviour of any other kind.
 - **Why:** A per-kind stacking scale is the anti-pattern this replaces: adding a fifth
   surface meant re-deciding where the other four paint, and every such decision was a
   chance to invert two of them.
+- **Scope:** frontend, desktop
 - **Enforced by:** `dup:scan`, `docs:verify`
 - **Proven by:** `gates:selftest` → "dup: a feature composing proto-ui primitives passes" (web),
   "docs: a component with no page fails"
@@ -1294,6 +1336,7 @@ code depends on the library's public surface, never on a file inside it.
 - **Why:** A module singleton is a global with a nicer name: two trees in one document
   would fight over it, and no test could isolate either. The same argument applies one
   layer down, which is why persistence sits behind a port.
+- **Scope:** frontend, desktop
 - **Enforced by:** `lint` (`boundaries/element-types`), `typecheck`, `consistency`
 - **Proven by:** `lint` and `typecheck` running over the template's own tree, which
   contains one module per layer, plus the overlay suite's *keeps two provider trees
@@ -1311,6 +1354,7 @@ not the library's internals.
   so — it promised hundreds of members to read three. The narrow type is not only more
   honest, it is what lets a test pass an object literal instead of casting away the type
   system, and a cast is where a test starts asserting its own fiction.
+- **Scope:** frontend, desktop
 - **Enforced by:** `typecheck`, `lint`
 - **Proven by:** `typecheck` over the template's own tree, plus the overlay suite's
   *survives a view missing each constructor entirely*
@@ -1326,6 +1370,7 @@ per component.
 - **Why:** Where two implementations of "the same" component differed on the property that
   mattered most — one portalled and one did not — the claim "the same tests pass under
   both" was false exactly where it was load-bearing.
+- **Scope:** frontend, desktop
 - **Enforced by:** `typecheck`, `dup:scan`
 - **Proven by:** the primitive suites under `packages/proto-ui/src/**`, which drive each
   surface through the same contract
@@ -1599,6 +1644,27 @@ facet normalization and reserves Phase 4's testids, but the facet hash and BR-14
 are untouched: the brief wins every conflict, a conflict the brief does not settle
 escalates, and discovery provenance lives in the prompt log
 (`.prompts/0003-discovery.md`), never in the identity.
+
+## §24 Desktop applications
+
+`Scope: desktop` for this section.
+
+A desktop target is the web template's UI half inside a shell: the owned
+component library, the i18n, testid, layering, overlay, harness, documentation,
+coverage and mutation disciplines all apply unchanged, because the product is the
+same product — only its delivery differs. What replaces the promotion chain
+(§20 does not bind a desktop app: there is no environment to promote through) is
+**packaging as a CI stage**: `tauri build` / `electron-builder` run per operating
+system in the pipeline, never inside verify, which stays offline (NFR-16). Signing
+and notarization are stated requirements per OS in the template's DELIVERY.md,
+never secrets in a workflow.
+
+The shell itself is configuration under a gate (BR-37). Two shells ship: Tauri
+(the conservative default when a brief asks for a desktop app without naming one
+— its capability model is deny-by-default) and Electron. A stated limit, recorded
+rather than papered over: the end-to-end suite runs against the built web assets
+in a browser, not against the packaged application — the packaged smoke belongs
+to the packaging stage, and each template's ADR 203 says so in those words.
 
 ## §23 Workspace composition
 

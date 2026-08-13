@@ -124,6 +124,30 @@
       ]
     },
     {
+      "id": "desktop-tauri",
+      "dir": "templates/desktop-tauri",
+      "kind": "desktop",
+      "stack": "ts",
+      "notAGate": [
+        "dev", "build", "preview", "verify", "prepare",
+        "i18n:extract", "docs:shots", "config:show", "snapshot", "seed:lock", "sbom",
+        "sync:jira", "sync:confluence", "sync:pull", "sync:status", "sync:auto",
+        "test:e2e", "doctor", "heal", "package:app", "icons:gen"
+      ]
+    },
+    {
+      "id": "desktop-electron",
+      "dir": "templates/desktop-electron",
+      "kind": "desktop",
+      "stack": "ts",
+      "notAGate": [
+        "dev", "build", "preview", "verify", "prepare",
+        "i18n:extract", "docs:shots", "config:show", "snapshot", "seed:lock", "sbom",
+        "sync:jira", "sync:confluence", "sync:pull", "sync:status", "sync:auto",
+        "test:e2e", "doctor", "heal", "package:app", "build:shell"
+      ]
+    },
+    {
       "id": "workspace",
       "dir": "templates/workspace",
       "kind": "workspace",

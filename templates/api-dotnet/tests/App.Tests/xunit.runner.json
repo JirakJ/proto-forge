@@ -1,0 +1,5 @@
+{
+  "$schema": "https://xunit.net/schema/current/xunit.runner.schema.json",
+  "_comment": "Determinism over speed: the fixture Factory keeps one process-wide sequence so captured values are reproducible, and parallel collections would race it. The suite runs in milliseconds either way.",
+  "parallelizeTestCollections": false
+}

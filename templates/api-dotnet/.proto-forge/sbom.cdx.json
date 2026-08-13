@@ -1,0 +1,86 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.5",
+  "version": 1,
+  "metadata": {
+    "component": {
+      "type": "application",
+      "name": "proto-forge-service",
+      "version": "0.1.0"
+    }
+  },
+  "components": [
+    {
+      "type": "library",
+      "name": "Microsoft.EntityFrameworkCore.Abstractions",
+      "version": "10.0.4",
+      "purl": "pkg:nuget/Microsoft.EntityFrameworkCore.Abstractions@10.0.4",
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "a83709a827cdd576325f4203fc777dfe441346f9626bc4be62ec3297db8584120a9ce09b97d58c746402cdb65429b92991fbdfdcff420dd5ec9f11f21373b403"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "Microsoft.EntityFrameworkCore.Analyzers",
+      "version": "10.0.4",
+      "purl": "pkg:nuget/Microsoft.EntityFrameworkCore.Analyzers@10.0.4",
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "a5078c1c2c83df24ed0841a71d5e15b20294beb112a37311e669e1f2c810d61598988d5816c52eb43a30048c64a1b79646d691981a9002d17b5d0156e855ae34"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "Microsoft.EntityFrameworkCore.Relational",
+      "version": "10.0.4",
+      "purl": "pkg:nuget/Microsoft.EntityFrameworkCore.Relational@10.0.4",
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "0ce4e34c7cbddd6dd3c2930b3384829b49f9ed2734263dfe9b64ba2d24ecb4ac81077e1e4f5528b9a312d7d9a95b0bed8f8dbeb118848c0dfeace4cda0dcd715"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "Microsoft.EntityFrameworkCore",
+      "version": "10.0.4",
+      "purl": "pkg:nuget/Microsoft.EntityFrameworkCore@10.0.4",
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "9334ec7c52b6182cada7a0c34df40e9b13d4e206c676b2253fb3f1af117711234bb5f5eb0bc06851564434137658e46564f003ec2557e80608825824a57428a0"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "Npgsql.EntityFrameworkCore.PostgreSQL",
+      "version": "10.0.3",
+      "purl": "pkg:nuget/Npgsql.EntityFrameworkCore.PostgreSQL@10.0.3",
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "20f1abad99d192e5bb3a51c3854112673e06e432e45bb35e8ff3b70b1fb4893b20c94e57271060a6cbd31cb968a37596b8028a6c31d706f58f5645f575e461d5"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "Npgsql",
+      "version": "10.0.3",
+      "purl": "pkg:nuget/Npgsql@10.0.3",
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "ee76f96335eebd6589c41d09f038b22f7c1ef97e0539cb59aedd1f2019ee70e21a21ebc5104c0641564ab62bbda255dd94d00ad5e360a92ada97aaff8e5848e3"
+        }
+      ]
+    }
+  ]
+}

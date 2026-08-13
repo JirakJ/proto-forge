@@ -1,0 +1,86 @@
+import { useState, type FormEvent } from "react";
+import { useTranslation } from "react-i18next";
+import { Button, Field, tokens } from "@jj/proto-ui";
+import { useNotes } from "../hooks/useNotes";
+import type { Note } from "@/domain/note/model";
+
+// @adr 030 - notes example feature
+// ponytail: demo feature — the self-verifying reference slice. Removed on real
+// generation; real features replace it (same per-feature DoD).
+
+// The list, split out so NotesFeature's lines are the feature's behaviour (NFR-20).
+function NotesList({ notes, onRemove }: { notes: Note[]; onRemove: (id: string) => void }) {
+  const { t } = useTranslation();
+  return (
+    <ul data-testid="notes-list" style={{ listStyle: "none", padding: 0, marginBlockStart: tokens.space.md }}>
+      {notes.map((note) => (
+        <li
+          key={note.id}
+          data-testid={`note-item-${note.id}`}
+          style={{ display: "flex", justifyContent: "space-between", gap: tokens.space.md, marginBlockEnd: tokens.space.sm }}
+        >
+          <span data-testid={`note-text-${note.id}`}>{note.text}</span>
+          <Button
+            variant="danger"
+            data-testid={`note-delete-${note.id}`}
+            aria-label={t("example.item.delete")}
+            onClick={() => onRemove(note.id)}
+          >
+            {t("example.item.delete")}
+          </Button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+export function NotesFeature() {
+  const { t } = useTranslation();
+  const { notes, add, remove } = useNotes();
+  const [text, setText] = useState("");
+  const [error, setError] = useState("");
+
+  const onSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    const trimmed = text.trim();
+    if (trimmed === "") {
+      setError(t("example.error.required"));
+      return;
+    }
+    setError("");
+    await add(trimmed);
+    setText("");
+  };
+
+  return (
+    <section data-testid="notes" aria-labelledby="notes-heading">
+      <h2 id="notes-heading" data-testid="notes-heading" style={{ fontSize: tokens.font.sizeLg }}>
+        {t("example.heading")}
+      </h2>
+      <form
+        data-testid="notes-form"
+        onSubmit={onSubmit}
+        style={{ display: "flex", gap: tokens.space.sm, alignItems: "flex-end" }}
+      >
+        <Field
+          label={t("example.field.label")}
+          placeholder={t("example.field.placeholder")}
+          value={text}
+          error={error}
+          data-testid="note-input"
+          onChange={(e) => setText(e.target.value)}
+        />
+        <Button type="submit" data-testid="note-add">
+          {t("example.add")}
+        </Button>
+      </form>
+      {notes.length === 0 ? (
+        <p data-testid="notes-empty" style={{ color: tokens.color.muted }}>
+          {t("example.empty")}
+        </p>
+      ) : (
+        <NotesList notes={notes} onRemove={(id) => void remove(id)} />
+      )}
+    </section>
+  );
+}

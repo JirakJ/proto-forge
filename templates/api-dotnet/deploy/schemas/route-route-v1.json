@@ -1,0 +1,60 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Route (route.openshift.io/v1) — HAND-WRITTEN minimal structural schema, unlike the sibling files, which are vendored from kubernetes-json-schema (v1.30.0-standalone-strict). OpenShift ships Route as a CRD, so no upstream standalone schema exists; the cluster's CRD is the authority and this file validates only the fields deploy/chart/templates/route.yaml emits, strictly.",
+  "type": "object",
+  "required": ["apiVersion", "kind", "metadata", "spec"],
+  "properties": {
+    "apiVersion": { "type": "string", "enum": ["route.openshift.io/v1"] },
+    "kind": { "type": "string", "enum": ["Route"] },
+    "metadata": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string" },
+        "namespace": { "type": "string" },
+        "labels": { "type": "object", "additionalProperties": { "type": "string" } },
+        "annotations": { "type": "object", "additionalProperties": { "type": "string" } }
+      },
+      "additionalProperties": false
+    },
+    "spec": {
+      "type": "object",
+      "required": ["to"],
+      "properties": {
+        "host": { "type": "string" },
+        "path": { "type": "string" },
+        "to": {
+          "type": "object",
+          "required": ["kind", "name"],
+          "properties": {
+            "kind": { "type": "string", "enum": ["Service"] },
+            "name": { "type": "string" },
+            "weight": { "type": "integer" }
+          },
+          "additionalProperties": false
+        },
+        "port": {
+          "type": "object",
+          "required": ["targetPort"],
+          "properties": { "targetPort": { "type": ["string", "integer"] } },
+          "additionalProperties": false
+        },
+        "tls": {
+          "type": "object",
+          "required": ["termination"],
+          "properties": {
+            "termination": { "type": "string", "enum": ["edge", "passthrough", "reencrypt"] },
+            "insecureEdgeTerminationPolicy": { "type": "string", "enum": ["None", "Allow", "Redirect"] },
+            "certificate": { "type": "string" },
+            "key": { "type": "string" },
+            "caCertificate": { "type": "string" }
+          },
+          "additionalProperties": false
+        },
+        "wildcardPolicy": { "type": "string", "enum": ["None", "Subdomain"] }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,14 @@
+{
+  "source": "c260f8d343c1770be1ef4374aa10bc393c277769e12fdb1e10458524c2121ea7",
+  "shots": [
+    {
+      "file": "open.png",
+      "note": "Describes the control it wraps, never takes focus, and never intercepts the pointer."
+    },
+    {
+      "file": "over-toast.png",
+      "note": "Raised after the toast, so it paints above it: order is what the user did, not what the kinds are."
+    }
+  ],
+  "capturedBy": "docs:shots"
+}

@@ -1,0 +1,22 @@
+# NFR-11: every shell dependency is pinned EXACT (=X.Y.Z) and Cargo.lock is
+# committed — shell:verify fails a floating version, and `cargo check --locked`
+# fails a lockfile that drifted from this manifest.
+[package]
+name = "proto-forge-desktop"
+version = "0.1.0"
+description = "proto-forge desktop shell (Tauri) — a thin, permissionless window over the web prototype"
+edition = "2021"
+license = "UNLICENSED"
+publish = false
+
+[lib]
+name = "proto_forge_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "=2.6.3", features = [] }
+
+[dependencies]
+tauri = { version = "=2.11.5", features = [] }
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = "=1.0.151"

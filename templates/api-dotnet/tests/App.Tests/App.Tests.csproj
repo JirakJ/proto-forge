@@ -1,0 +1,54 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>App.Tests</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <RunSettingsFilePath>$(MSBuildProjectDirectory)/test.runsettings</RunSettingsFilePath>
+  </PropertyGroup>
+
+  <!-- @adr 003 - the coverage contract (BRS §3.1). The behavioural core - the
+       App.Domain and App.Application namespaces - runs at 100 on lines, branches
+       and methods, enforced by coverlet's Threshold when test:unit activates
+       CollectCoverage. The floors are part of the contract: coverage-policy.mjs
+       re-reads this block on every verify and a guard hook blocks edits, so an
+       unreachable line is a design problem, not a threshold problem. -->
+  <PropertyGroup>
+    <Include>[App]App.Domain.*,[App]App.Application.*</Include>
+    <Threshold>100</Threshold>
+    <ThresholdType>line,branch,method</ThresholdType>
+    <ThresholdStat>total</ThresholdStat>
+    <CoverletOutputFormat>cobertura</CoverletOutputFormat>
+    <CoverletOutput>../../build/reports/coverage/</CoverletOutput>
+    <ExcludeByAttribute>CompilerGeneratedAttribute</ExcludeByAttribute>
+  </PropertyGroup>
+
+  <!-- Report-only exclusions. Every entry needs its reason on the line above and
+       its row in coverage-policy.mjs's allow-list - the list is a record, and a
+       record states why. The template ships none: the Include scope above already
+       confines the floors to the behavioural core. -->
+  <ItemGroup Label="coverage-exclusions">
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.msbuild" Version="10.0.1" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.11" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.8.1" />
+    <PackageReference Include="Testcontainers.PostgreSql" Version="4.13.0" />
+    <!-- Transitive-vulnerability override: Testcontainers carries SSH.NET
+         2025.1.0 (GHSA-q939-rpr3-3284, high). Pinning the patched release
+         directly keeps the audit clean without suppressing NU1903. -->
+    <PackageReference Include="SSH.NET" Version="2026.0.0" />
+    <PackageReference Include="TngTech.ArchUnitNET.xUnit" Version="0.13.3" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/App/App.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

@@ -212,7 +212,7 @@ const SCRIPT_SHAPED = /^[a-z][a-z0-9]*(:[a-z][a-z0-9-]*)*$/;
 /** Scope tokens (all | frontend | backend | <template id>) resolved to ids.
  *  Returns null when any token is unrecognized — the caller decides whether that
  *  is an error (a Scope bullet) or prose (a parenthetical after an enforcer). */
-const TEMPLATE_KINDS = ["frontend", "backend", "e2e", "workspace"];
+const TEMPLATE_KINDS = ["frontend", "backend", "desktop", "e2e", "workspace"];
 
 function resolveScopeTokens(tokens) {
   const ids = new Set();

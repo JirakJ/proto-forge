@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Determinism pins (NFR-18): every test host runs under UTC regardless of the
+     machine's timezone. TimezonePinTest asserts this held, so a dropped pin
+     fails loudly instead of surfacing as a flaky date assertion elsewhere. -->
+<RunSettings>
+  <RunConfiguration>
+    <EnvironmentVariables>
+      <TZ>UTC</TZ>
+    </EnvironmentVariables>
+  </RunConfiguration>
+</RunSettings>
