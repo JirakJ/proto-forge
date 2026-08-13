@@ -1,0 +1,36 @@
+{
+  "fileTree": [
+    "docs/adr/001-workspace-composition.md",
+    "scripts/adr-lint.mjs",
+    "scripts/config-cli.mjs",
+    "scripts/config.mjs",
+    "scripts/gates-selftest.mjs",
+    "scripts/hooks/guard-write.mjs",
+    "scripts/hooks/hook-lib.mjs",
+    "scripts/lib.mjs",
+    "scripts/prompt-log-lint.mjs",
+    "scripts/snapshot-diff.mjs",
+    "scripts/ws-bootstrap.mjs",
+    "scripts/ws-status.mjs",
+    "scripts/ws-up.mjs",
+    "scripts/ws-verify.mjs",
+    "workspace.json"
+  ],
+  "adrSet": [
+    {
+      "id": 1,
+      "title": "Separate part repositories composed by one small workspace repo",
+      "status": "accepted"
+    }
+  ],
+  "gates": [
+    "config:check",
+    "gates:selftest",
+    "ws:verify",
+    "adr:lint",
+    "prompt:lint",
+    "snapshot:diff"
+  ],
+  "conformance": "strict",
+  "templateVersion": "0.1.0"
+}

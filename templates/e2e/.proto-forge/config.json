@@ -1,0 +1,7 @@
+{
+  "$schema": "./config.schema.json",
+  "policy": "strict",
+  "gates": {},
+  "guardrails": {},
+  "waivers": []
+}

@@ -1,0 +1,11 @@
+{
+  "pairedBrief": "982d1119fb174b7c1b63105a70628fbec33a944ed8e9b06a23fda674560d7955",
+  "parts": [
+    { "id": "api", "template": "api-node", "dir": "api", "role": "backend" },
+    { "id": "web", "template": "web", "dir": "web", "role": "frontend" },
+    { "id": "e2e", "template": "e2e", "dir": "e2e", "role": "e2e" }
+  ],
+  "contract": {
+    "source": "api/contract/openapi.json"
+  }
+}

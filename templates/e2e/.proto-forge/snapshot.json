@@ -1,0 +1,47 @@
+{
+  "fileTree": [
+    "docs/adr/001-cross-app-layer.md",
+    "e2e/contract.spec.ts",
+    "e2e/flows.spec.ts",
+    "e2e/support/services.ts",
+    "scripts/adr-lint.mjs",
+    "scripts/commit-lint.mjs",
+    "scripts/config-cli.mjs",
+    "scripts/config.mjs",
+    "scripts/gates-selftest.mjs",
+    "scripts/hooks/guard-bash.mjs",
+    "scripts/hooks/guard-write.mjs",
+    "scripts/hooks/hook-lib.mjs",
+    "scripts/lib.mjs",
+    "scripts/prompt-log-lint.mjs",
+    "scripts/registry-verify.mjs",
+    "scripts/snapshot-diff.mjs",
+    "scripts/stub-scan.mjs",
+    "scripts/validate-lib.d.mts",
+    "scripts/validate-lib.mjs",
+    "src/contract/cases.ts",
+    "src/contract/validate.ts",
+    "src/flows/cases.ts",
+    "src/flows/notes.flow.ts"
+  ],
+  "adrSet": [
+    {
+      "id": 1,
+      "title": "Two suites for the cross-app layer — real-pair flows plus consumer-driven contract replay",
+      "status": "accepted"
+    }
+  ],
+  "gates": [
+    "config:check",
+    "gates:selftest",
+    "lint",
+    "typecheck",
+    "registry:verify",
+    "stub:scan",
+    "adr:lint",
+    "prompt:lint",
+    "snapshot:diff"
+  ],
+  "conformance": "strict",
+  "templateVersion": "0.1.0"
+}

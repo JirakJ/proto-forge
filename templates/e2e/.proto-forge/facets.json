@@ -1,0 +1,21 @@
+{
+  "facetsVersion": 2,
+  "entities": [
+    {
+      "name": "Note",
+      "fields": [{ "name": "text", "type": "string", "required": true }]
+    }
+  ],
+  "flows": [
+    {
+      "name": "manage-notes",
+      "actor": "user",
+      "steps": ["list notes", "create a note", "delete a note"]
+    }
+  ],
+  "roles": ["user"],
+  "persistence": "api",
+  "locales": ["en"],
+  "nonFunctional": { "offlineCapable": false, "realtime": false },
+  "pairedBrief": "982d1119fb174b7c1b63105a70628fbec33a944ed8e9b06a23fda674560d7955"
+}

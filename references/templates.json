@@ -24,6 +24,20 @@
         "sync:jira", "sync:confluence", "sync:pull", "sync:status", "sync:auto",
         "test:e2e", "contract:generate", "docs:examples", "db:migrate"
       ]
+    },
+    {
+      "id": "workspace",
+      "dir": "templates/workspace",
+      "kind": "workspace",
+      "stack": "node",
+      "notAGate": ["verify", "config:show", "ws:status", "ws:bootstrap", "ws:up", "snapshot", "seed:lock"]
+    },
+    {
+      "id": "e2e",
+      "dir": "templates/e2e",
+      "kind": "e2e",
+      "stack": "ts",
+      "notAGate": ["verify", "prepare", "config:show", "snapshot", "seed:lock", "test:e2e"]
     }
   ]
 }
