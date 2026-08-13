@@ -1,0 +1,20 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/notes/not-a-uuid"
+  },
+  "response": {
+    "body": {
+      "code": "validation-failed",
+      "detail": "params: id: Invalid UUID",
+      "instance": "/notes/not-a-uuid",
+      "status": 400,
+      "title": "The request does not match the operation's schema",
+      "type": "/problems/validation-failed"
+    },
+    "headers": {
+      "content-type": "application/problem+json; charset=utf-8"
+    },
+    "status": 400
+  }
+}

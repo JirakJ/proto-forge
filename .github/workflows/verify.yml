@@ -31,7 +31,7 @@ jobs:
       matrix:
         # Keep in step with references/templates.json — the registry is the source;
         # this list is its CI mirror (a drifted entry fails verify-template itself).
-        template: [web]
+        template: [web, api-node]
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4

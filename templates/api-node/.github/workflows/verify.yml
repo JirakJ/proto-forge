@@ -1,0 +1,63 @@
+name: verify
+
+# The gates are the interface (BRS §17.3): CI is a thin wrapper that runs the
+# same `pnpm verify` you run locally. Porting to any runner = re-expressing these
+# four steps. If `pnpm verify` is green locally, it is green here.
+on:
+  push:
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history: the prompt-log step below diffs against the branch base.
+          fetch-depth: 0
+      # BR-13 / NFR-10 / ADR 002: .prompts/ is append-only. The local hook enforces it
+      # per edit; this is the same promise where hooks do not run. Corrections are NEW
+      # entries referencing the prior id, never rewrites. (A force-push can still evade
+      # a history diff — protect the default branch to close that door.)
+      - name: prompt log is append-only
+        # GitHub context reaches the shell only through env, never by ${{ }} inside
+        # run: interpolating a ref name into the script is the classic Actions
+        # shell-injection vector.
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            range="origin/${BASE_REF}...HEAD"
+          else
+            case "$BEFORE_SHA" in ""|0000000000000000000000000000000000000000) echo "no prior commit to compare against"; exit 0;; esac
+            git cat-file -e "${BEFORE_SHA}^{commit}" 2>/dev/null || { echo "prior commit unreachable after a force-push — relying on branch protection"; exit 0; }
+            range="${BEFORE_SHA}..HEAD"
+          fi
+          changed="$(git diff --diff-filter=MD --name-only "$range" -- .prompts/)"
+          if [ -n "$changed" ]; then
+            echo "::error::.prompts/ is append-only (ADR 002) — these entries were rewritten or deleted:"
+            echo "$changed"
+            exit 1
+          fi
+          echo "prompt log untouched in $range"
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      # gitleaks is an external binary; install a pinned build so sec:scan enforces it.
+      - name: Install gitleaks
+        run: |
+          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.21.2/gitleaks_8.21.2_linux_x64.tar.gz \
+            | sudo tar -xz -C /usr/local/bin gitleaks
+      - run: pnpm verify
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: proto-forge-artifacts
+          path: |
+            .proto-forge/snapshot.json
+            .proto-forge/sbom.cdx.json
+          if-no-files-found: ignore

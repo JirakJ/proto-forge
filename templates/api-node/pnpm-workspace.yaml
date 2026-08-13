@@ -1,0 +1,16 @@
+# Dev-only transitives flagged by osv-scanner (pnpm audit --prod does not see them).
+# Each pin is the first patched release in the range every dependent already accepts.
+# handlebars <4.7.9 carries the JS-injection advisory batch (GHSA-2w6w-674q-4c4q et
+# al.), pulled via eslint-plugin-boundaries@5; qs GHSA-q8mj-m7cp-5q26 via
+# @stryker-mutator/core → typed-rest-client; js-yaml GHSA-5p4m-2wfm-xmqj (HIGH,
+# prototype pollution) via eslint/jscpd config parsing; nanoid GHSA-2v37-7h3g-55p8
+# (HIGH, predictable ids); brace-expansion GHSA-rgw5-rvv9-x895 (ReDoS); esbuild
+# GHSA-g7r4-m6w7-qqqr (LOW, dev-server file read on Windows) via tsx.
+overrides:
+  handlebars: ^4.7.9
+  qs: ">=6.15.2"
+  js-yaml: ^4.3.1
+  nanoid: ^3.3.17
+  brace-expansion@1: ^1.1.18
+  brace-expansion@2: ^2.1.4
+  esbuild: ">=0.28.1"

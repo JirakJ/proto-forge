@@ -1,0 +1,19 @@
+{
+  "request": {
+    "method": "DELETE",
+    "path": "/notes/99999999-9999-4999-8999-999999999999"
+  },
+  "response": {
+    "body": {
+      "code": "note-not-found",
+      "instance": "/notes/99999999-9999-4999-8999-999999999999",
+      "status": 404,
+      "title": "No note exists under this id",
+      "type": "/problems/note-not-found"
+    },
+    "headers": {
+      "content-type": "application/problem+json; charset=utf-8"
+    },
+    "status": 404
+  }
+}

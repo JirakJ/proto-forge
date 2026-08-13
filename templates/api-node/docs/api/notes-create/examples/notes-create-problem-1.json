@@ -1,0 +1,23 @@
+{
+  "request": {
+    "body": {
+      "text": ""
+    },
+    "method": "POST",
+    "path": "/notes"
+  },
+  "response": {
+    "body": {
+      "code": "validation-failed",
+      "detail": "body: text: Too small: expected string to have >=1 characters",
+      "instance": "/notes",
+      "status": 400,
+      "title": "The request does not match the operation's schema",
+      "type": "/problems/validation-failed"
+    },
+    "headers": {
+      "content-type": "application/problem+json; charset=utf-8"
+    },
+    "status": 400
+  }
+}
