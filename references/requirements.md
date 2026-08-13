@@ -285,6 +285,7 @@ entry. A coverage-waiver marker resolves to an accepted ADR.
 
 - **Why:** An anchor pointing at a proposed or absent decision documents nothing, and an
   accepted decision nobody anchored is a decision the code does not actually implement.
+- **Scope:** all
 - **Enforced by:** `adr:lint`
 - **Proven by:** `gates:selftest` → "adr: an anchored, accepted, prompt-linked ADR
   passes", "adr: an anchor to an ADR that does not exist fails", "adr: an anchor to a
@@ -304,6 +305,7 @@ resolving `Prompt-Log:` trailer.
   a commit accepting two decisions makes the gates that guarded it ambiguous. The
   message can promise anything; the staged diff is what the commit actually does, and
   the two must agree.
+- **Scope:** all
 - **Enforced by:** `commit-lint` via the `commit-msg` hook — both halves: the message
   (subject, exactly one `ADR:` trailer, a resolving `Prompt-Log:`) and the staged diff
   (exactly one `- Status: accepted` transition, in the ADR the trailer names). Outside
@@ -322,6 +324,7 @@ catalogues are exempt, and `pseudo` is deliberately decorated.
 
 - **Why:** A mixed-language codebase costs every later reader, and a non-English literal
   in code is almost always a string that should have been a catalogue key (BR-08).
+- **Scope:** all
 - **Enforced by:** `consistency`
 - **Proven by:** `gates:selftest` → "consistency: a non-English script in code fails"
 - **Decided in:** ADR 004
@@ -385,10 +388,11 @@ intrinsics. Code clones over 30 tokens fail, except among library primitives.
 - **Why:** A primitive re-implemented in a feature carries none of the library's
   accessibility work and none of its tests, and the divergence is invisible until a
   screen reader meets it.
+- **Scope:** all
 - **Enforced by:** `dup:scan`, which runs jscpd for clones and component-dup-scan for
   re-implemented primitives
 - **Proven by:** `gates:selftest` → "dup: a feature composing proto-ui primitives
-  passes", "dup: a raw <button> in a feature fails", "dup: a raw element wearing a
+  passes", "dup: a raw <button> in a feature fails" (web), "dup: a raw element wearing a
   primitive role fails"
 - **Decided in:** ADR 020
 
@@ -418,6 +422,7 @@ first-party path (`@/`, `@jj/`, relative).
 - **Why:** A prototype whose persistence is faked has not demonstrated the thing a
   prototype exists to demonstrate. And a test that mocks its own module under test
   asserts the mock.
+- **Scope:** all
 - **Enforced by:** `stub:scan`; `consistency` for the dead-weight corollary — a runtime
   `dependencies` entry nothing in `src/` or `packages/` imports fails (devDependencies
   are wired through configs and CLIs, where "is it used?" has no cheap mechanical
@@ -441,6 +446,7 @@ correction is a new entry referencing the prior id. The prompt is written **befo
 code it produced is committed. Secret-shaped values and PII are redacted before writing.
 
 - **Why:** Provenance that can be edited after the fact is not provenance (NFR-10).
+- **Scope:** all
 - **Enforced by:** `prompt:lint` for structure, a git-history diff in CI for
   append-only, and `templates/web/scripts/hooks/guard-write.mjs` locally
 - **Proven by:** `gates:selftest` → "prompt: well-formed, strictly increasing entries
@@ -467,6 +473,7 @@ function of the facets.
   is not. And two schema versions calling different structures "the same brief" is the
   exact lie this rule exists to prevent — which is why the version is inside the
   identity, not next to it.
+- **Scope:** all
 - **Enforced by:** `snapshot:diff`
 - **Proven by:** `gates:selftest` → "snapshot: a tree matching its committed baseline
   passes", "snapshot: a file added after the baseline fails", "snapshot: a gate removed
@@ -481,9 +488,10 @@ supersede link.
 
 - **Why:** A second definition of the default locale, the token set or the route table
   does not announce itself; it produces two behaviours that agree until they do not.
+- **Scope:** all
 - **Enforced by:** `consistency`
 - **Proven by:** `gates:selftest` → "consistency: one definition per single-source
-  registry passes", "consistency: design tokens defined twice fails", "consistency: two
+  registry passes", "consistency: design tokens defined twice fails" (web), "consistency: two
   accepted ADRs sharing a title fails"
 - **Decided in:** §12.3
 
@@ -544,6 +552,7 @@ operator's agreement. It is never a way to make a red gate green.
 - **Why:** Configurability and enforcement pull against each other. One line of JSON
   quietly returning a build to green, while it ships untranslated UI, is the failure this
   asymmetry exists to prevent.
+- **Scope:** all
 - **Enforced by:** `config:check`, every gate through `gateResult`, and
   `templates/web/scripts/hooks/guard-write.mjs`
 - **Proven by:** `gates:selftest` → "config: the strict default passes", "config:
@@ -578,6 +587,7 @@ to the local documents it concerns.
   which revision did we last see, and which of our files does this touch. A record that
   cannot answer the third (`affectedFiles: []`) asserts the object concerns nothing
   here, which is worse than no record: the drift report it feeds would name no work.
+- **Scope:** all
 - **Enforced by:** `external:verify`
 - **Proven by:** `gates:selftest` → "external: a complete record passes", "external: a
   record with no url fails", "external: a url on the wrong host fails when the
@@ -635,6 +645,7 @@ unattended. `autoPropagate` stands in for `--approve` and for nothing else.
   review; a typed flag is a decision for one run; a default is neither. And one flag
   must not open two doors — if `autoPropagate` also implied `dryRun: false`, a reviewer
   reading the diff would not see the dry-run door swing open.
+- **Scope:** all
 - **Enforced by:** `sync:jira` / `sync:confluence` through `assertMayCommit`
   (`templates/web/scripts/outbox.mjs`, ordered cheapest-first with the credential check
   after the approval check), `sync:auto` for the unattended path
@@ -670,7 +681,7 @@ tool's active rule set does not match the derived style.
 
 ### BR-22 — The committed contract is a locked derivation of the code
 
-**MUST.** `contract/openapi.yaml` is regenerated from the route registry and schemas,
+**MUST.** `contract/openapi.json` is regenerated from the route registry and schemas,
 normalized by the shared normalizer, and byte-compared against the committed spec;
 `contract/contract.lock` pins its sha256 and contract SemVer (§14). A breaking change
 against the last released contract requires a contract major bump plus an ADR.
@@ -781,6 +792,7 @@ application.
 
 - **Why:** A domain that imports its persistence cannot be tested without it, and the
   dependency direction is the only thing keeping the layers meaningful.
+- **Scope:** all
 - **Enforced by:** `lint` (`boundaries/element-types`)
 - **Proven by:** `lint` running over the template's own tree, which contains one module
   per layer
@@ -793,6 +805,7 @@ lockfile is committed; CI installs with `--frozen-lockfile`.
 
 - **Why:** A prototype that builds differently on two machines has not demonstrated it
   builds.
+- **Scope:** all
 - **Enforced by:** `sec:scan` (audit against the committed lockfile), CI's
   `--frozen-lockfile` install, `template:integrity` at the plugin level
 - **Proven by:** `gates:selftest` → "security: the secret scan cannot be skipped in CI"
@@ -805,6 +818,7 @@ diff, versions with the code it produced, and requires no service.
 
 - **Why:** Provenance stored in a system the repository does not contain is provenance
   that disappears when access does.
+- **Scope:** all
 - **Enforced by:** `prompt:lint`; the absence of any dependency to enforce
 - **Proven by:** `gates:selftest` → "prompt: well-formed, strictly increasing entries pass"
 - **Decided in:** ADR 002 (prototype namespace)
@@ -817,6 +831,7 @@ blocked locally by a hook.
 
 - **Why:** A log that can be edited after the fact tells you what someone wishes had
   happened.
+- **Scope:** all
 - **Enforced by:** the CI history diff, `templates/web/scripts/hooks/guard-write.mjs`
 - **Proven by:** `gates:selftest` → "hook: rewriting an existing prompt-log entry is
   blocked", "hook: adding a NEW prompt-log entry is allowed"
@@ -903,12 +918,15 @@ platform call.
   layering in one file, and each of those was untestable without the other three. The
   reason the two-modal and menu-in-modal defects went unnoticed for so long is that no
   test could address the pieces separately.
-- **Enforced by:** `layer:scan` (one dismiss owner, one reader of the fallback scale, one
-  adapter for platform calls), `lint`
-- **Proven by:** `gates:selftest` → "layer: a library surface without a slot fails (rule 4)",
-  "layer: a second document keydown listener in the library fails (rule 5)", "layer: reading
-  the overlay base outside OverlayStack fails (rule 6)", "layer: a platform top-layer call
-  outside the adapter fails (rule 9)"
+- **Scope:** all
+- **Enforced by:** `lint` (the SRP ceilings: max-lines 200, max-lines-per-function 60,
+  complexity 8, max-depth 3, max-params 3 — every template), and `layer:scan` (web) for
+  the overlay composition: one dismiss owner, one reader of the fallback scale, one
+  adapter for platform calls
+- **Proven by:** `gates:selftest` → "layer: a library surface without a slot fails (rule 4)" (web),
+  "layer: a second document keydown listener in the library fails (rule 5)" (web), "layer: reading
+  the overlay base outside OverlayStack fails (rule 6)" (web), "layer: a platform top-layer call
+  outside the adapter fails (rule 9)" (web)
 - **Decided in:** ADR 008
 
 ### NFR-21 — Open for a new kind of surface, closed for edits to the old ones (OCP)
@@ -921,7 +939,7 @@ case and documentation, and it does not change the behaviour of any other kind.
   surface meant re-deciding where the other four paint, and every such decision was a
   chance to invert two of them.
 - **Enforced by:** `dup:scan`, `docs:verify`
-- **Proven by:** `gates:selftest` → "dup: a feature composing proto-ui primitives passes",
+- **Proven by:** `gates:selftest` → "dup: a feature composing proto-ui primitives passes" (web),
   "docs: a component with no page fails"
 - **Decided in:** ADR 008, ADR 020
 
@@ -984,6 +1002,7 @@ covered by a case that only proves the binary is absent.
   hypothetical: nine of sixteen gates had no case at all while the documentation claimed
   each one was demonstrated, and the missing case for `docs:verify` was the one thing
   separating that gate from a check that a file exists.
+- **Scope:** all
 - **Enforced by:** `gates:selftest`, and `citations` at the plugin level, which fails when
   a rule cites a case the suite does not register
 - **Proven by:** `pnpm selftest` → "citations: a rule with no selftest case fails",
@@ -1057,7 +1076,9 @@ health endpoints) plus `scripts/` form the template's byte-pinned seed, with the
 
 ## §14 Backend contract
 
-The committed `contract/openapi.yaml` is a **locked derivation of the code** (BR-22):
+The committed `contract/openapi.json` is a **locked derivation of the code** (BR-22) —
+canonical JSON with sorted keys, so the artefact is deterministic without a YAML
+serializer in the dependency budget:
 regenerated from the route registry and schemas, normalized (sorted keys, version
 noise stripped, one shared normalizer across stacks), diffed byte-wise, and pinned by
 `contract/contract.lock` (sha256 + contract SemVer). It is re-locked in the same

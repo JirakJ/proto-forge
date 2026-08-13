@@ -175,11 +175,13 @@ const SCRIPT_SHAPED = /^[a-z][a-z0-9]*(:[a-z][a-z0-9-]*)*$/;
 /** Scope tokens (all | frontend | backend | <template id>) resolved to ids.
  *  Returns null when any token is unrecognized — the caller decides whether that
  *  is an error (a Scope bullet) or prose (a parenthetical after an enforcer). */
+const TEMPLATE_KINDS = ["frontend", "backend", "e2e", "workspace"];
+
 function resolveScopeTokens(tokens) {
   const ids = new Set();
   for (const token of tokens) {
     if (token === "all") for (const t of TEMPLATES) ids.add(t.id);
-    else if (token === "frontend" || token === "backend") {
+    else if (TEMPLATE_KINDS.includes(token)) {
       for (const t of TEMPLATES) if (t.kind === token) ids.add(t.id);
     } else if (templateIds.has(token)) ids.add(token);
     else return null;
