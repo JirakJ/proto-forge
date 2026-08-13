@@ -43,21 +43,23 @@ jobs:
             exit 1
           fi
           echo "prompt log untouched in $range"
-      - uses: actions/setup-java@v4
+      # The SDK band comes from global.json, so the runner and the workstation
+      # compile with the same toolchain (NFR-11) — no version literal here to
+      # drift away from the pin.
+      - uses: actions/setup-dotnet@v4
         with:
-          distribution: temurin
-          java-version: "21"
-      # Gradle cache + wrapper validation: the wrapper is checksum-pinned in
-      # gradle-wrapper.properties (NFR-11); setup-gradle caches ~/.gradle and
-      # validates gradle-wrapper.jar against the official checksums.
-      - uses: gradle/actions/setup-gradle@v4
-        with:
-          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+          global-json-file: global.json
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
       - run: corepack enable
       - run: pnpm install --frozen-lockfile
+      # Locked resolution: a coordinate packages.lock.json does not name fails
+      # here rather than resolving something new (NFR-11). The local tool
+      # manifest (.config/dotnet-tools.json) pins dotnet-stryker and dotnet-ef
+      # to exact versions with rollForward off.
+      - run: dotnet restore proto-forge-service.slnx --locked-mode
+      - run: dotnet tool restore
       # gitleaks and osv-scanner are external binaries; install pinned builds so
       # sec:scan enforces both (BRS §4/§16 hard-stops).
       - name: Install gitleaks
@@ -69,8 +71,6 @@ jobs:
           sudo curl -sSfL -o /usr/local/bin/osv-scanner \
             https://github.com/google/osv-scanner/releases/download/v2.0.2/osv-scanner_linux_amd64
           sudo chmod +x /usr/local/bin/osv-scanner
-      # Locked resolution: a coordinate gradle.lockfile does not name fails here
-      # rather than resolving something new (NFR-11).
       # deploy:verify's toolchain, same doctrine: tool-gated locally, mandatory
       # here. docker and helm already ship on ubuntu-latest; hadolint and
       # kubeconform are installed pinned.
@@ -86,8 +86,8 @@ jobs:
       - run: pnpm verify
       # The Docker-gated tiers (ADR 003/006): the real-database persistence tests
       # and the Tier-2 native gate selftests are tool-gated on a laptop, mandatory here.
-      - run: ./gradlew nativeTest --console=plain
-      - run: pnpm gates:selftest:native
+      - run: pnpm run test:native
+      - run: pnpm run gates:selftest:native
       # BR-36: the measured quality facts, visible on the run page. --summary
       # renders .proto-forge/quality.json as markdown; GITHUB_STEP_SUMMARY is a
       # runner-provided path, referenced only through the environment (no ${{ }}
@@ -103,6 +103,6 @@ jobs:
             .proto-forge/snapshot.json
             .proto-forge/sbom.cdx.json
             .proto-forge/quality.json
-            build/reports/jacoco
-            build/reports/pitest
+            build/reports/coverage
+            build/reports/stryker/reports
           if-no-files-found: ignore

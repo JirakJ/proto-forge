@@ -10,12 +10,12 @@ The web template budgets what it ships to a browser. A service ships nothing to 
 
 ## Decision
 
-`deps:budget` enforces two things over the `implementation`/`runtimeOnly` declarations in `build.gradle.kts`:
+`deps:budget` enforces two things over the `<PackageReference>` declarations in `src/App/App.csproj` that are not marked `PrivateAssets="all"`:
 
-1. a **count ceiling of 10** — the template ships 6, leaving headroom for a brief's real needs (an auth starter, a queue client, an external SDK) without ever letting "add a dependency" become the path of least resistance;
-2. a **named allowlist** — spring-boot-starter-web, spring-boot-starter-data-jpa, spring-boot-starter-validation, flyway-core, flyway-database-postgresql, postgresql (the ADR 001 stack). A dependency outside the list fails with instructions: a new runtime dependency is an ADR, and the ADR's diff includes the allowlist edit in the gate itself.
+1. a **count ceiling of 10** — the template ships 1, leaving headroom for a brief's real needs (an auth package, a queue client, an external SDK) without ever letting "add a dependency" become the path of least resistance;
+2. a **named allowlist** — Npgsql.EntityFrameworkCore.PostgreSQL (the ADR 001 stack). A dependency outside the list fails with instructions: a new runtime dependency is an ADR, and the ADR's diff includes the allowlist edit in the gate itself.
 
-Declared dependencies are the unit on purpose: a starter is one reviewed decision, and its transitive tree is pinned in `gradle.lockfile` and audited by `sec:scan` (osv-scanner over the SBOM built from the lock). Test-scoped dependencies are out of scope — they never reach production, and springdoc in particular is testImplementation BY DESIGN (ADR 008). Exceeding the ceiling is remediated by removing weight, never by raising the number; a genuine budget change is an ADR. `consistency` adds the node-side corollary: the gate corpus is dependency-free, so any package.json runtime dependency no gate script imports fails as dead weight.
+Declared references are the unit on purpose: ASP.NET Core itself rides the shared framework reference rather than a package, one provider package is one reviewed decision, and its transitive tree — EF Core, Npgsql and everything under them — is pinned in `packages.lock.json` and audited by `sec:scan` (osv-scanner over the SBOM built from that lock). Build- and design-time references are out of scope by the same rule that makes them safe: `PrivateAssets="all"` means they never reach production, which is exactly why EF's Design package is declared that way, and test-project references never ship at all. Exceeding the ceiling is remediated by removing weight, never by raising the number; a genuine budget change is an ADR. `consistency` adds the node-side corollary: the gate corpus declares no npm runtime dependencies, so any `package.json` `dependencies` entry no gate script imports fails as dead weight.
 
 ## Consequences
 
@@ -23,4 +23,4 @@ The dependency review happens at the moment of addition, in a diff that names th
 
 ## Alternatives considered
 
-Counting the resolved transitive graph (Boot's BOM makes the number environment-stable but enormous and meaningless as a decision unit; the lock + audit cover it), installed-size ceilings (platform-dependent, nondeterministic), no allowlist with count only (ten guavas pass), auditing at release time (too late — the dependency is load-bearing by then).
+Counting the resolved transitive graph (the shared framework and one provider make the number stable but enormous and meaningless as a decision unit; the lock plus the audit cover it), installed-size ceilings (platform-dependent, nondeterministic), no allowlist with count only (ten string-formatting helpers pass), auditing at release time (too late — the dependency is load-bearing by then).

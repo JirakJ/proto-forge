@@ -1,21 +1,23 @@
-# Keep the build context to what `./gradlew bootJar` actually reads: the build
-# scripts, the checksum-pinned wrapper, the lockfile and src/main. Everything
-# else is repo furniture.
+# Keep the build context to what `dotnet publish src/App/App.csproj` actually
+# reads: global.json, Directory.Build.props, the app project with its lock file
+# and src/. Everything else is repo furniture — and bin/ and obj/ from a host
+# build would poison the container restore with host-resolved paths.
+**/bin
+**/obj
 build
-.gradle
-bin
 node_modules
 coverage
 .git
 .github
 .husky
 .claude
+.config
 .prompts
 docs
 contract
 scripts
 deploy
-src/test
+tests
 *.local
 .env
 .DS_Store

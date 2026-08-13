@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "proto-forge configuration (api-java template)",
+  "title": "proto-forge configuration (api-dotnet template)",
   "description": "Merged over the built-in strict defaults and any ~/.config/proto-forge/config.json. Run `pnpm config:show` to see what is actually in force and where each value came from. Anything omitted keeps its strict default — this file only records deviations.",
   "type": "object",
   "additionalProperties": false,

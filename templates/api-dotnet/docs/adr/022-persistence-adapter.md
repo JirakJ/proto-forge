@@ -1,4 +1,4 @@
-# ADR 022: JPA persistence adapter proven against a real engine
+# ADR 022: EF Core persistence adapter proven against a real engine
 
 - Status: accepted
 - Date: 2026-08-13
@@ -6,11 +6,11 @@
 
 ## Context
 
-The `NoteRepository` port (ADR 010) needs a real implementation whose SQL, constraints and ordering are exercised against real Postgres semantics, not inferred from a mock (ADR 003, BRS §15).
+The `INoteRepository` port (ADR 010) needs a real implementation whose SQL, constraints and ordering are exercised against real Postgres semantics, not inferred from a mock (ADR 003, BRS §15).
 
 ## Decision
 
-`app.adapter.out.persistence` implements the port with Spring Data JPA over PostgreSQL: `NoteEntity` mirrors the committed migrations (ADR 006), `NoteJpaRepository` carries the derived query that pins the total listing order (createdAt, then id), and `NoteRepositoryAdapter` maps rows to the domain record. The native tier (`PersistenceNativeTest`, tag `native`) boots the real application context against Testcontainers Postgres — Flyway migrates, hibernate validates, and the adapter is driven through real queries including the ordering and not-found paths. The port seam is the only place the application meets persistence, so the MockMvc slices swap in the in-memory fixture without touching the adapter. This is the demo slice's adapter — a generated service replaces it per entity under the same doctrine.
+`src/App/Adapters/Out/Persistence` implements the port with EF Core 10 over Npgsql: `NoteEntity` mirrors the committed migrations (ADR 006) through explicit `[Table]`/`[Column]` names, `NotesDbContext` maps the one relation, and `NoteRepositoryAdapter` translates rows to the domain record while pinning the total listing order (createdAt, then id) so responses — and the captured docs examples derived from them — never depend on heap order. `DatabaseUrl` is the only place a connection string is constructed, translating the `postgres://` URL the environment carries into the provider's form. `NotesDbContextFactory` exists purely so the `dotnet-ef` tool can build the model at design time without opening a connection. The native tier (`PersistenceNativeTest`, trait `Category=native`) runs the committed history against Testcontainers Postgres, asserts the model has no pending changes, and drives the adapter through real queries including the ordering, round-trip and not-found paths. The port seam is the only place the application meets persistence, so the in-memory slices swap in the fixture repository without touching the adapter. This is the demo slice's adapter — a generated service replaces it per entity under the same doctrine.
 
 ## Consequences
 
@@ -18,4 +18,4 @@ The `NoteRepository` port (ADR 010) needs a real implementation whose SQL, const
 
 ## Alternatives considered
 
-Mocked repository tests (agree with the mock), H2 in Postgres compatibility mode (a different engine's dialect wearing a flag — banned by BR-12's reasoning), JDBC templates with hand-written SQL (loses the typed entity model the migrations are checked against).
+Mocked repository tests (agree with the mock — and `stub:scan` fails a first-party substitute anywhere in the tree), the in-memory EF Core provider (a query engine with different semantics wearing the same API; banned by BR-12's reasoning), raw ADO.NET commands with hand-written SQL (loses the typed entity model the migrations are checked against).

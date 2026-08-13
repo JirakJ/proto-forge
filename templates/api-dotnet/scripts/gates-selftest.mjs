@@ -10,10 +10,10 @@ import { fail, ok } from "./lib.mjs";
 // project per case, breaks exactly one thing, and asserts the gate's exit code.
 // Run it after touching any scan script: `pnpm gates:selftest`.
 //
-// Tier 1 (this file): fixture directories, seconds, no JVM — the case-name set is
-// byte-identical to api-node's (§18 structural symmetry; citations proves it).
-// Tier 2 (`pnpm gates:selftest:native`, CI): throwaway Gradle projects proving the
-// NATIVE halves fire — ArchUnit, the JaCoCo rule, flyway validate.
+// Tier 1 (this file): fixture directories, seconds, no dotnet — the case-name set
+// is byte-identical to api-java's (§18 structural symmetry; citations proves it).
+// Tier 2 (`pnpm gates:selftest:native`, CI): throwaway dotnet projects proving the
+// NATIVE halves fire — ArchUnitNET, the coverlet Threshold, EF Core model agreement.
 
 const SCRIPTS = resolve(dirname(new URL(import.meta.url).pathname));
 const results = [];
@@ -126,8 +126,8 @@ expect(
 // An expired waiver must not merely warn: the gate has to be enforcing again.
 // The fixture needs a bare console call for log:scan to reject; assembled in two
 // pieces so this meta-file never carries the debug-call byte pattern itself.
-const CONSOLE_CALL = ["System.out", "println("].join(".");
-const NOISY = `package app.application;\n\npublic final class F {\n  void f() {\n    ${CONSOLE_CALL}"boom");\n  }\n}\n`;
+const CONSOLE_CALL = ["Console", "WriteLine("].join(".");
+const NOISY = `namespace App.Application;\n\npublic static class F\n{\n    public static void Fn()\n    {\n        ${CONSOLE_CALL}"boom");\n    }\n}\n`;
 {
   const dir = project(
     withConfig(
@@ -135,7 +135,7 @@ const NOISY = `package app.application;\n\npublic final class F {\n  void f() {\
         gates: { log: { mode: "off" } },
         waivers: [{ gate: "log", reason: "noisy-logger pilot for the September demo", adr: 150, expires: "2026-01-01" }],
       },
-      { "src/main/java/app/application/F.java": NOISY },
+      { "src/App/Application/F.cs": NOISY },
     ),
   );
   try {
@@ -154,7 +154,7 @@ const NOISY = `package app.application;\n\npublic final class F {\n  void f() {\
         gates: { log: { mode: "warn" } },
         waivers: [{ gate: "log", reason: "noisy-logger pilot for the September demo", adr: 150, expires: "2026-12-31" }],
       },
-      { "src/main/java/app/application/F.java": NOISY },
+      { "src/App/Application/F.cs": NOISY },
     ),
   );
   try {
@@ -283,21 +283,21 @@ function hook(name, script, payload, files, { blocked, matching }) {
   }
 }
 
-const seedFile = "src/main/java/app/platform/Kernel.java";
+const seedFile = "src/App/Platform/Kernel.cs";
 
 hook(
   "hook: editing the byte-pinned seed is blocked",
   "guard-write.mjs",
   { tool_name: "Edit", tool_input: { file_path: seedFile, new_string: "x" } },
-  { [seedFile]: "public final class Kernel {}\n", ".proto-forge/config.json": {} },
+  { [seedFile]: "namespace App.Platform;\n\npublic static class Kernel;\n", ".proto-forge/config.json": {} },
   { blocked: true, matching: /byte-pinned/ },
 );
 
 hook(
   "hook: an ordinary feature edit is allowed",
   "guard-write.mjs",
-  { tool_name: "Edit", tool_input: { file_path: "src/main/java/app/application/Notes.java", new_string: "x" } },
-  { "src/main/java/app/application/Notes.java": "public final class Notes {}\n", ".proto-forge/config.json": {} },
+  { tool_name: "Edit", tool_input: { file_path: "src/App/Application/Notes.cs", new_string: "x" } },
+  { "src/App/Application/Notes.cs": "namespace App.Application;\n\npublic static class Notes;\n", ".proto-forge/config.json": {} },
   { blocked: false },
 );
 
@@ -320,8 +320,8 @@ hook(
 hook(
   "hook: lowering a coverage threshold is blocked",
   "guard-write.mjs",
-  { tool_name: "Edit", tool_input: { file_path: "build.gradle.kts", new_string: 'minimum = "0.40".toBigDecimal()' } },
-  { "build.gradle.kts": "plugins { java }\n", ".proto-forge/config.json": {} },
+  { tool_name: "Edit", tool_input: { file_path: "tests/App.Tests/App.Tests.csproj", new_string: "<Threshold>40</Threshold>" } },
+  { "tests/App.Tests/App.Tests.csproj": "<Project Sdk=\"Microsoft.NET.Sdk\">\n</Project>\n", ".proto-forge/config.json": {} },
   { blocked: true, matching: /coverage threshold/ },
 );
 
@@ -336,7 +336,7 @@ hook(
 hook(
   "hook: lowering the mutation-score floor is blocked",
   "guard-write.mjs",
-  { tool_name: "Edit", tool_input: { file_path: "build.gradle.kts", new_string: "mutationThreshold = 40" } },
+  { tool_name: "Edit", tool_input: { file_path: "stryker-config.json", new_string: '"break": 40' } },
   { ".proto-forge/config.json": {} },
   { blocked: true, matching: /mutation-score floor/ },
 );
@@ -344,7 +344,7 @@ hook(
 hook(
   "hook: narrowing the mutation scope is blocked",
   "guard-write.mjs",
-  { tool_name: "Write", tool_input: { file_path: "build.gradle.kts", content: 'pitest { targetClasses = setOf("app.one") }' } },
+  { tool_name: "Write", tool_input: { file_path: "stryker-config.json", content: '{ "stryker-config": { "mutate": ["src/App/Domain/One.cs"] } }' } },
   { ".proto-forge/config.json": {} },
   { blocked: true, matching: /mutation scope/ },
 );
@@ -416,8 +416,8 @@ hook(
       "- one",
       "- two",
       "",
-      "```java",
-      "int x = 1 < 2 ? 1 : 2;",
+      "```csharp",
+      "var x = 1 < 2 ? 1 : 2;",
       "```",
     ].join("\n"),
   );
@@ -429,7 +429,7 @@ hook(
     ['<ri:attachment ri:filename="open.png" />', "image as attachment"],
     ["<table><tbody><tr><th>A</th>", "table"],
     ["<ul><li>one</li><li>two</li></ul>", "list"],
-    ["<![CDATA[int x = 1 < 2 ? 1 : 2;]]>", "code block, unescaped inside CDATA"],
+    ["<![CDATA[var x = 1 < 2 ? 1 : 2;]]>", "code block, unescaped inside CDATA"],
   ];
   for (const [needle, what] of must) {
     if (!storage.includes(needle)) results.push(`md-to-storage: ${what} missing — expected ${needle}`);
@@ -439,46 +439,46 @@ hook(
 }
 
 // --- ignore-registry ---------------------------------------------------------------
-// The jacoco-ignore population is currently ZERO; this gate keeps it from eroding one
+// The coverage-ignore population is currently ZERO; this gate keeps it from eroding one
 // "harmless" ignore at a time. An ignore must state a reason, name the harness case
 // that covers the branch in the e2e conformance run, and change the pinned count in
 // the snapshot -- a reviewed diff, never a drive-by.
-const CASES_JAVA =
-  "package app.harness;\n\npublic final class HarnessCases {\n  public static final List<HarnessCase> CASES = List.of(\n" +
-  '      new HarnessCase(\n          "note-get-missing",\n          "note-get", "problem", "x", "GET", "/x", null, 404, "note-not-found"));\n}\n';
-const javaSource = (body) => `package app.application;\n\npublic final class F {\n${body}  int f() {\n    return 1;\n  }\n}\n`;
+const CASES_CS =
+  "namespace App.Tests.Harness;\n\npublic static class HarnessCases\n{\n    public static readonly IReadOnlyList<HarnessCase> CASES =\n    [\n" +
+  '        new HarnessCase(\n            "note-get-missing",\n            "note-get", "problem", "x", "GET", "/x", null, 404, "note-not-found"),\n    ];\n}\n';
+const csSource = (body) => `namespace App.Application;\n\npublic static class F\n{\n${body}    public static int Fn()\n    {\n        return 1;\n    }\n}\n`;
 const ignoreProject = (source, pinned) => ({
-  "src/test/java/app/harness/HarnessCases.java": CASES_JAVA,
-  "src/main/java/app/application/F.java": source,
+  "tests/App.Tests/Harness/HarnessCases.cs": CASES_CS,
+  "src/App/Application/F.cs": source,
   ".proto-forge/snapshot.json": { ignores: pinned },
 });
 
 expect("ignores: a clean tree with a matching pin passes", "ignore-registry.mjs",
-  ignoreProject(javaSource(""), 0), { pass: true });
+  ignoreProject(csSource(""), 0), { pass: true });
 
 expect("ignores: a well-formed, evidenced ignore with a matching pin passes", "ignore-registry.mjs",
   ignoreProject(
-    javaSource("  // jacoco ignore next -- the pool error path needs a real broken socket [covered-by: note-get-missing]\n"),
+    csSource("    // coverage ignore next -- the pool error path needs a real broken socket [covered-by: note-get-missing]\n"),
     1,
   ), { pass: true });
 
 expect("ignores: a bare ignore with no reason fails", "ignore-registry.mjs",
-  ignoreProject(javaSource("  // jacoco ignore next\n"), 1),
+  ignoreProject(csSource("    // coverage ignore next\n"), 1),
   { pass: false, matching: /covered-by/ });
 
 expect("ignores: a reasoned ignore naming no browser evidence fails", "ignore-registry.mjs",
-  ignoreProject(javaSource("  // jacoco ignore next -- unit tests cannot reach this branch at all\n"), 1),
+  ignoreProject(csSource("    // coverage ignore next -- unit tests cannot reach this branch at all\n"), 1),
   { pass: false, matching: /covered-by/ });
 
 expect("ignores: evidence that does not exist is not evidence", "ignore-registry.mjs",
   ignoreProject(
-    javaSource("  // jacoco ignore next -- the pool error path needs a real broken socket [covered-by: invented-case]\n"),
+    csSource("    // coverage ignore next -- the pool error path needs a real broken socket [covered-by: invented-case]\n"),
     1,
   ), { pass: false, matching: /does not declare/ });
 
 expect("ignores: a population that grew past its pin fails", "ignore-registry.mjs",
   ignoreProject(
-    javaSource("  // jacoco ignore next -- the pool error path needs a real broken socket [covered-by: note-get-missing]\n"),
+    csSource("    // coverage ignore next -- the pool error path needs a real broken socket [covered-by: note-get-missing]\n"),
     0,
   ), { pass: false, matching: /pins 0/ });
 
@@ -538,140 +538,131 @@ expect("external: a Confluence record without a remoteVersion fails", "external-
   { pass: false, matching: /remoteVersion is required/ });
 
 // --- coverage:policy -------------------------------------------------------------
-// The floors are only meaningful while nobody lowers a JaCoCo minimum and nobody
-// adds an exclusion. A hook blocks both locally; this gate is the same promise in CI.
-const BUILD_GRADLE = (rules, exclude) => `plugins { java }
-tasks.jacocoTestCoverageVerification {
-    violationRules {
-${rules}
-    }
-    classDirectories.setFrom(
-        sourceSets.main.get().output.asFileTree.matching {
-            exclude(
-${exclude}
-            )
-        }
-    )
-}
+// The floors are only meaningful while nobody lowers the coverlet Threshold and
+// nobody adds an exclusion. A hook blocks both locally; this gate is the same
+// promise in CI.
+const TESTS_CSPROJ = (threshold, exclusions) => `<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Include>[App]App.Domain.*,[App]App.Application.*</Include>
+    <Threshold>${threshold}</Threshold>
+    <ThresholdType>line,branch,method</ThresholdType>
+    <ThresholdStat>total</ThresholdStat>
+  </PropertyGroup>
+  <ItemGroup Label="coverage-exclusions">
+${exclusions}
+  </ItemGroup>
+</Project>
 `;
-const RULE = (minimum) => `        rule {
-            element = "PACKAGE"
-            includes = listOf("app.domain", "app.domain.*", "app.application", "app.application.*")
-            limit { counter = "INSTRUCTION"; value = "COVEREDRATIO"; minimum = "${minimum}".toBigDecimal() }
-            limit { counter = "BRANCH"; value = "COVEREDRATIO"; minimum = "1.00".toBigDecimal() }
-            limit { counter = "LINE"; value = "COVEREDRATIO"; minimum = "1.00".toBigDecimal() }
-        }`;
-const GOOD_RULES = RULE("1.00");
-const GOOD_EXCLUDE = '                // bootstrap entry: the composition root opens the socket, covered by the conformance run\n                "app/Application*",';
+const GOOD_EXCLUDE = '    <!-- bootstrap entry: the composition root opens the socket, covered by the conformance run -->\n    <CoverageExclusion Include="[App]App.Program" />';
 
 expect("coverage: floors at 100 and reasoned exclusions pass", "coverage-policy.mjs", {
-  "build.gradle.kts": BUILD_GRADLE(GOOD_RULES, GOOD_EXCLUDE),
+  "tests/App.Tests/App.Tests.csproj": TESTS_CSPROJ("100", GOOD_EXCLUDE),
 }, { pass: true });
 
 expect("coverage: a lowered threshold fails", "coverage-policy.mjs", {
-  "build.gradle.kts": BUILD_GRADLE(RULE("0.85"), GOOD_EXCLUDE),
-}, { pass: false, matching: /minimum is 0\.85/ });
+  "tests/App.Tests/App.Tests.csproj": TESTS_CSPROJ("85", GOOD_EXCLUDE),
+}, { pass: false, matching: /Threshold is 85/ });
 
 expect("coverage: an exclusion outside the allow-list fails", "coverage-policy.mjs", {
-  "build.gradle.kts": BUILD_GRADLE(GOOD_RULES, GOOD_EXCLUDE + '\n                // convenient\n                "app/application/**",'),
+  "tests/App.Tests/App.Tests.csproj": TESTS_CSPROJ("100", GOOD_EXCLUDE + '\n    <!-- convenient -->\n    <CoverageExclusion Include="[App]App.Application.*" />'),
 }, { pass: false, matching: /not on the allow-list/ });
 
 expect("coverage: an allow-listed exclusion without its reason fails", "coverage-policy.mjs", {
-  "build.gradle.kts": BUILD_GRADLE(GOOD_RULES, '                "app/Application*",'),
+  "tests/App.Tests/App.Tests.csproj": TESTS_CSPROJ("100", '    <CoverageExclusion Include="[App]App.Program" />'),
 }, { pass: false, matching: /no reason comment/ });
 
 // The tamper-guard must not be blinded by the tamper it guards against: the block
-// scan is anchored on the closing parenthesis ON ITS OWN LINE, so an entry carrying
-// a character class (or any bracket noise) cannot truncate the scan and smuggle the
-// entries after it past the allow-list.
+// scan is anchored on the ItemGroup's closing tag ON ITS OWN LINE, so an entry
+// carrying a character class (or any bracket noise) cannot truncate the scan and
+// smuggle the entries after it past the allow-list.
 expect("coverage: a character-class glob cannot truncate the exclude scan", "coverage-policy.mjs", {
-  "build.gradle.kts": BUILD_GRADLE(GOOD_RULES, GOOD_EXCLUDE + '\n                // convenient\n                "app/[a-z]*/**",'),
-}, { pass: false, matching: /"app\/\[a-z\]\*\/\*\*" is not on the allow-list/ });
+  "tests/App.Tests/App.Tests.csproj": TESTS_CSPROJ("100", GOOD_EXCLUDE + '\n    <!-- convenient -->\n    <CoverageExclusion Include="[App]App.[a-z]*" />'),
+}, { pass: false, matching: /"\[App\]App\.\[a-z\]\*" is not on the allow-list/ });
 
 // --- stub:scan ---------------------------------------------------------------
 expect("stub: clean production code passes", "stub-scan.mjs", {
-  "src/main/java/app/application/F.java": javaSource(""),
+  "src/App/Application/F.cs": csSource(""),
 }, { pass: true });
 
 expect("stub: a banned marker in production code fails", "stub-scan.mjs", {
-  "src/main/java/app/application/F.java": "// TODO: finish this\n" + javaSource(""),
+  "src/App/Application/F.cs": "// TODO: finish this\n" + csSource(""),
 }, { pass: false, matching: /banned marker/ });
 
 expect("stub: 'not implemented' in production code fails", "stub-scan.mjs", {
-  "src/main/java/app/application/F.java":
-    'package app.application;\n\npublic final class F {\n  int f() {\n    throw new UnsupportedOperationException("not implemented");\n  }\n}\n',
+  "src/App/Application/F.cs":
+    'namespace App.Application;\n\npublic static class F\n{\n    public static int Fn()\n    {\n        throw new NotSupportedException("not implemented");\n    }\n}\n',
 }, { pass: false, matching: /banned marker/ });
 
 expect("stub: mocking a first-party module fails", "stub-scan.mjs", {
-  "src/test/java/app/application/FTest.java":
-    "package app.application;\n\nimport static org.mockito.Mockito.mock;\n\nclass FTest {\n  Object repo = mock(app.domain.note.NoteRepository.class);\n}\n",
+  "tests/App.Tests/Application/FTest.cs":
+    "namespace App.Tests.Application;\n\npublic sealed class FTest\n{\n    private readonly object repo = new Mock<App.Domain.INoteRepository>().Object;\n}\n",
 }, { pass: false, matching: /first-party/ });
 
 expect("stub: pulling __fixtures__ into production code fails", "stub-scan.mjs", {
-  "src/main/java/app/application/F.java":
-    "package app.application;\n\nimport app.fixtures.NoteFixtures;\n\npublic final class F {\n  Object note = NoteFixtures.NOTES.get();\n}\n",
+  "src/App/Application/F.cs":
+    "using App.Tests.Fixtures;\n\nnamespace App.Application;\n\npublic static class F\n{\n    public static readonly object Note = NoteFixtures.NOTES();\n}\n",
 }, { pass: false, matching: /__fixtures__/ });
 
 expect("stub: a fixture built with defineFactory passes", "stub-scan.mjs", {
-  "src/test/java/app/fixtures/NoteFixtures.java":
-    "package app.fixtures;\n\npublic final class NoteFixtures {\n" +
-    "  public static final Supplier<Object> NOTES = Factory.defineFactory(seq -> build(seq));\n" +
-    "  static Object build(int seq) {\n    return seq;\n  }\n}\n",
+  "tests/App.Tests/Fixtures/NoteFixtures.cs":
+    "namespace App.Tests.Fixtures;\n\npublic static class NoteFixtures\n{\n" +
+    "    public static readonly Func<object> NOTES = Factory.DefineFactory(seq => Build(seq));\n\n    private static object Build(int seq)\n    {\n        return seq;\n    }\n}\n",
 }, { pass: true });
 
 expect("stub: a fixture exporting a bare literal fails", "stub-scan.mjs", {
-  "src/test/java/app/fixtures/NoteFixtures.java":
-    'package app.fixtures;\n\npublic final class NoteFixtures {\n  public static final List<String> NOTES = List.of("hand-written");\n}\n',
-}, { pass: false, matching: /defineFactory/ });
+  "tests/App.Tests/Fixtures/NoteFixtures.cs":
+    'namespace App.Tests.Fixtures;\n\npublic static class NoteFixtures\n{\n    public static readonly string[] NOTES = ["hand-written"];\n}\n',
+}, { pass: false, matching: /DefineFactory/ });
 
-// BR-21/NFR-12 have no suppression escape hatch: @SuppressFBWarnings silences the
-// gated findsecbugs rules, so it is a shortcut marker, exactly like TODO.
+// BR-21/NFR-12 have no suppression escape hatch: a Security-category
+// SuppressMessage silences the gated analyzer rules, so it is a shortcut marker,
+// exactly like TODO.
 expect("stub: disabling a gated lint rule inline fails", "stub-scan.mjs", {
-  "src/main/java/app/application/F.java":
-    'package app.application;\n\n@SuppressFBWarnings("SQL_INJECTION")\npublic final class F {\n  int f() {\n    return 1;\n  }\n}\n',
+  "src/App/Application/F.cs":
+    'namespace App.Application;\n\n[System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "SCS0002")]\npublic static class F\n{\n    public static int Fn()\n    {\n        return 1;\n    }\n}\n',
 }, { pass: false, matching: /no escape hatch/ });
 
 expect("stub: a disable for an ungated rule is not this gate's business", "stub-scan.mjs", {
-  "src/main/java/app/application/F.java":
-    'package app.application;\n\n@SuppressWarnings("unchecked")\npublic final class F {\n  int f() {\n    return 1;\n  }\n}\n',
+  "src/App/Application/F.cs":
+    'namespace App.Application;\n\n[System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE0060")]\npublic static class F\n{\n    public static int Fn()\n    {\n        return 1;\n    }\n}\n',
 }, { pass: true });
 
 // --- adr:lint ----------------------------------------------------------------
 const adr = (num, status, extra = "") =>
   `# ADR ${num}: A decision\n\n- Status: ${status}\n- Date: 2026-08-12\n${extra}\n## Context\n\nx\n`;
 const promptEntry = "---\nid: 0001\ntimestamp: 2026-08-12T00:00:00Z\nphase: 1\n---\n\n## Prompt\n\nx\n";
-const NOTE_RECORD = "// @adr 010 - the note domain\npackage app.domain.note;\n\npublic record Note(String id) {}\n";
+const NOTE_RECORD = "// @adr 010 - the note domain\nnamespace App.Domain;\n\npublic sealed record Note(string Id);\n";
 
 expect("adr: an anchored, accepted, prompt-linked ADR passes", "adr-lint.mjs", {
   "docs/adr/010-a-decision.md": adr("010", "accepted", "- Prompt-log: .prompts/0001-x.md\n"),
   ".prompts/0001-x.md": promptEntry,
-  "src/main/java/app/domain/note/Note.java": NOTE_RECORD,
+  "src/App/Domain/Note.cs": NOTE_RECORD,
 }, { pass: true });
 
 expect("adr: an anchor to an ADR that does not exist fails", "adr-lint.mjs", {
-  "src/main/java/app/domain/note/Note.java": NOTE_RECORD.replace("@adr 010", "@adr 777"),
+  "src/App/Domain/Note.cs": NOTE_RECORD.replace("@adr 010", "@adr 777"),
 }, { pass: false, matching: /no ADR file/ });
 
 expect("adr: an anchor to a proposed ADR fails", "adr-lint.mjs", {
   "docs/adr/010-a-decision.md": adr("010", "proposed", "- Prompt-log: .prompts/0001-x.md\n"),
   ".prompts/0001-x.md": promptEntry,
-  "src/main/java/app/domain/note/Note.java": NOTE_RECORD,
+  "src/App/Domain/Note.cs": NOTE_RECORD,
 }, { pass: false, matching: /proposed ADR/ });
 
 expect("adr: an accepted ADR nobody anchored fails", "adr-lint.mjs", {
   "docs/adr/010-a-decision.md": adr("010", "accepted", "- Prompt-log: .prompts/0001-x.md\n"),
   ".prompts/0001-x.md": promptEntry,
-  "src/main/java/app/domain/note/Note.java": "package app.domain.note;\n\npublic record Note(String id) {}\n",
+  "src/App/Domain/Note.cs": "namespace App.Domain;\n\npublic sealed record Note(string Id);\n",
 }, { pass: false, matching: /never anchored/ });
 
 expect("adr: an accepted ADR with no prompt-log back-reference fails", "adr-lint.mjs", {
   "docs/adr/010-a-decision.md": adr("010", "accepted"),
-  "src/main/java/app/domain/note/Note.java": NOTE_RECORD,
+  "src/App/Domain/Note.cs": NOTE_RECORD,
 }, { pass: false, matching: /Prompt-log/ });
 
 expect("adr: a prompt-log reference pointing at nothing fails", "adr-lint.mjs", {
   "docs/adr/010-a-decision.md": adr("010", "accepted", "- Prompt-log: .prompts/0009-absent.md\n"),
-  "src/main/java/app/domain/note/Note.java": NOTE_RECORD,
+  "src/App/Domain/Note.cs": NOTE_RECORD,
 }, { pass: false, matching: /does not exist/ });
 
 // Two files sharing a number would shadow each other in every by-number lookup, and a
@@ -681,7 +672,7 @@ expect("adr: the same number on two files fails", "adr-lint.mjs", {
   "docs/adr/010-a-decision.md": adr("010", "accepted", "- Prompt-log: .prompts/0001-x.md\n"),
   "docs/adr/010-a-rival.md": adr("010", "accepted", "- Prompt-log: .prompts/0001-x.md\n"),
   ".prompts/0001-x.md": promptEntry,
-  "src/main/java/app/domain/note/Note.java": NOTE_RECORD,
+  "src/App/Domain/Note.cs": NOTE_RECORD,
 }, { pass: false, matching: /used twice/ });
 
 // --- prompt:lint -------------------------------------------------------------
@@ -691,7 +682,7 @@ expect("prompt: well-formed, strictly increasing entries pass", "prompt-log-lint
 }, { pass: true });
 
 expect("prompt: an empty log fails", "prompt-log-lint.mjs", {
-  "src/main/java/app/A.java": "package app;\n\npublic final class A {}\n",
+  "src/App/A.cs": "namespace App;\n\npublic static class A;\n",
 }, { pass: false, matching: /no prompt-log entries/ });
 
 expect("prompt: a filename that is not NNNN-slug.md fails", "prompt-log-lint.mjs", {
@@ -750,14 +741,14 @@ expect("commit: a trailer naming a different ADR than the diff accepts fails", "
 
 // --- consistency -------------------------------------------------------------
 const PROBLEMS_MIN =
-  "package app.platform;\n\npublic final class Problems {\n  public static final Map<String, ProblemDef> PROBLEMS = Map.ofEntries(\n" +
-  '      Map.entry("internal", new ProblemDef("internal", 500, "Unexpected failure")));\n}\n';
+  "namespace App.Platform;\n\npublic static class Problems\n{\n    public static readonly IReadOnlyDictionary<string, ProblemDef> PROBLEMS = new Dictionary<string, ProblemDef>\n    {\n" +
+  '        ["internal"] = new ProblemDef("internal", 500, "Unexpected failure"),\n    };\n}\n';
 const consistencyBase = (over = {}) => ({
-  "src/main/java/app/config/AppProperties.java":
-    'package app.config;\n\n@ConfigurationProperties(prefix = "app")\npublic record AppProperties(int port) {}\n',
-  "src/main/java/app/platform/Problems.java": PROBLEMS_MIN,
-  "src/main/java/app/adapter/in/web/RouteRegistry.java":
-    "package app.adapter.in.web;\n\npublic final class RouteRegistry {\n  public static final List<RouteDef> ROUTES = List.of();\n}\n",
+  "src/App/Config/AppOptions.cs":
+    "namespace App.Config;\n\npublic sealed record AppOptions(int Port);\n",
+  "src/App/Platform/Problems.cs": PROBLEMS_MIN,
+  "src/App/Adapters/In/Http/RouteRegistry.cs":
+    "namespace App.Adapters.In.Http;\n\npublic static class RouteRegistry\n{\n    public static readonly IReadOnlyList<RouteDef> ROUTES = [];\n}\n",
   ...over,
 });
 
@@ -766,8 +757,8 @@ expect("consistency: one definition per single-source registry passes", "consist
 });
 
 expect("consistency: a problem catalogue defined twice fails", "consistency.mjs", consistencyBase({
-  "src/main/java/app/application/Problems2.java":
-    "package app.application;\n\npublic final class Problems2 {\n  static final Map<String, ProblemDef> PROBLEMS = Map.ofEntries();\n}\n",
+  "src/App/Application/Problems2.cs":
+    "namespace App.Application;\n\npublic static class Problems2\n{\n    internal static readonly IReadOnlyDictionary<string, ProblemDef> PROBLEMS = new Dictionary<string, ProblemDef>();\n}\n",
 }), { pass: false, matching: /defined 2x/ });
 
 expect("consistency: two accepted ADRs sharing a title fails", "consistency.mjs", consistencyBase({
@@ -776,13 +767,13 @@ expect("consistency: two accepted ADRs sharing a title fails", "consistency.mjs"
 }), { pass: false, matching: /duplicate accepted ADR title/ });
 
 expect("consistency: a non-English script in code fails", "consistency.mjs", consistencyBase({
-  "src/main/java/app/application/F.java":
-    'package app.application;\n\npublic final class F {\n  String label = "Привет";\n}\n',
+  "src/App/Application/F.cs":
+    'namespace App.Application;\n\npublic static class F\n{\n    public const string Label = "Привет";\n}\n',
 }), { pass: false, matching: /non-English/ });
 
 // BR-12's dead-weight corollary: the node gate corpus is dependency-free by design,
 // so a package.json runtime dependency no gate script imports ships attack surface
-// for no behaviour. The JVM surface has its own gate (deps:budget).
+// for no behaviour. The dotnet surface has its own gate (deps:budget).
 expect("consistency: a runtime dependency nothing imports fails", "consistency.mjs", consistencyBase({
   "package.json": { dependencies: { "left-pad": "^1.3.0" } },
 }), { pass: false, matching: /"left-pad" is imported by nothing/ });
@@ -799,8 +790,8 @@ expect("consistency: an imported runtime dependency passes", "consistency.mjs", 
 // gate corpus.
 const snapshotBase = (over = {}) => ({
   "package.json": { version: "0.1.0", scripts: { verify: "pnpm run lint && pnpm run test:unit" } },
-  "src/main/java/app/platform/Kernel.java": "package app.platform;\n\npublic final class Kernel {}\n",
-  "src/main/java/app/domain/note/Note.java": "package app.domain.note;\n\npublic record Note(String id) {}\n",
+  "src/App/Platform/Kernel.cs": "namespace App.Platform;\n\npublic static class Kernel;\n",
+  "src/App/Domain/Note.cs": "namespace App.Domain;\n\npublic sealed record Note(string Id);\n",
   // The generated locks live here, and neither --write-seed nor --write creates
   // the directory: a prototype always has it, because the template ships it.
   ".proto-forge/config.json": { policy: "strict" },
@@ -823,7 +814,7 @@ expect("snapshot: a missing seed.lock fails", "snapshot-diff.mjs", snapshotBase(
 
 expect("snapshot: a vendored seed that differs from seed.lock fails", "snapshot-diff.mjs", snapshotBase({
   ".proto-forge/seed.lock": {
-    seed: ["scripts", "src/main/java/app/platform"],
+    seed: ["scripts", "src/App/Platform"],
     version: "0.1.0",
     sha256: "0000000000000000000000000000000000000000000000000000000000000000",
   },
@@ -834,7 +825,7 @@ expect("snapshot: a file added after the baseline fails", "snapshot-diff.mjs", s
   matching: /fileTree drifted/,
   prepare: (dir) => {
     writeBaseline(dir);
-    writeFileSync(join(dir, "src", "main", "java", "app", "domain", "Unexpected.java"), "package app.domain;\n\npublic final class Unexpected {}\n");
+    writeFileSync(join(dir, "src", "App", "Domain", "Unexpected.cs"), "namespace App.Domain;\n\npublic static class Unexpected;\n");
   },
 });
 
@@ -862,8 +853,8 @@ expect("security: the secret scan cannot be skipped in CI", "sec-scan.mjs", {}, 
 });
 
 // --- arch:verify (BR-21) -----------------------------------------------------
-// The style is a pure function of the facets (T15-T17): the record, the ArchUnit
-// profile and the actual imports all have to agree with the derivation.
+// The style is a pure function of the facets (T15-T17): the record, the
+// ArchUnitNET profile and the actual imports all have to agree with the derivation.
 const FACETS_LAYERED = {
   facetsVersion: 2,
   entities: [{ name: "Note", fields: [{ name: "text", type: "string", required: true }] }],
@@ -872,7 +863,7 @@ const FACETS_LAYERED = {
   persistence: "api",
   locales: ["en"],
   nonFunctional: { offlineCapable: false, realtime: false },
-  backend: { stack: "java", externalSystems: [], persistence: "postgres", messaging: "none", authModel: "none" },
+  backend: { stack: "dotnet", externalSystems: [], persistence: "postgres", messaging: "none", authModel: "none" },
 };
 const ARCH_LAYERED = { style: "layered", inputs: { E: 1, X: 0, C: 1, flags: { messaging: "none", realtime: false } } };
 const HEX_SYSTEMS = [
@@ -885,40 +876,43 @@ const ARCH_HEX = { style: "hexagonal", inputs: { E: 1, X: 3, C: 1, flags: { mess
 // A stand-in with the live suite's load-bearing properties: it reads the record
 // and defines an edge table per style — which is exactly what the gate asserts.
 const ARCH_SUITE_STUB = `// selects its active edge table from .proto-forge/architecture.json, never hardcoded
-class ArchitectureTest {
-  private static final Map<String, Object> EDGES = Map.of(
-      "layered", List.of(),
-      "modular", List.of(),
-      "hexagonal", List.of());
+public sealed class ArchitectureTest
+{
+    private static readonly Dictionary<string, string[]> EDGES = new()
+    {
+        ["layered"] = [],
+        ["modular"] = [],
+        ["hexagonal"] = [],
+    };
 }
 `;
 const archBase = (over = {}) => ({
   ".proto-forge/facets.json": FACETS_LAYERED,
   ".proto-forge/architecture.json": ARCH_LAYERED,
-  "src/test/java/app/arch/ArchitectureTest.java": ARCH_SUITE_STUB,
-  "src/main/java/app/domain/note/Note.java":
-    "package app.domain.note;\n\nimport jakarta.validation.constraints.NotBlank;\n\npublic record Note(@NotBlank String text) {}\n",
-  "src/main/java/app/application/Notes.java":
-    "package app.application;\n\nimport app.domain.note.Note;\n\npublic final class Notes {\n  Note note;\n}\n",
-  "src/main/java/app/adapter/in/web/Routes.java":
-    "package app.adapter.in.web;\n\nimport app.application.Notes;\n\npublic final class Routes {\n  Notes notes;\n}\n",
+  "tests/App.Tests/Arch/ArchitectureTest.cs": ARCH_SUITE_STUB,
+  "src/App/Domain/Note.cs":
+    "using System.ComponentModel.DataAnnotations;\n\nnamespace App.Domain;\n\npublic sealed record Note([property: Required] string Text);\n",
+  "src/App/Application/Notes.cs":
+    "using App.Domain;\n\nnamespace App.Application;\n\npublic sealed class Notes\n{\n    private Note? note;\n}\n",
+  "src/App/Adapters/In/Http/Routes.cs":
+    "using App.Application;\n\nnamespace App.Adapters.In.Http;\n\npublic sealed class Routes\n{\n    private Notes? notes;\n}\n",
   ...over,
 });
 
 expect("arch: the derived style matching architecture.json passes", "arch-verify.mjs", archBase(), { pass: true });
 
 expect("arch: a domain module importing a framework fails", "arch-verify.mjs", archBase({
-  "src/main/java/app/domain/note/Note.java":
-    "package app.domain.note;\n\nimport org.springframework.web.bind.annotation.RestController;\n\npublic record Note(String text) {}\n",
+  "src/App/Domain/Note.cs":
+    "using Microsoft.AspNetCore.Http;\n\nnamespace App.Domain;\n\npublic sealed record Note(string Text);\n",
 }), { pass: false, matching: /framework-free/ });
 
 expect("arch: an adapter importing another adapter's internals fails", "arch-verify.mjs", archBase({
   ".proto-forge/facets.json": FACETS_HEX,
   ".proto-forge/architecture.json": ARCH_HEX,
-  "src/main/java/app/adapter/out/persistence/Db.java":
-    "package app.adapter.out.persistence;\n\npublic final class Db {}\n",
-  "src/main/java/app/adapter/in/web/Handler.java":
-    "package app.adapter.in.web;\n\nimport app.adapter.out.persistence.Db;\n\npublic final class Handler {\n  Db db;\n}\n",
+  "src/App/Adapters/Out/Persistence/Db.cs":
+    "namespace App.Adapters.Out.Persistence;\n\npublic sealed class Db;\n",
+  "src/App/Adapters/In/Http/Handler.cs":
+    "using App.Adapters.Out.Persistence;\n\nnamespace App.Adapters.In.Http;\n\npublic sealed class Handler\n{\n    private Db? db;\n}\n",
 }), { pass: false, matching: /does not allow that edge/ });
 
 expect("arch: a profile disagreeing with the derived style fails", "arch-verify.mjs", archBase({
@@ -931,10 +925,11 @@ expect("arch: missing facets.json fails as underivable", "arch-verify.mjs", arch
 }), { pass: false, matching: /derivation has no input/ });
 
 // --- contract:verify (BR-22) -------------------------------------------------
-// Fixtures run without a JVM: PROTO_FORGE_CONTRACT_EMIT names a plain .mjs
-// emitter, printing the raw document the springdoc slice would; the gate then
-// normalizes it exactly like the live path. The committed fixture spec is the
-// canonical (sorted-key) form, so normalize(emitted) == committed proves a pass.
+// Fixtures run without a dotnet toolchain: PROTO_FORGE_CONTRACT_EMIT names a
+// plain .mjs emitter, printing the raw document the console mode would; the
+// gate then normalizes it exactly like the live path. The committed fixture spec
+// is the canonical (sorted-key) form, so normalize(emitted) == committed proves
+// a pass.
 const SPEC_JSON = JSON.stringify(
   {
     info: { title: "notes", version: "1.0.0" },
@@ -1015,17 +1010,17 @@ expect("contract: no released baseline is a first-release pass", "contract-break
 
 // --- error:catalog (BR-23) ---------------------------------------------------
 const catalogue = (entries) =>
-  `package app.platform;\n\npublic final class Problems {\n  public static final Map<String, ProblemDef> PROBLEMS = Map.ofEntries(\n${entries});\n}\n`;
-const GOOD_ENTRIES = `      Map.entry("validation-failed", new ProblemDef("validation-failed", 400, "The request does not match the schema")),
-      Map.entry("internal", new ProblemDef("internal", 500, "Unexpected failure")),
-      Map.entry("note-not-found", new ProblemDef("note-not-found", 404, "No note exists under this id"))`;
+  `namespace App.Platform;\n\npublic static class Problems\n{\n    public static readonly IReadOnlyDictionary<string, ProblemDef> PROBLEMS = new Dictionary<string, ProblemDef>\n    {\n${entries}\n    };\n}\n`;
+const GOOD_ENTRIES = `        ["validation-failed"] = new ProblemDef("validation-failed", 400, "The request does not match the schema"),
+        ["internal"] = new ProblemDef("internal", 500, "Unexpected failure"),
+        ["note-not-found"] = new ProblemDef("note-not-found", 404, "No note exists under this id"),`;
 const errorsBase = (over = {}) => ({
-  "src/main/java/app/platform/Problems.java": catalogue(GOOD_ENTRIES),
-  "src/main/java/app/application/Notes.java":
-    'package app.application;\n\npublic final class Notes {\n  Object get() {\n    throw new AppProblem("note-not-found");\n  }\n}\n',
-  "src/main/java/app/adapter/in/web/NoteRoutes.java":
-    "package app.adapter.in.web;\n\npublic final class NoteRoutes {\n  static final List<RouteDef> NOTE_ROUTES = List.of(\n" +
-    '      RouteDef.builder()\n          .operationId("note-get")\n          .path("/notes/{id}")\n          .problems("validation-failed", "note-not-found")\n          .build());\n}\n',
+  "src/App/Platform/Problems.cs": catalogue(GOOD_ENTRIES),
+  "src/App/Application/Notes.cs":
+    'namespace App.Application;\n\npublic static class Notes\n{\n    public static object Get()\n    {\n        throw new AppProblem("note-not-found");\n    }\n}\n',
+  "src/App/Adapters/In/Http/NoteRoutes.cs":
+    "namespace App.Adapters.In.Http;\n\npublic static class NoteRoutes\n{\n    internal static readonly IReadOnlyList<RouteDef> NOTE_ROUTES =\n    [\n" +
+    '        new RouteDef\n        {\n            OperationId = "note-get",\n            Path = "/notes/{id}",\n            Problems = ["validation-failed", "note-not-found"],\n        },\n    ];\n}\n',
   "docs/api/problems.md": "# Problem catalogue\n\nvalidation-failed, internal, note-not-found — each is an RFC 9457 problem type.\n",
   ...over,
 });
@@ -1033,57 +1028,85 @@ const errorsBase = (over = {}) => ({
 expect("errors: a registered problem type passes", "error-catalog.mjs", errorsBase(), { pass: true });
 
 expect("errors: an unregistered error shape fails", "error-catalog.mjs", errorsBase({
-  "src/main/java/app/application/Notes.java":
-    'package app.application;\n\npublic final class Notes {\n  Object get() {\n    throw new AppProblem("ghost-error");\n  }\n}\n',
+  "src/App/Application/Notes.cs":
+    'namespace App.Application;\n\npublic static class Notes\n{\n    public static object Get()\n    {\n        throw new AppProblem("ghost-error");\n    }\n}\n',
 }), { pass: false, matching: /unregistered error shape/ });
 
 expect("errors: a duplicate problem code fails", "error-catalog.mjs", errorsBase({
-  "src/main/java/app/platform/Problems.java": catalogue(
-    GOOD_ENTRIES + ',\n      Map.entry("note-not-found", new ProblemDef("note-not-found", 404, "A second registration"))',
+  "src/App/Platform/Problems.cs": catalogue(
+    GOOD_ENTRIES + '\n        ["note-not-found"] = new ProblemDef("note-not-found", 404, "A second registration"),',
   ),
 }), { pass: false, matching: /duplicate problem code/ });
 
 expect("errors: a stale catalogue entry fails", "error-catalog.mjs", errorsBase({
-  "src/main/java/app/platform/Problems.java": catalogue(
-    GOOD_ENTRIES + ',\n      Map.entry("unused-thing", new ProblemDef("unused-thing", 410, "Nothing can emit this"))',
+  "src/App/Platform/Problems.cs": catalogue(
+    GOOD_ENTRIES + '\n        ["unused-thing"] = new ProblemDef("unused-thing", 410, "Nothing can emit this"),',
   ),
   "docs/api/problems.md": "# Problem catalogue\n\nvalidation-failed, internal, note-not-found, unused-thing.\n",
 }), { pass: false, matching: /stale catalogue entry/ });
 
 // --- opid:scan (BR-25) -------------------------------------------------------
-const routesJava = (defs) =>
-  `package app.adapter.in.web;\n\npublic final class Routes {\n  static final List<RouteDef> ROUTES = List.of(\n${defs});\n}\n`;
+const routesCs = (defs) =>
+  `namespace App.Adapters.In.Http;\n\npublic static class Routes\n{\n    internal static readonly IReadOnlyList<RouteDef> ROUTES =\n    [\n${defs}\n    ];\n}\n`;
 const DEF = (id, path) =>
-  `      RouteDef.builder()\n          .operationId("${id}")\n          .path("${path}")\n          .problems()\n          .build()`;
+  `        new RouteDef\n        {\n            OperationId = "${id}",\n            Path = "${path}",\n            Problems = [],\n        },`;
 const opidBase = (over = {}) => ({
-  "src/main/java/app/adapter/in/web/Routes.java": routesJava(`${DEF("note-list", "/notes")},\n${DEF("note-create", "/notes")}`),
-  "src/main/java/app/adapter/in/web/RouteRegistrar.java":
-    "package app.adapter.in.web;\n\npublic final class RouteRegistrar {\n  void wire() {\n    // registers every RouteDef on the mapping\n  }\n}\n",
+  "src/App/Adapters/In/Http/Routes.cs": routesCs(`${DEF("note-list", "/notes")}\n${DEF("note-create", "/notes")}`),
+  "src/App/Adapters/In/Http/RouteRegistrar.cs":
+    "namespace App.Adapters.In.Http;\n\npublic static class RouteRegistrar\n{\n    public static void Wire()\n    {\n        // registers every RouteDef on the endpoint router\n    }\n}\n",
   ...over,
 });
 
 expect("opid: unique deterministic operation ids pass", "opid-scan.mjs", opidBase(), { pass: true });
 
 expect("opid: a duplicate operation id fails", "opid-scan.mjs", opidBase({
-  "src/main/java/app/adapter/in/web/Routes.java": routesJava(`${DEF("note-list", "/notes")},\n${DEF("note-list", "/notes/all")}`),
+  "src/App/Adapters/In/Http/Routes.cs": routesCs(`${DEF("note-list", "/notes")}\n${DEF("note-list", "/notes/all")}`),
 }), { pass: false, matching: /declared twice/ });
 
 expect("opid: a route path literal outside the registry fails", "opid-scan.mjs", opidBase({
-  "src/main/java/app/application/Sneaky.java":
-    'package app.application;\n\n@RestController\npublic final class Sneaky {\n  @GetMapping("/notes")\n  Object list() {\n    return null;\n  }\n}\n',
+  "src/App/Application/Sneaky.cs":
+    'namespace App.Application;\n\npublic static class Sneaky\n{\n    public static void Wire(dynamic app)\n    {\n        app.MapGet("/notes", () => 0);\n    }\n}\n',
 }), { pass: false, matching: /route path literal outside the registry/ });
 
 expect("opid: an id without a resource-verb hyphen fails", "opid-scan.mjs", opidBase({
-  "src/main/java/app/adapter/in/web/Routes.java": routesJava(DEF("notes", "/notes")),
+  "src/App/Adapters/In/Http/Routes.cs": routesCs(DEF("notes", "/notes")),
 }), { pass: false, matching: /kebab-case/ });
 
 // --- migration:verify (BR-24) ------------------------------------------------
-const MIG_SQL = "CREATE TABLE notes (\n  id uuid PRIMARY KEY,\n  text text NOT NULL\n);\n";
-const ENTITY_JAVA =
-  "package app.adapter.out.persistence;\n\n@Entity\n@Table(name = \"notes\")\npublic class NoteEntity {\n}\n";
+const MIG_CS = `using Microsoft.EntityFrameworkCore.Migrations;
+
+namespace App.Adapters.Out.Persistence.Migrations
+{
+    public partial class CreateNotes : Migration
+    {
+        protected override void Up(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.CreateTable(
+                name: "notes",
+                columns: table => new
+                {
+                    id = table.Column<Guid>(type: "uuid", nullable: false),
+                    text = table.Column<string>(type: "text", nullable: false)
+                });
+        }
+
+        protected override void Down(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.DropTable(name: "notes");
+        }
+    }
+}
+`;
+const DESIGNER_CS = (name) =>
+  `// <auto-generated />\nnamespace App.Adapters.Out.Persistence.Migrations\n{\n    public partial class ${name}\n    {\n    }\n}\n`;
+const ENTITY_CS =
+  'using System.ComponentModel.DataAnnotations.Schema;\n\nnamespace App.Adapters.Out.Persistence;\n\n[Table("notes")]\npublic class NoteEntity\n{\n    public Guid Id { get; set; }\n}\n';
+const MIG_DIR = "src/App/Adapters/Out/Persistence/Migrations";
 const migrationBase = (over = {}) => ({
-  "src/main/resources/db/migration/V0001__create_notes.sql": MIG_SQL,
-  "src/main/java/app/adapter/out/persistence/NoteEntity.java": ENTITY_JAVA,
+  [`${MIG_DIR}/20260101000000_CreateNotes.cs`]: MIG_CS,
+  [`${MIG_DIR}/20260101000000_CreateNotes.Designer.cs`]: DESIGNER_CS("CreateNotes"),
+  [`${MIG_DIR}/NotesDbContextModelSnapshot.cs`]: "// <auto-generated />\nnamespace App.Adapters.Out.Persistence.Migrations;\n",
+  "src/App/Adapters/Out/Persistence/NoteEntity.cs": ENTITY_CS,
   ...over,
 });
 const writeLedger = (dir) => run("migration-verify.mjs", dir, ["--write"]);
@@ -1099,24 +1122,26 @@ expect("migrations: a rewritten migration fails", "migration-verify.mjs", migrat
   prepare: (dir) => {
     writeLedger(dir);
     writeFileSync(
-      join(dir, "src", "main", "resources", "db", "migration", "V0001__create_notes.sql"),
-      MIG_SQL.replace("text NOT NULL", "text"),
+      join(dir, ...MIG_DIR.split("/"), "20260101000000_CreateNotes.cs"),
+      MIG_CS.replace('type: "text", nullable: false', 'type: "text", nullable: true'),
     );
   },
 });
 
 expect("migrations: a model the migrations do not produce fails", "migration-verify.mjs", migrationBase({
-  "src/main/java/app/adapter/out/persistence/GhostEntity.java":
-    "package app.adapter.out.persistence;\n\n@Entity\n@Table(name = \"ghosts\")\npublic class GhostEntity {\n}\n",
+  "src/App/Adapters/Out/Persistence/GhostEntity.cs":
+    'using System.ComponentModel.DataAnnotations.Schema;\n\nnamespace App.Adapters.Out.Persistence;\n\n[Table("ghosts")]\npublic class GhostEntity\n{\n    public Guid Id { get; set; }\n}\n',
 }), { pass: false, matching: /a model the migrations do not produce/, prepare: writeLedger });
 
 expect("migrations: a destructive statement without an ADR marker fails", "migration-verify.mjs", migrationBase({
-  "src/main/resources/db/migration/V0002__drop_notes.sql": "DROP TABLE notes;\n",
+  [`${MIG_DIR}/20260102000000_DropNotes.cs`]:
+    "using Microsoft.EntityFrameworkCore.Migrations;\n\nnamespace App.Adapters.Out.Persistence.Migrations\n{\n    public partial class DropNotes : Migration\n    {\n        protected override void Up(MigrationBuilder migrationBuilder)\n        {\n            migrationBuilder.DropTable(name: \"notes\");\n        }\n\n        protected override void Down(MigrationBuilder migrationBuilder)\n        {\n        }\n    }\n}\n",
+  [`${MIG_DIR}/20260102000000_DropNotes.Designer.cs`]: DESIGNER_CS("DropNotes"),
 }), { pass: false, matching: /@adr/, prepare: writeLedger });
 
 // --- docs:verify + docs:examples (BR-26) -------------------------------------
 // The capture seam: PROTO_FORGE_CAPTURE names a plain .mjs stand-in for the
-// Gradle capture slice. docs-examples runs it, then pins the handler-source hash.
+// dotnet capture slice. docs-examples runs it, then pins the handler-source hash.
 const DOCS_PROSE =
   "The note-list operation returns every note, newest first. Errors are problem+json from the registered catalogue, and the capture below is replayed by the conformance suite. ".repeat(2);
 const CAPTURE_MJS = `import { mkdirSync, writeFileSync } from "node:fs";
@@ -1127,9 +1152,9 @@ writeFileSync(
 );
 `;
 const docsBase = (over = {}) => ({
-  "src/main/java/app/adapter/in/web/Routes.java": routesJava(DEF("note-list", "/notes")),
-  "src/main/java/app/application/Notes.java":
-    "package app.application;\n\npublic final class Notes {\n  Object list() {\n    return null;\n  }\n}\n",
+  "src/App/Adapters/In/Http/Routes.cs": routesCs(DEF("note-list", "/notes")),
+  "src/App/Application/Notes.cs":
+    "namespace App.Application;\n\npublic static class Notes\n{\n    public static object? List()\n    {\n        return null;\n    }\n}\n",
   "docs/api/note-list/README.md": `# note-list\n\n${DOCS_PROSE}\n`,
   "docs/api/problems.md": `# Problem catalogue\n\n${DOCS_PROSE}\n`,
   "capture.mjs": CAPTURE_MJS,
@@ -1148,8 +1173,8 @@ expect("docs: a handler edit invalidates its example until docs:examples reruns"
   prepare: (dir) => {
     captureExamples(dir);
     writeFileSync(
-      join(dir, "src", "main", "java", "app", "application", "Notes.java"),
-      "package app.application;\n\npublic final class Notes {\n  Object list() {\n    return List.of(1);\n  }\n}\n",
+      join(dir, "src", "App", "Application", "Notes.cs"),
+      "namespace App.Application;\n\npublic static class Notes\n{\n    public static object List()\n    {\n        return new[] { 1 };\n    }\n}\n",
     );
   },
 });
@@ -1164,45 +1189,45 @@ expect("docs: a stated no-example reason stands in for a capture", "docs-verify.
 }), { pass: true });
 
 // --- deps:budget (NFR-13) ----------------------------------------------------
-const gradleDeps = (deps) => `dependencies {\n${deps}\n}\n`;
+const csprojDeps = (deps) => `<Project Sdk="Microsoft.NET.Sdk.Web">\n  <ItemGroup>\n${deps}\n  </ItemGroup>\n</Project>\n`;
 
 expect("deps: a runtime dependency set under the ceiling passes", "deps-budget.mjs", {
-  "build.gradle.kts": gradleDeps(
-    '    implementation("org.springframework.boot:spring-boot-starter-web")\n    implementation("org.flywaydb:flyway-core")',
+  "src/App/App.csproj": csprojDeps(
+    '    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />\n    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.4" PrivateAssets="all" />',
   ),
 }, { pass: true });
 
 expect("deps: a dependency past the ceiling fails without an ADR", "deps-budget.mjs", {
-  "build.gradle.kts": gradleDeps(
-    '    implementation("org.springframework.boot:spring-boot-starter-web")\n    implementation("org.flywaydb:flyway-core")\n    implementation("com.google.guava:guava:33.0.0-jre")',
+  "src/App/App.csproj": csprojDeps(
+    '    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />\n    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />',
   ),
 }, { pass: false, matching: /a new runtime dependency is an ADR/ });
 
 // --- log:scan (NFR-12) -------------------------------------------------------
 const logBase = (over = {}) => ({
-  "src/main/java/app/platform/AppLogger.java":
-    "package app.platform;\n\nimport org.slf4j.Logger;\nimport org.slf4j.LoggerFactory;\n\npublic final class AppLogger {\n  private final Logger delegate = LoggerFactory.getLogger(AppLogger.class);\n}\n",
-  "src/main/java/app/application/Notes.java":
-    "package app.application;\n\nimport app.platform.AppLogger;\n\npublic final class Notes {\n  private static final AppLogger LOG = AppLogger.get(Notes.class);\n\n  void create(String noteId) {\n    LOG.info(\"note created\", \"noteId\", noteId);\n  }\n}\n",
+  "src/App/Platform/AppLogger.cs":
+    "using Microsoft.Extensions.Logging;\n\nnamespace App.Platform;\n\npublic sealed class AppLogger\n{\n    private readonly ILogger? delegateLogger;\n}\n",
+  "src/App/Application/Notes.cs":
+    "using App.Platform;\n\nnamespace App.Application;\n\npublic sealed class Notes\n{\n    private static readonly AppLogger LOG = AppLogger.Get(typeof(Notes));\n\n    public void Create(string noteId)\n    {\n        LOG.Info(\"note created\", \"noteId\", noteId);\n    }\n}\n",
   ...over,
 });
 
 expect("logs: structured logger calls pass", "log-scan.mjs", logBase(), { pass: true });
 
 expect("logs: a bare console/print in production code fails", "log-scan.mjs", logBase({
-  "src/main/java/app/application/Notes.java":
-    `package app.application;\n\npublic final class Notes {\n  void create() {\n    ${CONSOLE_CALL}"note created");\n  }\n}\n`,
+  "src/App/Application/Notes.cs":
+    `namespace App.Application;\n\npublic static class Notes\n{\n    public static void Create()\n    {\n        ${CONSOLE_CALL}"note created");\n    }\n}\n`,
 }), { pass: false, matching: /bare console/ });
 
 expect("logs: a PII field name in a log call fails", "log-scan.mjs", logBase({
-  "src/main/java/app/application/Notes.java":
-    "package app.application;\n\nimport app.platform.AppLogger;\n\npublic final class Notes {\n  private static final AppLogger LOG = AppLogger.get(Notes.class);\n\n  void login(String password) {\n    LOG.info(\"login attempt\", \"password\", password);\n  }\n}\n",
+  "src/App/Application/Notes.cs":
+    "using App.Platform;\n\nnamespace App.Application;\n\npublic sealed class Notes\n{\n    private static readonly AppLogger LOG = AppLogger.Get(typeof(Notes));\n\n    public void Login(string password)\n    {\n        LOG.Info(\"login attempt\", \"password\", password);\n    }\n}\n",
 }), { pass: false, matching: /PII field name/ });
 
 expect("logs: pino imported outside the kernel fails", "log-scan.mjs", logBase({
-  "src/main/java/app/application/Notes.java":
-    "package app.application;\n\nimport org.slf4j.LoggerFactory;\n\npublic final class Notes {\n  Object logger = LoggerFactory.getLogger(Notes.class);\n}\n",
-}), { pass: false, matching: /outside src\/main\/java\/app\/platform/ });
+  "src/App/Application/Notes.cs":
+    "using Microsoft.Extensions.Logging;\n\nnamespace App.Application;\n\npublic sealed class Notes\n{\n    private readonly ILogger? logger;\n}\n",
+}), { pass: false, matching: /outside src\/App\/Platform/ });
 
 
 // --- config: the delivery declaration ----------------------------------------
@@ -1263,8 +1288,8 @@ expect(
 // The declaration gate: .env.example ≡ the env single source, secrets travel by
 // name, and enabled environment ⇔ values file ⇔ docs table — every copy is derived.
 const EMPTY_TABLE = "# Deployment\n\n<!-- env-table:begin -->\n<!-- env-table:end -->\n";
-// Java's env surface is the FIXED four-key list env-verify.mjs documents from
-// AppProperties — the passing fixture documents all four.
+// The dotnet env surface is the FIXED four-key list env-verify.mjs documents from
+// AppOptions — the passing fixture documents all four.
 const ENV_EXAMPLE_OK = "PORT=8080\nLOG_LEVEL=info\n# DATABASE_URL=\nGIT_SHA=dev\n";
 const envBase = (over = {}) => ({
   ".proto-forge/config.json": {},
@@ -1600,45 +1625,45 @@ inlineCase("deploy: render stages to the outbox without touching a cluster");
 // config mirrors (floors, chain, contract counts) to their sources. The fixtures
 // fabricate the machine outputs the reporters would have written, run the
 // producer, then break exactly one copy.
-const BUILD_GRADLE_QUALITY = (breakAt = 85) =>
-  "tasks.jacocoTestCoverageVerification {\n" +
-  "    violationRules {\n" +
-  "        rule {\n" +
-  '            limit { minimum = "1.00".toBigDecimal() }\n' +
-  "        }\n" +
-  "    }\n" +
-  "}\n" +
-  `pitest {\n    mutationThreshold = ${breakAt}\n}\n`;
-const GRADLE_SUITE = (name, tests) =>
-  `<?xml version="1.0" encoding="UTF-8"?>\n<testsuite name="${name}" tests="${tests}" skipped="0" failures="0" errors="0" time="0.1">\n` +
-  Array.from({ length: tests }, (_, i) => `<testcase name="case${i}" classname="${name}" time="0.01"/>`).join("\n") +
-  "\n</testsuite>\n";
-const JACOCO_XML =
-  '<?xml version="1.0" encoding="UTF-8"?><report name="app">' +
-  '<package name="app/domain">' +
-  '<class name="app/domain/Note"><counter type="INSTRUCTION" missed="0" covered="60"/><counter type="BRANCH" missed="0" covered="8"/><counter type="LINE" missed="0" covered="20"/></class>' +
-  '<counter type="INSTRUCTION" missed="0" covered="120"/><counter type="BRANCH" missed="0" covered="16"/><counter type="LINE" missed="0" covered="40"/>' +
-  "</package>" +
-  '<package name="app/adapters"><counter type="INSTRUCTION" missed="50" covered="50"/></package>' +
-  "</report>\n";
-const PIT_XML = (killed, survived) =>
-  '<?xml version="1.0" encoding="UTF-8"?><mutations>\n' +
-  Array.from({ length: killed }, () => "<mutation detected='true' status='KILLED'><mutatedClass>app.domain.Note</mutatedClass></mutation>").join("\n") +
-  "\n" +
-  Array.from({ length: survived }, () => "<mutation detected='false' status='SURVIVED'><mutatedClass>app.domain.Note</mutatedClass></mutation>").join("\n") +
-  "\n</mutations>\n";
+const QUALITY_CSPROJ =
+  "<Project Sdk=\"Microsoft.NET.Sdk\">\n  <PropertyGroup>\n    <Include>[App]App.Domain.*,[App]App.Application.*</Include>\n    <Threshold>100</Threshold>\n    <ThresholdType>line,branch,method</ThresholdType>\n    <ThresholdStat>total</ThresholdStat>\n  </PropertyGroup>\n</Project>\n";
+const STRYKER_CFG = (breakAt = 85) =>
+  JSON.stringify({ "stryker-config": { mutate: ["**/Domain/**/*.cs", "**/Application/**/*.cs"], thresholds: { high: 95, low: 90, break: breakAt } } }, null, 2) + "\n";
+const TRX = (tests) =>
+  `<?xml version="1.0" encoding="utf-8"?>\n<TestRun xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">\n  <ResultSummary outcome="Completed">\n    <Counters total="${tests}" executed="${tests}" passed="${tests}" failed="0" error="0" timeout="0" aborted="0" inconclusive="0" />\n  </ResultSummary>\n</TestRun>\n`;
+const COBERTURA_XML =
+  '<?xml version="1.0" encoding="utf-8"?><coverage line-rate="1" branch-rate="1"><packages><package name="App"><classes>' +
+  '<class name="App.Domain.Note" filename="Domain/Note.cs" line-rate="1" branch-rate="1">' +
+  '<methods><method name="Fn" signature="()" line-rate="1" branch-rate="1"><lines><line number="1" hits="2" branch="False" /></lines></method></methods>' +
+  '<lines><line number="1" hits="2" branch="True" condition-coverage="100% (2/2)" /><line number="2" hits="1" branch="False" /></lines>' +
+  "</class></classes></package></packages></coverage>\n";
+const STRYKER_JSON = (killed, survived) =>
+  JSON.stringify({
+    schemaVersion: "2",
+    thresholds: { high: 95, low: 90 },
+    files: {
+      "src/App/Domain/Note.cs": {
+        language: "cs",
+        source: "",
+        mutants: [
+          ...Array.from({ length: killed }, (_, i) => ({ id: `k${i}`, mutatorName: "String", status: "Killed", location: { start: { line: 1, column: 1 }, end: { line: 1, column: 2 } } })),
+          ...Array.from({ length: survived }, (_, i) => ({ id: `s${i}`, mutatorName: "String", status: "Survived", location: { start: { line: 1, column: 1 }, end: { line: 1, column: 2 } } })),
+        ],
+      },
+    },
+  }, null, 2) + "\n";
 const statusProject = (over = {}) => ({
   ".proto-forge/config.json": {},
   "package.json": { scripts: { verify: "pnpm run test:unit && pnpm run status:verify" } },
-  "build.gradle.kts": BUILD_GRADLE_QUALITY(),
-  "build/test-results/test/TEST-app.domain.NoteTest.xml": GRADLE_SUITE("app.domain.NoteTest", 3),
-  "build/test-results/test/TEST-app.application.NoteServiceTest.xml": GRADLE_SUITE("app.application.NoteServiceTest", 2),
-  "build/reports/jacoco/test/jacocoTestReport.xml": JACOCO_XML,
-  "build/reports/pitest/mutations.xml": PIT_XML(9, 1),
+  "tests/App.Tests/App.Tests.csproj": QUALITY_CSPROJ,
+  "stryker-config.json": STRYKER_CFG(),
+  "build/test-results/unit/unit.trx": TRX(5),
+  "build/reports/coverage/coverage.cobertura.xml": COBERTURA_XML,
+  "build/reports/stryker/reports/mutation-report.json": STRYKER_JSON(9, 1),
   ".proto-forge/e2e-results.json": { scenarios: 3, passed: 3 },
   "contract/openapi.json": { openapi: "3.1.0", paths: { "/notes": { get: {}, post: {} } } },
-  "src/main/java/app/platform/Problems.java":
-    'public final class Problems {\n  public static final Map<String, ProblemDef> PROBLEMS = Map.ofEntries(\n      Map.entry("validation-failed", new ProblemDef("validation-failed", 400, "x")),\n      Map.entry("internal", new ProblemDef("internal", 500, "x")));\n}\n',
+  "src/App/Platform/Problems.cs":
+    'public static class Problems\n{\n    public static readonly IReadOnlyDictionary<string, ProblemDef> PROBLEMS = new Dictionary<string, ProblemDef>\n    {\n        ["validation-failed"] = new ProblemDef("validation-failed", 400, "x"),\n        ["internal"] = new ProblemDef("internal", 500, "x"),\n    };\n}\n',
   "docs/STATUS.md": "# Quality status\n\n<!-- quality:begin -->\n<!-- quality:end -->\n",
   ...over,
 });
@@ -1664,7 +1689,7 @@ expect("status: a threshold mirror disagreeing with the config fails", "status-v
   matching: /thresholds\.mutation/,
   prepare: (dir) => {
     writeQuality(dir);
-    writeFileSync(join(dir, "build.gradle.kts"), BUILD_GRADLE_QUALITY(80));
+    writeFileSync(join(dir, "stryker-config.json"), STRYKER_CFG(80));
   },
 });
 
@@ -1687,7 +1712,7 @@ expect("status: a missing quality.json fails", "status-verify.mjs", statusProjec
 // half: a finding names its fix. PROTO_FORGE_DOCTOR_PORTS="" skips the port
 // probe so a dev server on the operator's machine cannot flake the selftest;
 // the engines fixture matches the running node so the clean case passes anywhere,
-// and the fixtures ship no build.gradle.kts so the JVM probes stay out of scope.
+// and the fixtures ship no global.json so the dotnet probes stay out of scope.
 const doctorBase = (over = {}) => ({
   "package.json": { engines: { node: `>=${process.versions.node.split(".")[0]}` } },
   ...over,
@@ -1699,13 +1724,13 @@ expect("doctor: a clean tree passes", "doctor.mjs", doctorBase(), { pass: true, 
 expect(
   "doctor: a stale mutation cache is named with its fix",
   "doctor.mjs",
-  doctorBase({ "build/reports/pitest/mutations.xml": "<mutations/>\n", "src/main/java/app/A.java": "class A {}\n" }),
+  doctorBase({ "build/reports/stryker/reports/mutation-report.json": "{}\n", "src/App/A.cs": "public static class A;\n" }),
   {
     pass: false,
-    matching: /rm -rf build\/reports\/pitest/,
+    matching: /rm -rf build\/reports\/stryker/,
     env: noPorts,
     // The report predates the source by construction: epoch mtime, no clock math.
-    prepare: (dir) => utimesSync(join(dir, "build", "reports", "pitest", "mutations.xml"), new Date(0), new Date(0)),
+    prepare: (dir) => utimesSync(join(dir, "build", "reports", "stryker", "reports", "mutation-report.json"), new Date(0), new Date(0)),
   },
 );
 

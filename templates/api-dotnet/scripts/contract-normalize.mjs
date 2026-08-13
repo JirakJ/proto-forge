@@ -1,8 +1,8 @@
 // @adr 008 - the shared contract normalizer (BR-22, §14)
 //
-// springdoc's raw document carries volatile and cosmetic members the contract
+// A raw OpenAPI document carries volatile and cosmetic members the contract
 // must not depend on: the `servers` block (host-of-the-moment), per-operation
-// `tags` (bean-name noise) and the top-level tag list. Normalization strips
+// `tags` (handler-name noise) and the top-level tag list. Normalization strips
 // them and sorts every key recursively, so the committed artefact is canonical
 // JSON — the same registry always yields the same bytes, byte-comparable with
 // no YAML serializer and no diff library in the dependency budget.

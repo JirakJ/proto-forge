@@ -13,7 +13,7 @@ name: heal
 #
 # House rules: GitHub context reaches run: scripts only through env: indirection;
 # third-party actions are pinned to full commit SHAs (none are needed here —
-# checkout/setup-java/setup-gradle/setup-node ride the same pins verify.yml uses).
+# checkout/setup-dotnet/setup-node ride the same pins verify.yml uses).
 on:
   workflow_dispatch:
   workflow_run:
@@ -38,18 +38,16 @@ jobs:
           ref: ${{ github.event.workflow_run.head_sha || github.ref }}
       # verify.yml's toolchain, byte for byte: the confirming verify inside
       # `pnpm heal` must run the same gates CI enforces.
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-dotnet@v4
         with:
-          distribution: temurin
-          java-version: "21"
-      - uses: gradle/actions/setup-gradle@v4
-        with:
-          cache-read-only: true
+          global-json-file: global.json
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
       - run: corepack enable
       - run: pnpm install --frozen-lockfile
+      - run: dotnet restore proto-forge-service.slnx --locked-mode
+      - run: dotnet tool restore
       - name: Install gitleaks
         run: |
           curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.21.2/gitleaks_8.21.2_linux_x64.tar.gz \

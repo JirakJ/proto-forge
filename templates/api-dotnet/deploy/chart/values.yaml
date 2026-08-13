@@ -19,8 +19,8 @@ environment: dev
 
 port: 8080
 
-# JVM-sized: a Spring Boot heap plus metaspace does not fit the slim-runtime
-# envelope the node/python templates use.
+# Runtime-sized: the .NET server GC reserves per-core heaps and the JIT warms up
+# on first request, so this envelope sits above the node/python templates'.
 resources:
   requests:
     cpu: 100m
@@ -46,7 +46,8 @@ probes:
 # arbitrary one — a hardcoded runAsUser would fight the SCC and is deliberately
 # absent), no privilege escalation, no capabilities, default seccomp, read-only
 # root filesystem with emptyDirs over the paths the runtime writes — for the
-# JVM that is /tmp (java.io.tmpdir), which the chart mounts as an emptyDir.
+# .NET runtime that is /tmp (its scratch space), which the chart mounts as an
+# emptyDir.
 securityContext:
   runAsNonRoot: true
   allowPrivilegeEscalation: false
@@ -67,6 +68,6 @@ expose:
 # Names of Secrets (created by the platform team, never by this repository) the
 # pod loads via envFrom. Secret VALUES exist only in the cluster — the secrets
 # contract in docs/DEPLOYMENT.md says who provides each name. app-runtime is the
-# one Secret this service needs: it carries DATABASE_URL, the JDBC PostgreSQL
+# one Secret this service needs: it carries DATABASE_URL, the PostgreSQL
 # connection string for the environment.
 envFromSecrets: [app-runtime]
