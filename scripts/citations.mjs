@@ -50,7 +50,7 @@ for (const t of TEMPLATES) {
 }
 const templateIds = new Set(TEMPLATES.map((t) => t.id));
 
-const SCANNED_TREES = ["references", ...TEMPLATES.map((t) => t.dir), "docs/adr"];
+const SCANNED_TREES = ["references", ...TEMPLATES.map((t) => t.dir), "docs/adr", "skills"];
 
 const registerSrc = read(REGISTER);
 
@@ -77,16 +77,35 @@ const scanned = [
 
 const RULE_CITE = /\b(BR-\d+|NFR-\d+)\b/g;
 const SECTION_CITE = /BRS §([\d]+(?:\.[\d]+)?)/g;
-// Built as the range 1..maxRow from the table's actual rows (longest first, so T2
+// Built as the range 1..maxRow from the register's actual ids (longest first, so T2
 // never shadows T22): a bare \bT\d+\b matches type parameters, hashes and version
 // strings, and a gate that cries wolf gets switched off — but a hardcoded ceiling
 // has to be re-widened by hand every time the table grows, which is how T14 would
 // silently go uncited. The RANGE (not just the existing ids) is what keeps the
 // missing-row check alive: citing a removed T9 must still fail, not fall outside
 // the regex.
-const maxRow = Math.max(...[...tableRows].map((t) => Number(t.slice(1))));
-const rowRange = Array.from({ length: maxRow }, (_, i) => String(i + 1)).sort((a, b) => b.length - a.length);
-const ROW_CITE = new RegExp(`\\bT(${rowRange.join("|")})\\b`, "g");
+function boundedCite(prefix, ids) {
+  if (ids.size === 0) return null;
+  const max = Math.max(...[...ids].map((v) => Number(v.slice(prefix.length))));
+  const range = Array.from({ length: max }, (_, i) => String(i + 1)).sort((a, b) => b.length - a.length);
+  return new RegExp(`\\b${prefix}(${range.join("|")})\\b`, "g");
+}
+const ROW_CITE = boundedCite("T", tableRows);
+
+// The discovery skill's citation namespaces (ADR 008), same construction, matched
+// in .md files only — a D or Q token in code is a variable, not a claim. Guarded:
+// both registers ship with the discovery skill, and a repo without it (a selftest
+// fixture, a stripped install) simply has no D/Q namespace to violate.
+const DISCOVERY_TABLE = "skills/discovery/references/discovery-table.md";
+const QUESTIONS = "skills/discovery/template/.discovery/questions.json";
+const discoveryRows = existsSync(DISCOVERY_TABLE)
+  ? new Set([...read(DISCOVERY_TABLE).matchAll(/^\|\s*(D\d+)\s*\|/gm)].map((m) => m[1]))
+  : new Set();
+const questionIds = existsSync(QUESTIONS)
+  ? new Set((readJson(QUESTIONS).questions ?? []).map((q) => q.id).filter((id) => /^Q\d+$/.test(id ?? "")))
+  : new Set();
+const D_CITE = boundedCite("D", discoveryRows);
+const Q_CITE = boundedCite("Q", questionIds);
 // An explicit annotation wins over the file's default namespace, because the
 // register legitimately discusses both.
 const ADR_CITE = /(?:@adr\s+|\bADR[\s-])(\d{3})\b(?:\s*\((plugin|prototype) namespace\))?/g;
@@ -120,8 +139,22 @@ for (const file of scanned) {
   for (const m of prose.matchAll(SECTION_CITE)) {
     if (!sectionIds.has(m[1])) errors.push(`${file}: cites BRS §${m[1]}, which ${REGISTER} has no heading for`);
   }
-  for (const m of prose.matchAll(ROW_CITE)) {
-    if (!tableRows.has(m[0])) errors.push(`${file}: cites ${m[0]}, which ${TABLE} has no row for`);
+  if (ROW_CITE !== null) {
+    for (const m of prose.matchAll(ROW_CITE)) {
+      if (!tableRows.has(m[0])) errors.push(`${file}: cites ${m[0]}, which ${TABLE} has no row for`);
+    }
+  }
+  if (file.endsWith(".md")) {
+    if (D_CITE !== null) {
+      for (const m of prose.matchAll(D_CITE)) {
+        if (!discoveryRows.has(m[0])) errors.push(`${file}: cites ${m[0]}, which ${DISCOVERY_TABLE} has no row for`);
+      }
+    }
+    if (Q_CITE !== null) {
+      for (const m of prose.matchAll(Q_CITE)) {
+        if (!questionIds.has(m[0])) errors.push(`${file}: cites ${m[0]}, which ${QUESTIONS} does not define`);
+      }
+    }
   }
 
   // ADR namespaces, deliberately separate: each template's docs/adr describes the
@@ -312,6 +345,6 @@ for (const t of TEMPLATES) {
 if (errors.length > 0) fail("citations FAILED", errors);
 ok(
   `citations: ${scanned.length} files, ${ruleIds.size} rules, ${sectionIds.size} sections, ` +
-    `${tableRows.size} table rows, ${TEMPLATES.length} template(s) — every citation resolves, ` +
-    `every rule is enforced, every gate is motivated`,
+    `${tableRows.size} table rows, ${discoveryRows.size} discovery rows, ${questionIds.size} questions, ` +
+    `${TEMPLATES.length} template(s) — every citation resolves, every rule is enforced, every gate is motivated`,
 );

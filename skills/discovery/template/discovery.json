@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "discoveryHash": "c8cc1e28b7e1b10b0b40d4d9d640bfdc253a28b3b6964f556f2530f19ea73837",
+  "units": [
+    {
+      "id": "sample-screen",
+      "kind": "screen",
+      "doc": "docs/sample-screen/README.md",
+      "status": "open",
+      "gapsOpen": 2,
+      "gapsTotal": 3
+    }
+  ],
+  "testids": [
+    { "unit": "sample-screen", "testid": "sample-screen-item-list", "figmaNodeId": "1:5" },
+    { "unit": "sample-screen", "testid": "sample-screen-add-button", "figmaNodeId": "1:6" },
+    { "unit": "sample-screen", "testid": "sample-screen-empty-state", "figmaNodeId": "1:7" }
+  ],
+  "gaps": [
+    {
+      "unit": "sample-screen",
+      "q": "Q2",
+      "status": "answered",
+      "proposedDefault": "Ship the empty variant as designed.",
+      "answer": "The designed empty variant ships, copy from the catalogue."
+    },
+    {
+      "unit": "sample-screen",
+      "q": "Q1",
+      "status": "open",
+      "proposedDefault": "Inline error state with a retry action; never a blank region.",
+      "answer": null
+    },
+    {
+      "unit": "sample-screen",
+      "q": "Q6",
+      "status": "open",
+      "proposedDefault": "Create immediately with an undo affordance; no dialog for a non-destructive action.",
+      "answer": null
+    }
+  ],
+  "facets": {
+    "locales": ["en"]
+  }
+}

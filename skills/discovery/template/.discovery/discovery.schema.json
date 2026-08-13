@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/JirakJ/proto-forge/skills/discovery/discovery.schema.json",
+  "title": "proto-forge discovery bridge",
+  "description": "The machine-readable bridge regenerated from the discovery documents (D7) and ingested by the main skill's Phase 0 (D8). One direction only: the documents are the source, this file is the derivation, and .discovery/lint.mjs fails when the two disagree (BR-33).",
+  "type": "object",
+  "required": ["version", "discoveryHash", "units", "testids", "gaps", "facets"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "const": 1 },
+    "discoveryHash": {
+      "description": "sha256 of inventory.json as committed — the discovery identity (D1). Recorded by the main skill in .prompts/0003-discovery.md; never part of the facet hash (BR-14).",
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "units": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "kind", "doc", "status", "gapsOpen", "gapsTotal"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
+          "kind": { "enum": ["screen", "feature", "api-area"] },
+          "doc": { "type": "string" },
+          "status": { "enum": ["open", "answered"] },
+          "gapsOpen": { "type": "integer", "minimum": 0 },
+          "gapsTotal": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "testids": {
+      "description": "The reserved data-testid allocations (D2). The main skill's Phase 4 honors these verbatim for inventoried elements (BR-31).",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["unit", "testid"],
+        "additionalProperties": false,
+        "properties": {
+          "unit": { "type": "string" },
+          "testid": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
+          "figmaNodeId": { "type": "string" }
+        }
+      }
+    },
+    "gaps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["unit", "q", "status", "proposedDefault", "answer"],
+        "additionalProperties": false,
+        "properties": {
+          "unit": { "type": "string" },
+          "q": { "type": "string", "pattern": "^Q[0-9]+$" },
+          "status": { "enum": ["open", "answered"] },
+          "proposedDefault": { "type": "string", "minLength": 1 },
+          "answer": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "facets": {
+      "description": "A partial facets prefill: only what the sources answered, in the shape of references/facets.schema.ts (repo root). The main skill's Phase 0 starts normalization from this fragment; the brief wins every conflict.",
+      "type": "object"
+    }
+  }
+}

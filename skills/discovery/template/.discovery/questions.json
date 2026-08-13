@@ -1,0 +1,174 @@
+{
+  "$comment": "The fixed gap-detection taxonomy (D3): every discovery run walks exactly these questions per unit kind, so two runs over the same sources raise the same questions. Q-ids are a citation namespace — scripts/citations.mjs (repo root) resolves every Q-id cited in prose against this register. defaultHint is the seed of the conservative default (D4), specialized to the unit's evidence at generation time.",
+  "version": 1,
+  "questions": [
+    {
+      "id": "Q1",
+      "kind": "screen",
+      "topic": "error behavior",
+      "question": "When the data behind this screen fails to load, or an action on it fails, what does the user see and what can they do next?",
+      "defaultHint": "Show an inline error state with a retry action; never a blank screen or a silent failure."
+    },
+    {
+      "id": "Q2",
+      "kind": "screen",
+      "topic": "empty state",
+      "question": "What does this screen show when there is no data yet, and how does the user get from that state to the first record?",
+      "defaultHint": "Show a dedicated empty state that names the primary action; never an empty table frame."
+    },
+    {
+      "id": "Q3",
+      "kind": "screen",
+      "topic": "loading state",
+      "question": "What does this screen show while its data is loading, and which parts stay interactive?",
+      "defaultHint": "Show a loading state in place of the pending region; keep navigation interactive; never block the whole page."
+    },
+    {
+      "id": "Q4",
+      "kind": "screen",
+      "topic": "permissions per role",
+      "question": "Which roles may see this screen, and which of its actions are restricted to which roles?",
+      "defaultHint": "The screen is visible to every role the brief names; write and destructive actions require the most privileged named role until stated otherwise."
+    },
+    {
+      "id": "Q5",
+      "kind": "screen",
+      "topic": "validation rules",
+      "question": "For each input on this screen, what are the validation rules, and where and when are violations shown?",
+      "defaultHint": "Required fields must be non-empty; formats are validated at the boundary; violations show inline per field on submit."
+    },
+    {
+      "id": "Q6",
+      "kind": "screen",
+      "topic": "destructive confirmation",
+      "question": "Which actions on this screen are destructive or irreversible, and which of them require explicit confirmation?",
+      "defaultHint": "Any delete or irreversible action asks for explicit confirmation in a dialog; non-destructive actions act immediately with an undo affordance."
+    },
+    {
+      "id": "Q7",
+      "kind": "screen",
+      "topic": "content and i18n source",
+      "question": "Where does this screen's copy come from, and which locales must it exist in?",
+      "defaultHint": "All copy comes from the i18n catalogue; English is the only locale until the brief names another."
+    },
+    {
+      "id": "Q8",
+      "kind": "screen",
+      "topic": "overflow",
+      "question": "How do long values, long lists and narrow viewports behave on this screen?",
+      "defaultHint": "Long text truncates with the full value reachable; long lists paginate or scroll within the region; the layout wraps at narrow widths instead of overflowing."
+    },
+    {
+      "id": "Q9",
+      "kind": "feature",
+      "topic": "actor and trigger",
+      "question": "Who initiates this flow, and what exactly triggers it?",
+      "defaultHint": "The least privileged role the brief names initiates it through an explicit user action; nothing starts it implicitly."
+    },
+    {
+      "id": "Q10",
+      "kind": "feature",
+      "topic": "success criterion",
+      "question": "What observable outcome means this flow succeeded, and what does the user see at that moment?",
+      "defaultHint": "The flow ends on a visible confirmation of the created or changed record; success is observable, never assumed."
+    },
+    {
+      "id": "Q11",
+      "kind": "feature",
+      "topic": "failure and abandon path",
+      "question": "What happens when this flow fails midway, and what happens when the user abandons it?",
+      "defaultHint": "A midway failure preserves the user's input and states what failed; abandoning discards nothing without confirmation."
+    },
+    {
+      "id": "Q12",
+      "kind": "feature",
+      "topic": "side effects",
+      "question": "What side effects does this flow have beyond its primary record — notifications, derived data, external calls?",
+      "defaultHint": "No side effects beyond the primary record until one is stated; every stated side effect is listed in the flow's document."
+    },
+    {
+      "id": "Q13",
+      "kind": "api-area",
+      "topic": "endpoints and shapes",
+      "question": "Which operations does this area expose, and what are their request and response shapes?",
+      "defaultHint": "One CRUD set per entity with shapes derived from the entity's fields; no operation beyond what the sources state."
+    },
+    {
+      "id": "Q14",
+      "kind": "api-area",
+      "topic": "data ownership",
+      "question": "Which system is the source of truth for this area's data, and who may write it?",
+      "defaultHint": "This service owns its data; external systems read through the contract and never write directly."
+    },
+    {
+      "id": "Q15",
+      "kind": "api-area",
+      "topic": "authentication and authorization per operation",
+      "question": "How do callers authenticate, and which caller may invoke which operation?",
+      "defaultHint": "Every operation requires authentication; write operations additionally require the owning role; nothing is anonymous until stated."
+    },
+    {
+      "id": "Q16",
+      "kind": "api-area",
+      "topic": "error contract",
+      "question": "What error shapes can this area return, and are they stable enough for a consumer to program against?",
+      "defaultHint": "Every error is a registered RFC 9457 problem type with a stable type URI — the BR-23 catalogue discipline."
+    },
+    {
+      "id": "Q17",
+      "kind": "api-area",
+      "topic": "pagination and filtering",
+      "question": "How do list operations paginate, sort and filter, and what are the limits?",
+      "defaultHint": "List operations paginate with an explicit page size and a documented maximum; sorting and filtering exist only where stated."
+    },
+    {
+      "id": "Q18",
+      "kind": "api-area",
+      "topic": "idempotency and retries",
+      "question": "Which operations are idempotent, and what happens when a client retries a write?",
+      "defaultHint": "Reads and deletes are idempotent; creates accept an idempotency key so a retry cannot double-write."
+    },
+    {
+      "id": "Q19",
+      "kind": "api-area",
+      "topic": "data lifecycle and PII",
+      "question": "How long is this area's data kept, which fields are personal data, and how are they deleted or redacted?",
+      "defaultHint": "Data is kept until explicitly deleted; fields naming a person are treated as PII, redacted from logs (NFR-12) and deletable on request."
+    },
+    {
+      "id": "Q20",
+      "kind": "api-area",
+      "topic": "integration contract",
+      "question": "For each external system this area touches, what is the agreed contract, and where is it recorded?",
+      "defaultHint": "Every external system sits behind an adapter with its contract recorded locally with provenance — the BR-18 record discipline."
+    },
+    {
+      "id": "Q21",
+      "kind": "cross-cutting",
+      "topic": "business value",
+      "question": "What does the customer actually gain when this ships — the Need-payoff in one falsifiable sentence?",
+      "defaultHint": "State the gain as an observable change for a named actor; a gain nobody could observe is not a gain."
+    },
+    {
+      "id": "Q22",
+      "kind": "cross-cutting",
+      "topic": "rollout and environments",
+      "question": "Where does this deploy first, which environments exist in the promotion chain, and who approves promotion?",
+      "defaultHint": "A dev environment only until the operator enables more; every later environment is a reviewed config change, never a regeneration."
+    },
+    {
+      "id": "Q23",
+      "kind": "cross-cutting",
+      "topic": "locales",
+      "question": "Which languages must the product ship in, and which locale is the default?",
+      "defaultHint": "English only, as the default locale, until the brief names another — a named locale is a commitment to translate (BR-09)."
+    },
+    {
+      "id": "Q24",
+      "kind": "cross-cutting",
+      "topic": "offline and realtime",
+      "question": "Must anything work offline, and must anything update in real time?",
+      "defaultHint": "Neither, until stated: online-only with explicit refresh is the conservative default for both."
+    }
+  ]
+}

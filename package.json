@@ -10,11 +10,12 @@
   },
   "packageManager": "pnpm@10.11.0",
   "scripts": {
-    "verify": "pnpm run citations && pnpm run skill:lint && pnpm run manifest:lint && pnpm run template:integrity",
+    "verify": "pnpm run citations && pnpm run skill:lint && pnpm run manifest:lint && pnpm run template:integrity && pnpm run discovery:lint",
     "citations": "node scripts/citations.mjs",
     "skill:lint": "node scripts/skill-lint.mjs",
     "manifest:lint": "node scripts/manifest-lint.mjs",
     "template:integrity": "node scripts/template-integrity.mjs",
+    "discovery:lint": "node skills/discovery/template/.discovery/lint.mjs skills/discovery/template",
     "verify:template": "node scripts/verify-template.mjs",
     "selftest": "node scripts/selftest-all.mjs"
   }
