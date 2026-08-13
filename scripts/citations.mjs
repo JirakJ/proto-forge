@@ -35,7 +35,7 @@ const CODE = /\.(md|ts|tsx|mjs|js)$/;
 const NOT_A_GATE = new Set([
   "dev", "build", "preview", "verify", "prepare",
   "i18n:extract", "docs:shots", "config:show", "snapshot", "seed:lock", "sbom",
-  "sync:jira", "sync:confluence", "sync:pull", "sync:status",
+  "sync:jira", "sync:confluence", "sync:pull", "sync:status", "sync:auto",
   "test:e2e",
 ]);
 

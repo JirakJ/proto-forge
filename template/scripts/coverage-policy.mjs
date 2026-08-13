@@ -38,6 +38,8 @@ if (!existsSync(CONFIG)) {
 const src = read(CONFIG);
 
 // --- thresholds: every number in the thresholds block is 100 -------------------
+// Same line-anchoring contract as the exclude block below: each glob's thresholds sit
+// on ONE line, so the block's own closing `},` is the first one that starts a line.
 const thresholdsBlock = /thresholds:\s*\{([\s\S]*?)\n\s*\},/.exec(src)?.[1];
 if (thresholdsBlock === undefined) {
   errors.push(`${CONFIG}: no coverage.thresholds block — the floors are gone entirely`);
@@ -56,7 +58,11 @@ if (thresholdsBlock === undefined) {
 }
 
 // --- exclusions: exactly the allow-list, each with its reason ------------------
-const excludeBlock = /exclude:\s*\[([\s\S]*?)\]/.exec(src)?.[1];
+// Anchored on the closing bracket ON ITS OWN LINE (`\n ],`), never on the first "]"
+// in the stream: a glob containing a character class (`src/[a-z]*/**`) would otherwise
+// truncate the block and every entry after it would silently escape the allow-list —
+// a tamper-guard that can be blinded by the tamper it guards against.
+const excludeBlock = /exclude:\s*\[([\s\S]*?)\n\s*\],/.exec(src)?.[1];
 if (excludeBlock === undefined) {
   errors.push(`${CONFIG}: no coverage.exclude block found`);
 } else {

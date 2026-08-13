@@ -31,6 +31,12 @@ host, a non-ISO timestamp, an affected file that does not exist — and on an **
 - `pnpm sync:status [--fail-on-drift]` compares every record against the remote and
   reports `up to date`, `changed upstream` (with the affected files listed beneath), or
   `MISSING upstream`.
+- `pnpm sync:auto` is the unattended path, run by the pipeline after each accepted-ADR
+  commit and at release. It stages always; it sends live **only** for an integration
+  whose committed config says `enabled: true, dryRun: false, autoPropagate: true` — the
+  committed `autoPropagate` is standing, reviewed consent that stands in for the
+  per-run `--approve` and for nothing else (the allowlist and credentials still apply).
+  Every live send writes its `push` record here like any other.
 
 All three honour the network guardrail: no socket opens unless
 `guardrails.network.allow` is on and the host is allowlisted. Reading needs no

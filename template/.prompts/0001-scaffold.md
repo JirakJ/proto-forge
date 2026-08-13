@@ -12,4 +12,4 @@ Scaffold the fixed proto-forge template: pinned React 19 + TypeScript + Vite sta
 
 ## Outcome
 
-Template skeleton created with foundational ADRs 001–007 (stack, prompt log, tests, i18n, routing, error boundary, performance budget), domain ADR 010, component-library ADRs 020–022, example-feature ADR 030, and security ADR 100. Self-verifying via the Notes example vertical slice.
+Template skeleton created with foundational ADRs 001–009 (stack, prompt log, tests, i18n, routing, error boundary, performance budget, overlay layering, mandatory gates), domain ADR 010, component-library ADRs 020 and 022 (021 retired; the number stays unused), example-feature ADR 030, and security ADR 100. Self-verifying via the Notes example vertical slice.

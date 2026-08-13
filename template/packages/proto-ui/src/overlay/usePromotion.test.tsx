@@ -10,7 +10,7 @@ const INCAPABLE: Capabilities = { topLayerDialog: false, popover: false, cssAnch
 
 function Surface({ open, capabilities, calls }: { open: boolean; capabilities: Capabilities; calls: string[] }) {
   const ref = useRef<HTMLDivElement>(null);
-  usePromotion(ref, open, capabilities);
+  usePromotion({ ref, open, capabilities });
   return (
     <div
       data-testid="surface"
@@ -69,10 +69,44 @@ describe("usePromotion", () => {
     expect(calls).toEqual([]);
   });
 
+  it("re-promotes when the resignal changes while open — new content, new claim to the top", () => {
+    const calls: string[] = [];
+    function Resignalling() {
+      const ref = useRef<HTMLDivElement>(null);
+      const [signal, setSignal] = useState("t1");
+      usePromotion({ ref, open: true, capabilities: CAPABLE, resignal: signal });
+      return (
+        <>
+          <div
+            data-testid="surface"
+            ref={(node) => {
+              ref.current = node;
+              if (node !== null && !("showPopover" in node)) {
+                Object.defineProperties(node, {
+                  showPopover: { value: () => calls.push("show"), configurable: true },
+                  hidePopover: { value: () => calls.push("hide"), configurable: true },
+                });
+              }
+            }}
+          />
+          <button data-testid="raise" onClick={() => setSignal("t2")}>
+            raise another
+          </button>
+        </>
+      );
+    }
+    render(<Resignalling />);
+    expect(calls).toEqual(["show"]);
+    // A second toast in an already-showing region: demote + promote re-enters the top
+    // layer ON TOP, which is what puts it above a dialog opened between the two.
+    fireEvent.click(screen.getByTestId("raise"));
+    expect(calls).toEqual(["show", "hide", "show"]);
+  });
+
   it("does nothing when the ref never attaches", () => {
     function Headless() {
       const ref = useRef<HTMLDivElement>(null);
-      usePromotion(ref, true, CAPABLE);
+      usePromotion({ ref, open: true, capabilities: CAPABLE });
       return null;
     }
     expect(() => render(<Headless />)).not.toThrow();

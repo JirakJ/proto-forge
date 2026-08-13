@@ -215,6 +215,11 @@ export default tseslint.config(
       local,
     },
     rules: {
+      // The react plugin was installed and registered but its ruleset never spread —
+      // so react/jsx-key, react/no-direct-mutation-state and friends were silently
+      // inactive while the config read as if React linting were on.
+      ...react.configs.flat.recommended.rules,
+      ...react.configs.flat["jsx-runtime"].rules,
       ...reactHooks.configs.recommended.rules,
       ...security.configs.recommended.rules,
       "no-unsanitized/method": "error",

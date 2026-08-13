@@ -71,6 +71,21 @@ if (cssFiles.length > 0 && expected === null) {
   }
 }
 
+// --- runtime dependencies must be imported (BR-12's dead-weight corollary) -----
+// A `dependencies` entry nothing imports ships attack surface and download weight for
+// no behaviour. Scoped to runtime deps on purpose: devDependencies are wired through
+// configs and CLIs, where "is it used?" has no cheap mechanical answer.
+const pkg = existsSync("package.json") ? JSON.parse(read("package.json")) : {};
+for (const dep of Object.keys(pkg.dependencies ?? {})) {
+  const imported = code.some((f) => {
+    const b = read(f);
+    return b.includes(`from "${dep}"`) || b.includes(`from "${dep}/`) || b.includes(`import("${dep}`) || b.includes(`import "${dep}`);
+  });
+  if (!imported) {
+    errors.push(`package.json dependency "${dep}" is imported by nothing in src/ or packages/ — dead runtime weight`);
+  }
+}
+
 const acceptedTitles = walk("docs/adr", (p) => p.endsWith(".md"))
   .map(read)
   .filter((b) => /- Status:\s*accepted/i.test(b))

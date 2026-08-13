@@ -109,11 +109,13 @@ drive-by statistic.
 - **Proven by:** `gates:selftest` → "hook: lowering a coverage threshold is blocked",
   "coverage: floors at 100 and reasoned exclusions pass", "coverage: a lowered threshold
   fails", "coverage: an exclusion outside the allow-list fails", "coverage: an
-  allow-listed exclusion without its reason fails", "ignores: a clean tree with a
-  matching pin passes", "ignores: a well-formed, evidenced ignore with a matching pin
-  passes", "ignores: a bare ignore with no reason fails", "ignores: a reasoned ignore
-  naming no browser evidence fails", "ignores: evidence that does not exist is not
-  evidence", "ignores: a population that grew past its pin fails"
+  allow-listed exclusion without its reason fails", "coverage: a character-class glob
+  cannot truncate the exclude scan" (the tamper-guard cannot be blinded by the tamper it
+  guards against), "ignores: a clean tree with a matching pin passes", "ignores: a
+  well-formed, evidenced ignore with a matching pin passes", "ignores: a bare ignore
+  with no reason fails", "ignores: a reasoned ignore naming no browser evidence fails",
+  "ignores: evidence that does not exist is not evidence", "ignores: a population that
+  grew past its pin fails"
 
 ### §3.2 Mutation testing: the assertions must fire, not merely execute
 
@@ -287,7 +289,8 @@ entry. A coverage-waiver marker resolves to an accepted ADR.
   passes", "adr: an anchor to an ADR that does not exist fails", "adr: an anchor to a
   proposed ADR fails", "adr: an accepted ADR nobody anchored fails", "adr: an accepted
   ADR with no prompt-log back-reference fails", "adr: a prompt-log reference pointing at
-  nothing fails"
+  nothing fails", "adr: the same number on two files fails" (never last-write-wins —
+  the pre-written 020/100 sit inside bands a generator allocates from)
 - **Decided in:** ADR 002 (prototype namespace)
 
 ### BR-06 — One accepted ADR is one commit
@@ -297,10 +300,18 @@ one `ADR:` trailer, exactly one status transition to `accepted` in its diff, and
 resolving `Prompt-Log:` trailer.
 
 - **Why:** A decision spread over several commits cannot be reverted as a decision, and
-  a commit accepting two decisions makes the gates that guarded it ambiguous.
-- **Enforced by:** `commit-lint` via the `commit-msg` hook
-- **Proven by:** `gates:selftest` → "hook: --no-verify is blocked" (the bypass that
-  would make this rule optional)
+  a commit accepting two decisions makes the gates that guarded it ambiguous. The
+  message can promise anything; the staged diff is what the commit actually does, and
+  the two must agree.
+- **Enforced by:** `commit-lint` via the `commit-msg` hook — both halves: the message
+  (subject, exactly one `ADR:` trailer, a resolving `Prompt-Log:`) and the staged diff
+  (exactly one `- Status: accepted` transition, in the ADR the trailer names). Outside
+  a git repository only the message half can run.
+- **Proven by:** `gates:selftest` → "commit: a trailer matching the one staged
+  acceptance passes", "commit: a non-conventional subject fails", "commit: staging two
+  acceptances under one trailer fails", "commit: a trailer naming a different ADR than
+  the diff accepts fails", and "hook: --no-verify is blocked" (the bypass that would
+  make this rule optional)
 - **Decided in:** ADR 002 (prototype namespace)
 
 ### BR-07 — Code is English-only
@@ -328,10 +339,12 @@ holds no copy of its own and takes every string as a prop. There is no
   props (`<Dialog title="Delete note">`, `notify("Saved")`, `{ header: "Name" }`) and
   library-internal `aria-label`s, and every gate stayed green.
 - **Enforced by:** `lint` (`i18next/no-literal-string`, `local/no-user-facing-literal`),
-  `i18n:verify`
+  `i18n:verify`, and `stub:scan`, which bans an inline `eslint-disable` of any gated
+  rule in production code — the comment is a shortcut marker exactly like `TODO`
 - **Proven by:** `gates:selftest` → the i18n suite, in particular "i18n: an untranslated
   value copied from English fails" and "i18n: an allowlisted proper noun may stay
-  identical"
+  identical"; the escape hatch by "stub: disabling a gated lint rule inline fails" and
+  "stub: a disable for an ungated rule is not this gate's business"
 - **Decided in:** ADR 004, tightened by ADR 009
 
 ### BR-09 — A declared locale is a translated locale
@@ -390,7 +403,9 @@ both pull, the resolution is recorded as a decision rather than left to preferen
   whatever implementation the current decision selects
 - **Proven by:** the primitive test suites under `packages/proto-ui/src/**`, which are
   the same suite regardless of implementation
-- **Decided in:** ADR 021
+- **Decided in:** ADR 008 and ADR 020 (prototype namespace). ADR 021 — the provider
+  selector — was retired in v0.4.0 when the owned top-layer implementation replaced the
+  last third-party runtime; see §19.8 for where its decision now lives.
 
 ### BR-12 — No mock data and no stubbed dependencies in delivered code
 
@@ -402,11 +417,15 @@ first-party path (`@/`, `@jj/`, relative).
 - **Why:** A prototype whose persistence is faked has not demonstrated the thing a
   prototype exists to demonstrate. And a test that mocks its own module under test
   asserts the mock.
-- **Enforced by:** `stub:scan`
+- **Enforced by:** `stub:scan`; `consistency` for the dead-weight corollary — a runtime
+  `dependencies` entry nothing in `src/` or `packages/` imports fails (devDependencies
+  are wired through configs and CLIs, where "is it used?" has no cheap mechanical
+  answer, so they are held by review)
 - **Proven by:** `gates:selftest` → "stub: clean production code passes", "stub: a
   banned marker in production code fails", "stub: 'not implemented' in production code
   fails", "stub: mocking a first-party module fails", "stub: pulling __fixtures__ into
-  production code fails"
+  production code fails", "consistency: a runtime dependency nothing imports fails",
+  "consistency: an imported runtime dependency passes"
 - **Limit, stated:** grep cannot prove the absence of inline mock data — a large static
   dataset inside a feature could still pass. The mechanically detectable surface is
   gated; the seed-data allowance is confined by convention to `src/infra/**/seed.ts`.
@@ -524,7 +543,10 @@ operator's agreement. It is never a way to make a red gate green.
   and is reported", "config: a waiver citing an ADR that does not exist fails", "config:
   a waiver with no real justification fails", "config: a waiver for a gate that is not
   relaxed fails as dead paperwork", "hook: switching a gate to warn in the config is
-  blocked", "hook: lowering a coverage threshold is blocked"
+  blocked", "hook: lowering a coverage threshold is blocked", "hook: lowering the
+  mutation-score floor is blocked", "hook: narrowing the mutation scope is blocked",
+  "hook: raising the duplication threshold is blocked", "hook: widening the duplication
+  ignore list is blocked"
 - **Decided in:** ADR 009
 
 ### BR-18 — Every external object has a local record with provenance and an owner list
@@ -588,6 +610,33 @@ image was taken from, so **a screenshot of older code fails** rather than flatte
   mount fails", "matrix: a browser suite that stops reading the registry empties every
   cell", "matrix: a case for a component the library does not export fails"
 - **Decided in:** ADR 009
+
+### BR-20 — Propagation is consented, staged-first, and never implicit
+
+**MUST.** No pipeline phase contacts an external system as a side effect of generating a
+prototype. Integrations stage their payloads in `.proto-forge/outbox/` first; a live
+write requires ALL of: the integration enabled, `dryRun: false`, the target host on the
+network allowlist, credentials from the environment, and consent. Consent has exactly
+two forms — a per-run `--approve` typed by the operator, or `autoPropagate: true`
+committed in `.proto-forge/config.json`: standing, reviewed consent under which
+`pnpm sync:auto` (run after each accepted-ADR commit and at release) propagates
+unattended. `autoPropagate` stands in for `--approve` and for nothing else.
+
+- **Why:** Generating a prototype must never file tickets in a project other people work
+  in unless someone decided that. A committed flag is a decision that went through
+  review; a typed flag is a decision for one run; a default is neither. And one flag
+  must not open two doors — if `autoPropagate` also implied `dryRun: false`, a reviewer
+  reading the diff would not see the dry-run door swing open.
+- **Enforced by:** `sync:jira` / `sync:confluence` through `assertMayCommit`
+  (`template/scripts/outbox.mjs`, ordered cheapest-first with the credential check
+  after the approval check), `sync:auto` for the unattended path
+- **Proven by:** `gates:selftest` → "integrations: --commit is refused while the network
+  guardrail is closed", "integrations: autoPropagate stands in for --approve",
+  "integrations: without autoPropagate the same --commit still demands --approve",
+  "integrations: autoPropagate does not bypass dry-run", "integrations: autoPropagate
+  does not open the network guardrail"
+- **Decided in:** ADR 009 (prototype namespace); ADR 005 (plugin namespace) for the
+  standing-consent form
 
 ### NFR-02 — No heavy runtime UI dependency
 
@@ -899,8 +948,12 @@ that `pnpm` is absent.
 
 ### §19.8 `BR-11` describes a tension, not a mechanism
 
-Its evidence (ADR 021, the provider selector) states a goal — do not re-invent
-accessibility primitives, do not hard-depend on a third party — and a mechanism chosen
-to serve it. The goal is the rule; the mechanism is the ADR's, and an ADR may change it.
+The rule states a goal — do not re-invent accessibility primitives, do not hard-depend
+on a third party — and a mechanism chosen to serve it. The goal is the rule; the
+mechanism is the ADR's, and an ADR may change it. It did: **ADR 021, the provider
+selector, was retired in v0.4.0** when the owned top-layer overlay subsystem (ADR 008)
+replaced the last third-party runtime, and no file carries the number — it stays
+unused so a stale reference fails loudly instead of resolving to something else. The
+ownership half of the decision lives in ADR 020, the layering mechanism in ADR 008.
 BR-11 is recorded as **SHOULD** for that reason: what is gated is that the shared test
 suite passes against whichever implementation the current decision selects.

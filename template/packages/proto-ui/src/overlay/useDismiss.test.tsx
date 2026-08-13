@@ -1,7 +1,7 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { useRef, useState, type ReactNode } from "react";
 import { OverlayStackProvider, useOverlaySlot } from "./OverlayStack";
-import { useDismiss } from "./useDismiss";
+import { newestFirst, useDismiss } from "./useDismiss";
 import type { OverlayKind } from "./types";
 
 type SurfaceProps = {
@@ -37,6 +37,30 @@ function Surface({
 }
 
 const escapeKey = () => fireEvent.keyDown(document, { key: "Escape" });
+
+describe("newestFirst", () => {
+  // The pure ordering both Escape and outside pointers share. The -1 window — an entry
+  // registered before the stack assigned its ordinal — is one render wide and cannot be
+  // held open under act(), so its rule is pinned here directly: -1 sorts newest, and
+  // among several -1s the LATEST-inserted wins, because insertion order is open order.
+  it("orders by ordinal, newest first", () => {
+    const order = newestFirst([{ ordinal: 0 }, { ordinal: 2 }, { ordinal: 1 }]).map((e) => e.ordinal);
+    expect(order).toEqual([2, 1, 0]);
+  });
+
+  it("puts a just-opened entry (ordinal -1) above everything numbered", () => {
+    const order = newestFirst([{ ordinal: 3 }, { ordinal: -1 }, { ordinal: 5 }]).map((e) => e.ordinal);
+    expect(order).toEqual([-1, 5, 3]);
+  });
+
+  it("breaks ties among just-opened entries by insertion order, latest first", () => {
+    const entries = [
+      { ordinal: -1, name: "first-registered" },
+      { ordinal: -1, name: "second-registered" },
+    ];
+    expect(newestFirst(entries).map((e) => e.name)).toEqual(["second-registered", "first-registered"]);
+  });
+});
 
 describe("useDismiss", () => {
   it("dismisses on Escape", () => {
@@ -236,6 +260,55 @@ describe("useDismiss", () => {
     } finally {
       spy.mockRestore();
     }
+  });
+
+  it("a tooltip on top does not shield a menu below it from outside clicks", () => {
+    const calls: string[] = [];
+    render(
+      <OverlayStackProvider>
+        <div data-testid="outside">elsewhere</div>
+        <Surface name="menu" kind="popover" onDismiss={() => calls.push("menu")} />
+        <Surface
+          name="tip"
+          kind="tooltip"
+          outsidePointer={false}
+          onDismiss={() => calls.push("tip")}
+        />
+      </OverlayStackProvider>,
+    );
+    // The tooltip is topmost and never claims outside clicks. The walk must skip it and
+    // dismiss the menu — previously the tooltip swallowed the gesture entirely.
+    fireEvent.pointerDown(screen.getByTestId("outside"));
+    expect(calls).toEqual(["menu"]);
+  });
+
+  it("one outside gesture dismisses exactly one surface", () => {
+    // The surfaces CLOSE when dismissed, as the real components do — otherwise the
+    // second gesture finds the first surface still registered and hits it again.
+    const calls: string[] = [];
+    function Stack() {
+      const [menuOpen, setMenuOpen] = useState(true);
+      return (
+        <OverlayStackProvider>
+          <div data-testid="outside">elsewhere</div>
+          <Surface name="dialog" onDismiss={() => calls.push("dialog")} />
+          <Surface
+            name="menu"
+            kind="popover"
+            open={menuOpen}
+            onDismiss={() => {
+              calls.push("menu");
+              setMenuOpen(false);
+            }}
+          />
+        </OverlayStackProvider>
+      );
+    }
+    render(<Stack />);
+    fireEvent.pointerDown(screen.getByTestId("outside"));
+    expect(calls).toEqual(["menu"]);
+    fireEvent.pointerDown(screen.getByTestId("outside"));
+    expect(calls).toEqual(["menu", "dialog"]);
   });
 
   it("does not dismiss when the topmost surface has no element yet", () => {

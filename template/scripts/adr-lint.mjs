@@ -20,6 +20,17 @@ const adrs = walk("docs/adr", (p) => p.endsWith(".md")).map((p) => {
 const byNum = new Map(adrs.map((a) => [a.num, a]));
 const errors = [];
 
+// Two files sharing a number would silently shadow each other in the Map above, and a
+// generator allocating "the low end of the band" next to a pre-written ADR is exactly
+// how that happens. Duplicates are an error, not a last-write-wins.
+const numbered = new Map();
+for (const a of adrs) {
+  if (Number.isNaN(a.num)) continue;
+  const previous = numbered.get(a.num);
+  if (previous !== undefined) errors.push(`ADR number ${a.num} is used twice: ${previous} and ${a.p}`);
+  numbered.set(a.num, a.p);
+}
+
 for (const a of adrs) {
   if (Number.isNaN(a.num)) errors.push(`${a.p}: filename has no NNN- prefix`);
   if (!["proposed", "accepted", "superseded"].includes(a.status)) errors.push(`${a.p}: unrecognized status "${a.status}"`);

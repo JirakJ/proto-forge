@@ -1,6 +1,6 @@
 import { loadConfig } from "./config.mjs";
 import { atlassian } from "./outbox.mjs";
-import { readRecord, writeRecord } from "./external.mjs";
+import { readRecords, writeRecord } from "./external.mjs";
 import { storageToMd } from "./storage-to-md.mjs";
 import { fail, ok } from "./lib.mjs";
 
@@ -58,11 +58,14 @@ const page = await atlassian(
   `${integration.baseUrl}/wiki/api/v2/pages/${pageId}?body-format=storage`,
 );
 
-// Existing record for this REMOTE id (whatever local name it was pushed under) donates
-// its affectedFiles; --affects overrides; neither means the record is written but the
-// run fails, telling the operator exactly what to declare.
-const localId = `page-${pageId}`;
-const previous = readRecord("confluence", localId);
+// Existing record for this REMOTE id — searched by frontmatter.id across ALL local
+// records, because the push side writes under payload names ("architecture"), not
+// page-<id>. A match donates its affectedFiles AND its local file name, so a pull
+// refreshes the pushed record instead of forking a second one for the same page.
+// --affects overrides; no match and no flag means the record is written but the run
+// fails, telling the operator exactly what to declare.
+const previous = readRecords("confluence").find((r) => String(r.frontmatter.id) === String(pageId));
+const localId = previous?.id ?? `page-${pageId}`;
 const declared = flag("affects")?.split(",").map((s) => s.trim()).filter((s) => s !== "");
 const affectedFiles = declared ?? previous?.frontmatter.affectedFiles ?? [];
 

@@ -1,10 +1,10 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Dialog, type DialogProps } from "./Dialog";
 import { OVERLAY_ROOT_ID } from "./Portal";
 import { ProtoUIProvider } from "../providers/index";
-import type { Capabilities } from "./overlay/index";
+import { useDismiss, useOverlaySlot, type Capabilities } from "./overlay/index";
 import { tokens } from "../tokens";
 
 // Two paths, exercised deliberately rather than by whatever the environment implements.
@@ -136,14 +136,70 @@ describe("Dialog — the fallback path", () => {
     expect(Number(surface.style.zIndex)).toBeGreaterThan(scrimZ);
   });
 
-  it("closes on a scrim click but not on a click in its own content", async () => {
+  it("is not light-dismissed: neither its content nor its scrim closes it", async () => {
     const user = userEvent.setup();
     let closed = 0;
     renderDialog(FALLBACK, { onClose: () => (closed += 1) });
     await user.click(screen.getByTestId("dlg-body"));
     expect(closed).toBe(0);
+    // The scrim is purely visual (no onClick), and the dialog does not claim outside
+    // pointers — a modal's ways out are Escape and the caller's own controls, the same
+    // on both paths (NFR-24; e2e case 14 proves it in a real browser).
     await user.click(screen.getByTestId("dlg-scrim"));
+    expect(closed).toBe(0);
+    fireEvent.keyDown(document, { key: "Escape" });
     expect(closed).toBe(1);
+  });
+
+  it("spends one outside gesture on ONE surface: a menu inside the dialog absorbs it", () => {
+    const calls: string[] = [];
+    function DialogWithMenu() {
+      // Opened by interaction AFTER the dialog mounted — the real flow, and the one
+      // that makes the menu the newer surface. (A surface open at mount registers in
+      // child-effect order, before its parent, which is a different and artificial
+      // stacking question.)
+      const [menuOpen, setMenuOpen] = useState(false);
+      const menuRef = useRef<HTMLDivElement>(null);
+      const menuSlot = useOverlaySlot("popover", menuOpen);
+      useDismiss({
+        ref: menuRef,
+        slot: menuSlot,
+        onDismiss: () => {
+          calls.push("menu");
+          setMenuOpen(false);
+        },
+        enabled: menuOpen,
+      });
+      return (
+        <>
+          <button data-testid="open-menu" onClick={() => setMenuOpen(true)}>
+            open
+          </button>
+          {menuOpen ? <div ref={menuRef} data-testid="inner-menu" /> : null}
+        </>
+      );
+    }
+    render(
+      <ProtoUIProvider capabilities={FALLBACK}>
+        <Dialog open title="Confirm" data-testid="dlg" onClose={() => calls.push("dialog")}>
+          <DialogWithMenu />
+        </Dialog>
+      </ProtoUIProvider>,
+    );
+    fireEvent.click(screen.getByTestId("open-menu"));
+    // pointerdown on the scrim: outside the menu AND outside the dialog surface. The
+    // walk dismisses the menu (topmost) and stops — the dialog survives the gesture.
+    fireEvent.pointerDown(screen.getByTestId("dlg-scrim"));
+    expect(calls).toEqual(["menu"]);
+
+    // The NEXT gesture finds only the dialog, which does not claim outside pointers —
+    // a modal is never light-dismissed, so the gesture dies there.
+    fireEvent.pointerDown(screen.getByTestId("dlg-scrim"));
+    expect(calls).toEqual(["menu"]);
+
+    // Escape still reaches it: dismissal is explicit, not outside-click.
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(calls).toEqual(["menu", "dialog"]);
   });
 
   it("closes on Escape, because nothing native will", () => {

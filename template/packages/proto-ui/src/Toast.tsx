@@ -75,7 +75,10 @@ export function ToastProvider({ children, label, duration = 4000 }: ToastProvide
     [dismiss, duration],
   );
 
-  usePromotion(regionRef, showing, capabilities);
+  // Re-promoted PER TOAST, not merely per batch: a toast raised while the region is
+  // already showing must still land above a dialog that opened between the two toasts,
+  // and top-layer order is promotion order. The newest toast's id is the resignal.
+  usePromotion({ ref: regionRef, open: showing, capabilities, resignal: toasts[toasts.length - 1]?.id });
 
   return (
     <ToastContext.Provider value={{ notify }}>

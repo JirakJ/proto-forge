@@ -13,7 +13,7 @@
     },
     "gates": {
       "type": "object",
-      "description": "Per-gate settings. Tightening is always allowed. Relaxing a mandatory gate (i18n, testid, layer, docs, security, stub, consistency, snapshot) below \"error\" additionally requires a live waivers[] entry — without one, config:check fails AND the gate runs at \"error\" regardless of what is written here.",
+      "description": "Per-gate settings. Tightening is always allowed. Relaxing a mandatory gate (the MANDATORY_GATES list in scripts/config.mjs — i18n, testid, layer, docs, security, stub, consistency, snapshot, overlay, coverage, ignores, mutation, external) below \"error\" additionally requires a live waivers[] entry — without one, config:check fails AND the gate runs at \"error\" regardless of what is written here.",
       "additionalProperties": false,
       "properties": {
         "i18n": {
@@ -80,6 +80,11 @@
         "stub": { "$ref": "#/$defs/simpleGate" },
         "consistency": { "$ref": "#/$defs/simpleGate" },
         "snapshot": { "$ref": "#/$defs/simpleGate" },
+        "overlay": { "$ref": "#/$defs/simpleGate" },
+        "coverage": { "$ref": "#/$defs/simpleGate" },
+        "ignores": { "$ref": "#/$defs/simpleGate" },
+        "mutation": { "$ref": "#/$defs/simpleGate" },
+        "external": { "$ref": "#/$defs/simpleGate" },
         "budget": { "$ref": "#/$defs/simpleGate" },
         "dup": { "$ref": "#/$defs/simpleGate" },
         "adr": { "$ref": "#/$defs/simpleGate" },
@@ -97,7 +102,11 @@
             "enabled": { "type": "boolean" },
             "dryRun": {
               "type": "boolean",
-              "description": "true (default) writes payloads to .proto-forge/outbox/ and contacts nothing. Live writes happen only via `pnpm sync:jira --commit`, never as a side effect of a pipeline phase."
+              "description": "true (default) writes payloads to .proto-forge/outbox/ and contacts nothing. Live writes happen via `pnpm sync:jira --commit`, or unattended via `pnpm sync:auto` when autoPropagate is on."
+            },
+            "autoPropagate": {
+              "type": "boolean",
+              "description": "Standing, reviewed consent for unattended live writes: `pnpm sync:auto` (run by the pipeline after each accepted ADR and at release) sends without a per-run --approve. Stands in for --approve ONLY — enabled, dryRun:false, the network allowlist and credentials are still required."
             },
             "baseUrl": { "type": "string", "description": "e.g. https://acme.atlassian.net" },
             "projectKey": { "type": "string" },
@@ -117,6 +126,10 @@
           "properties": {
             "enabled": { "type": "boolean" },
             "dryRun": { "type": "boolean" },
+            "autoPropagate": {
+              "type": "boolean",
+              "description": "Standing, reviewed consent for unattended live publishes via `pnpm sync:auto`. Stands in for --approve only; all other requirements remain."
+            },
             "baseUrl": { "type": "string" },
             "spaceKey": { "type": "string" },
             "parentPageId": { "type": "string" },

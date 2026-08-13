@@ -28,7 +28,7 @@ If a facet is **not** covered by T1-T13:
 
 The "conservative default" is itself a fixed rule, so off-table behavior stays repeatable.
 
-**A gate waiver is never the conservative default.** Relaxing a mandatory gate (i18n, testid, layer, overlay, docs, security, stub, consistency, snapshot) is an operator's product decision and needs an ADR plus an expiry date — see the gate-failure protocol in `SKILL.md`. Escalation produces a question, not a waiver.
+**A gate waiver is never the conservative default.** Relaxing a mandatory gate (i18n, testid, layer, docs, security, stub, consistency, snapshot, overlay, coverage, ignores, mutation, external — `MANDATORY_GATES` in `template/scripts/config.mjs`) is an operator's product decision and needs an ADR plus an expiry date — see the gate-failure protocol in `SKILL.md`. Escalation produces a question, not a waiver.
 
 ## ADR number ranges (BRS §9.6)
 

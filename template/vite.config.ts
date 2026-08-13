@@ -3,10 +3,14 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { fileURLToPath, URL } from "node:url";
 
-// CSP + security headers (BRS §4.1). Prod deployment must set the STRICT policy —
-// documented in docs/SECURITY.md. Dev relaxes script-src because Vite injects an
-// inline react-refresh preamble that a strict 'self' policy would block.
-const headers = (scriptSrc: string): Record<string, string> => ({
+// CSP + security headers (BRS §4.1). The preview server (built bundle) sets the
+// STRICT policy a deployment must replicate — documented in docs/SECURITY.md. Dev
+// relaxes script-src because Vite injects an inline react-refresh preamble, and
+// keeps ws: for HMR. style-src carries 'unsafe-inline' in BOTH profiles: React
+// writes style="" attributes (the overlay anchor/fallback positioning), and
+// style-src-attr honours only 'unsafe-inline'/'unsafe-hashes' — a nonce cannot
+// cover attributes, so claiming one here would be theatre.
+const headers = (scriptSrc: string, connectSrc: string): Record<string, string> => ({
   "X-Content-Type-Options": "nosniff",
   "Referrer-Policy": "strict-origin-when-cross-origin",
   "X-Frame-Options": "DENY",
@@ -15,7 +19,7 @@ const headers = (scriptSrc: string): Record<string, string> => ({
     scriptSrc,
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data:",
-    "connect-src 'self' ws:",
+    connectSrc,
     "font-src 'self'",
     "object-src 'none'",
     "base-uri 'self'",
@@ -23,9 +27,10 @@ const headers = (scriptSrc: string): Record<string, string> => ({
   ].join("; "),
 });
 
-// Dev: HMR + react-refresh need inline/eval. Preview (built bundle) is strict.
-const DEV_HEADERS = headers("script-src 'self' 'unsafe-inline' 'unsafe-eval'");
-const STRICT_HEADERS = headers("script-src 'self'");
+// Dev: HMR + react-refresh need inline/eval and a websocket. Preview is strict:
+// the built bundle opens no websocket, so scheme-only ws: (any host!) goes too.
+const DEV_HEADERS = headers("script-src 'self' 'unsafe-inline' 'unsafe-eval'", "connect-src 'self' ws:");
+const STRICT_HEADERS = headers("script-src 'self'", "connect-src 'self'");
 
 const applyHeaders =
   (h: Record<string, string>) =>

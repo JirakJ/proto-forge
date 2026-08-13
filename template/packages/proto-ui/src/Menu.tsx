@@ -67,7 +67,7 @@ export function Menu({ label, items, "data-testid": testid }: MenuProps) {
 
   const close = useCallback(() => setOpen(false), []);
 
-  usePromotion(surfaceRef, open, capabilities);
+  usePromotion({ ref: surfaceRef, open, capabilities });
 
   // No trap: a menu is not modal, and the page behind it stays operable.
   useFocusScope({ ref: surfaceRef, active: open, trap: false, initialFocus: "first" });

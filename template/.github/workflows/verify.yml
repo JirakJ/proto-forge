@@ -12,6 +12,30 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Full history: the prompt-log step below diffs against the branch base.
+          fetch-depth: 0
+      # BR-13 / NFR-10 / ADR 002: .prompts/ is append-only. The local hook enforces it
+      # per edit; this is the same promise where hooks do not run. Corrections are NEW
+      # entries referencing the prior id, never rewrites. (A force-push can still evade
+      # a history diff — protect the default branch to close that door.)
+      - name: prompt log is append-only
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            range="origin/${{ github.base_ref }}...HEAD"
+          else
+            before="${{ github.event.before }}"
+            case "$before" in ""|0000000000000000000000000000000000000000) echo "no prior commit to compare against"; exit 0;; esac
+            git cat-file -e "$before^{commit}" 2>/dev/null || { echo "prior commit unreachable after a force-push — relying on branch protection"; exit 0; }
+            range="$before..HEAD"
+          fi
+          changed="$(git diff --diff-filter=MD --name-only "$range" -- .prompts/)"
+          if [ -n "$changed" ]; then
+            echo "::error::.prompts/ is append-only (ADR 002) — these entries were rewritten or deleted:"
+            echo "$changed"
+            exit 1
+          fi
+          echo "prompt log untouched in $range"
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc

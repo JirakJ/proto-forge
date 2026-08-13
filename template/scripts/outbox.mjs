@@ -69,9 +69,16 @@ export function assertMayCommit(name, action) {
     fail(`${host} is not on guardrails.network.allowedHosts`, [`allowed: ${allowed.join(", ")}`]);
   }
 
-  if ((rails.requireApproval ?? []).includes(action) && !process.argv.includes("--approve")) {
+  // Two forms of approval, both explicit. --approve is per-run consent typed by the
+  // operator. autoPropagate:true in the COMMITTED config is standing consent for
+  // unattended propagation — it went through review to get there, which a typed flag
+  // never does. It stands in for --approve and for nothing else: enabled, dryRun,
+  // the network allowlist and credentials are still checked above and below.
+  const standingApproval = integration.autoPropagate === true;
+  if ((rails.requireApproval ?? []).includes(action) && !process.argv.includes("--approve") && !standingApproval) {
     fail(`"${action}" requires explicit approval`, [
       "This writes to a system other people use. Re-run with --approve once you have confirmed the payloads,",
+      `set integrations.${name}.autoPropagate = true for standing, reviewed consent,`,
       `or remove "${action}" from guardrails.requireApproval.`,
     ]);
   }

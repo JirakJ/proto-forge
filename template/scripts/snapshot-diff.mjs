@@ -1,5 +1,6 @@
 import { writeFileSync, existsSync } from "node:fs";
 import { walk, read, fail, ok, hashTree } from "./lib.mjs";
+import { checkConfig } from "./config.mjs";
 
 // BR-14: structural determinism. The snapshot pins the content-independent shape.
 // `--write` regenerates the baseline; default compares against the committed one.
@@ -56,7 +57,11 @@ function buildSnapshot() {
   // verify is fail-fast, so it is part of the contract.
   const gates = [...(pkg.scripts.verify ?? "").matchAll(/pnpm run ([\w:-]+)/g)].map((m) => m[1]);
 
-  return { fileTree, adrSet, components, gates, ignores, templateVersion: pkg.version, protoUiVersion: protoPkg.version };
+  // The register (§1) defines a conforming run by this field, so the snapshot must
+  // actually carry it: "strict" with no live waivers, "waived" otherwise.
+  const conformance = checkConfig().conformance;
+
+  return { fileTree, adrSet, components, gates, ignores, conformance, templateVersion: pkg.version, protoUiVersion: protoPkg.version };
 }
 
 const snap = buildSnapshot();
@@ -107,7 +112,7 @@ if (process.argv.includes("--write")) {
   // ADR titles are prose (LLM-varied); structural determinism (BRS §8, BR-14) compares
   // the decision SET — ids + statuses — not the titles. Titles stay in the file for humans.
   const structuralAdr = (set) => (set ?? []).map((a) => ({ id: a.id, status: a.status }));
-  for (const key of ["fileTree", "components", "gates", "ignores", "templateVersion", "protoUiVersion"]) {
+  for (const key of ["fileTree", "components", "gates", "ignores", "conformance", "templateVersion", "protoUiVersion"]) {
     if (JSON.stringify(committed[key]) !== JSON.stringify(snap[key])) diffs.push(`${key} drifted from committed snapshot`);
   }
   if (JSON.stringify(structuralAdr(committed.adrSet)) !== JSON.stringify(structuralAdr(snap.adrSet))) {
