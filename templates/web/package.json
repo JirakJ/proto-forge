@@ -56,7 +56,8 @@
     "contract:client:generate": "node scripts/contract-client-generate.mjs",
     "quality:report": "node scripts/quality-report.mjs",
     "status:verify": "node scripts/status-verify.mjs",
-    "doctor": "node scripts/doctor.mjs"
+    "doctor": "node scripts/doctor.mjs",
+    "heal": "node scripts/heal.mjs"
   },
   "dependencies": {
     "dexie": "^4.4.4",

@@ -197,6 +197,24 @@ export const DEFAULTS = {
     // Threshold-lowering edits a hook refuses regardless of who asks.
     freezeThresholds: true,
   },
+  // Tiered self-healing for a red `pnpm verify` (NFR-19): layered, bounded, on
+  // the record. `pnpm heal` reads this block; hard-stop gates never enter any
+  // tier and every pass is prompt-logged before it acts.
+  selfHealing: {
+    // Tier 1 — deterministic regenerations from the HEALING REGISTRY in
+    // scripts/heal.mjs. Derivations only: no floor moves, no consent act runs.
+    mechanical: { enabled: true, maxPasses: 2 },
+    // Tier 2 — a bounded agent pass. Standing consent for an UNATTENDED agent
+    // fix loop — the heal analogue of autoPropagate/autoDeploy: committing
+    // enabled:true IS the operator's reviewed consent, and it consents to the
+    // bounded loop and nothing else (hard-stop gates stay out; guard hooks
+    // keep freezing floors). commandEnv names an env var holding the runner
+    // executable — the tokenEnv pattern, never a command string in config.
+    agent: { enabled: false, maxPasses: 2, commandEnv: "PROTO_FORGE_HEAL_AGENT" },
+    // The CI half of the consent: heal.yml also requires the repository
+    // variable HEAL_ENABLED — both doors are explicit, reviewable acts.
+    ci: { enabled: false },
+  },
   waivers: [],
 };
 
@@ -368,6 +386,30 @@ function checkEnvironments(cfg, errors, warnings) {
   }
 }
 
+/** The selfHealing half of checkConfig — a loop nobody bounded is not a tool. */
+function checkSelfHealing(cfg, errors, warnings) {
+  const healing = cfg.selfHealing ?? {};
+  for (const tier of ["mechanical", "agent"]) {
+    const passes = healing[tier]?.maxPasses;
+    if (passes === undefined) continue;
+    if (!Number.isInteger(passes) || passes < 1 || passes > 5) {
+      errors.push(
+        `selfHealing.${tier}.maxPasses must be an integer between 1 and 5 — ` +
+          `a healing loop without a bound is a loop, got ${JSON.stringify(passes)}`,
+      );
+    }
+  }
+  // commandEnv names an env var (BR-29's door) — checkEnvVarNames rejects a
+  // pasted command the same way it rejects a pasted credential.
+  checkEnvVarNames(healing, "selfHealing", errors);
+  if (healing.agent?.enabled === true && healing.mechanical?.enabled === false) {
+    warnings.push(
+      "selfHealing.agent.enabled is on while selfHealing.mechanical is off — the agent tier " +
+        "will field drifts a regeneration would have fixed for free (odd but legal)",
+    );
+  }
+}
+
 /** Validates the merged config itself. Used by `pnpm config:check` and by verify. */
 export function checkConfig(cfg = loadConfig()) {
   const errors = [];
@@ -416,6 +458,7 @@ export function checkConfig(cfg = loadConfig()) {
   }
 
   checkEnvironments(cfg, errors, warnings);
+  checkSelfHealing(cfg, errors, warnings);
 
   // The other half: a mandatory gate relaxed WITHOUT a waiver is a hard error.
   for (const name of MANDATORY_GATES) {

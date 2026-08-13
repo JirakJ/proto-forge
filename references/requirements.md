@@ -1219,6 +1219,34 @@ skipped and why, so an absent binary reads as a note, never as silence.
   its fix"
 - **Decided in:** ADR 009 (prototype namespace)
 
+### NFR-19 — Self-healing is tiered, bounded, and on the record
+
+**MUST.** `heal` repairs a red verify in three tiers and never any other way.
+Tier 1, on by default: MECHANICAL regeneration from a data-driven healing registry
+— stale screenshots, examples, status blocks, a stale client or contract, a stale
+mutation cache — never a snapshot, a seed, or anything semantic; a consent act is
+not a heal. Tier 2, OFF by default: a bounded agent loop that only exists once
+`selfHealing.agent.enabled: true` is committed — reviewed standing consent, the
+autoPropagate form — and that hard-stop gates (secrets, audit) never enter; the
+quality floors stay frozen by the guard hooks no matter who is editing. Every pass
+of every tier writes its prompt-log entry BEFORE acting, and passes stop at the
+configured bound (1–5; an unbounded loop is a config error). Tier 3 is escalation,
+not persistence. In CI the optional heal workflow runs tier 1 only and opens a PR
+with the result; enabling it is a repository variable plus the committed flag.
+
+- **Why:** A loop that can edit until green will eventually make the wrong thing
+  green. Bounds, consent, the hard-stop exclusion and write-ahead logging are what
+  separate self-healing from self-deception — the gate-failure protocol, executed
+  by a tool instead of hoped for.
+- **Scope:** web, api-node
+- **Enforced by:** `config:check` (the consent form and the pass bounds); the guard
+  hooks freezing every quality floor regardless of the editor (prose)
+- **Proven by:** `gates:selftest` → "heal: a mechanical drift heals in one pass",
+  "heal: a hard-stop gate is never healed", "heal: the agent tier without committed
+  consent is refused", "heal: every pass writes a prompt-log entry first", "heal:
+  passes stop at the configured bound", "config: an unbounded healing loop fails"
+- **Decided in:** ADR 009 (prototype namespace)
+
 ### NFR-20 — One responsibility per module (SRP)
 
 **MUST.** A module does one job, and a module that grows a second is split rather than

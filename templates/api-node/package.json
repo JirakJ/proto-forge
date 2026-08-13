@@ -58,6 +58,7 @@
     "quality:report": "node scripts/quality-report.mjs",
     "status:verify": "node scripts/status-verify.mjs",
     "doctor": "node scripts/doctor.mjs",
+    "heal": "node scripts/heal.mjs",
     "prepare": "husky || true"
   },
   "dependencies": {
