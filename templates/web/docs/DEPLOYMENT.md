@@ -32,9 +32,9 @@ One image is built per commit and **promoted, never rebuilt** — what was verif
 | Stage | Runs | Enforced by | On failure |
 | --- | --- | --- | --- |
 | verify | every push and PR | `.github/workflows/verify.yml` | the commit is not mergeable; nothing downstream runs |
-| package (build → trivy scan → SBOM → push → cosign sign) | after green verify on `main` and on tags | `package.yml` (ships with the delivery pipelines) | no image is pushed; findings at or above `deployment.scan.severityThreshold` stop the release |
-| deploy dev | after a successful package on `main` | `cd.yml` (ships with the delivery pipelines) | `helm --atomic` rolls back on its own; the smoke test failing fails the job loudly |
-| promote (sit → uat → test → prod) | on tags, per enabled environment, in order | `cd.yml` (ships with the delivery pipelines) | the chain stops at the failing environment; earlier environments keep the release, later ones never see it |
+| package (build → trivy scan → SBOM → push → cosign sign) | after green verify on `main` and on tags | `.github/workflows/package.yml`: `plan` (from `scripts/deploy-cli.mjs`) → `docker buildx build` with `GIT_SHA` → `trivy image --ignore-unfixed --exit-code 1` at the plan's severity → CycloneDX image SBOM as an artifact → push (GHCR via `GITHUB_TOKEN`, ACR via Azure OIDC) → `cosign sign` + `cosign attest` of the SBOM, keyless | no image is pushed; findings at or above `deployment.scan.severityThreshold` stop the release |
+| deploy dev | after a successful package on `main` | `.github/workflows/cd.yml` `dev` job: approval preflight (GitHub API) → digest resolution → `cosign verify` of the package.yml workflow identity → cluster login per `cluster.type` → `helm upgrade --install --atomic --history-max` → `deploy/smoke.mjs --expect-sha` | `helm --atomic` rolls back on its own; the smoke test failing fails the job loudly |
+| promote (sit → uat → test → prod) | on tags, per enabled environment, in order | `.github/workflows/cd.yml` `sit`→`uat`→`test`→`prod` jobs — same steps as `dev`, chained by skip-tolerant `needs` (a disabled environment skips, `needs.<pred>.result == 'success' \|\| 'skipped'` lets the chain walk on) with GitHub environment protection as the human approval | the chain stops at the failing environment; earlier environments keep the release, later ones never see it |
 
 `verify` itself never opens a socket: everything cluster-shaped it checks (`deploy:verify`) runs against the committed artefacts and vendored schemas, offline. The stages that do talk to registries and clusters are exactly the named workflow jobs above and nothing else.
 
@@ -46,13 +46,28 @@ Secret **values** exist only in the cluster (as `Secret` objects) and in CI (as 
 - `.proto-forge/config.json` → `environments.<env>.auth.*Env` fields name the **environment variables** CI reads to log in to the cluster (token, kubeconfig path, or the Azure OIDC triplet). `config:check` rejects anything in a `*Env` field that does not look like an env var name — a pasted credential fails the build before it can land.
 - `.env.example` documents the app's own build-time keys, values empty or commented. `env:verify` fails any committed delivery file whose secret-shaped key carries a real value.
 
+## GitHub environments: making `approval: required` real
+
+`approval: "required"` in the config maps to a GitHub environment with required reviewers. The label alone protects nothing, so `cd.yml` preflights every protected deploy through the API (`GET /repos/{owner}/{repo}/environments/{env}`) and **fails the job when no protection rules exist** — with the exact commands to fix it. Create the protection once per environment (repo admin); `pnpm env:remote bootstrap --env <env>` prints the same commands:
+
+```sh
+gh api /users/<login> --jq .id   # the reviewer id
+gh api --method PUT "/repos/<owner>/<repo>/environments/<env>" --input - <<'JSON'
+{ "reviewers": [ { "type": "User", "id": <id> } ] }
+JSON
+```
+
+The same GitHub environment holds the deploy credentials, under the **names** the config declares in `environments.<env>.auth.*Env`: the OpenShift token, the generic kubeconfig content, or the Azure OIDC triplet. AKS environments additionally carry two environment *variables* — `AKS_CLUSTER_NAME` and `AKS_RESOURCE_GROUP` — because `az aks get-credentials` addresses the cluster by its ARM names, which the config (which stores the API server URL for the operator tools) deliberately does not duplicate.
+
 ## Runbook
 
 All commands run from the repository root; `<env>` is an enabled environment.
 
 - **Deploy** (what CD runs, reproducible by an operator with cluster access): `helm upgrade --install <release> deploy/chart -f deploy/chart/values/<env>.yaml -n <namespace> --atomic --history-max 5 --set image.repository=<registry>/<app> --set image.digest=sha256:<digest>`
+- **Operator deploy, staged-first** (BR-28): `pnpm env:remote render --env <env>` writes an offline `helm template` to `.proto-forge/outbox/deploy-<env>/`; review it, then `pnpm env:remote deploy --env <env> --commit --approve`. The doors are `assertMayCommit`'s, mirrored — enabled env, a staged render, a named server, the network allowlist, approval (`--approve` or the committed `environments.<env>.autoDeploy`), auth env vars by name — plus a kubectl-context check that refuses a cluster the config does not name. `pnpm env:remote check|diff|status --env <env>` diagnose without mutating.
+- **Redeploy one environment** (surgical, no chain): `gh workflow run cd.yml -f env=<env> -f ref=<sha-or-tag>` — deploys an image that was **already packaged** for that ref; the `plan` job fails fast when no successful `package.yml` run exists for it, so a redeploy can never trigger a rebuild.
 - **Verify a deploy landed**: `node deploy/smoke.mjs --url <env-url> --expect-sha <sha>` — asserts `/version.json` answers 200 with the expected sha and the strict security headers.
-- **Roll back**: `helm rollback <release> -n <namespace>` (the previous release, kept by `--history-max`, which `deployment.helm.keepHistory` pins at 5). `--atomic` already rolls back a failed upgrade on its own.
+- **Roll back**: `helm rollback <release> -n <namespace>` (the previous release, kept by `--history-max`, which `deployment.helm.keepHistory` pins at 5), or `pnpm env:remote rollback --env <env> --commit --approve [--revision N]`, which wraps the same command in the consent doors. `--atomic` already rolls back a failed upgrade on its own — the operator rollback is for releases that deployed green and went bad later.
 - **Scale**: change `replicas` in the environment's values file and deploy — a reviewed diff. `kubectl scale` is for incidents; the next deploy resets it to the declared value.
 - **Logs**: `kubectl logs -n <namespace> deploy/<release>` (OpenShift: `oc logs`). The container writes to stdout/stderr only; there are no log files in the pod, its filesystem is read-only.
 

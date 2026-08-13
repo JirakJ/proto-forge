@@ -10,7 +10,7 @@
         "dev", "build", "preview", "verify", "prepare",
         "i18n:extract", "docs:shots", "config:show", "snapshot", "seed:lock", "sbom",
         "sync:jira", "sync:confluence", "sync:pull", "sync:status", "sync:auto",
-        "test:e2e"
+        "test:e2e", "deploy:plan", "env:local", "env:remote"
       ]
     },
     {
