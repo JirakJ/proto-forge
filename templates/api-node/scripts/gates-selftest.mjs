@@ -12,6 +12,8 @@ import { fail, ok } from "./lib.mjs";
 
 const SCRIPTS = resolve(dirname(new URL(import.meta.url).pathname));
 const results = [];
+// Marks an inline-block proof for the citations case registry (no spawned fixture).
+const inlineCase = (name) => name;
 
 function project(files) {
   const dir = mkdtempSync(join(tmpdir(), "proto-forge-gate-"));
@@ -1510,6 +1512,7 @@ expect(
   },
 );
 
+inlineCase("deploy: render stages to the outbox without touching a cluster");
 // render is an OFFLINE `helm template` into the outbox — the staged artefact
 // deploy replays. helm-gated exactly like deploy:verify's tool half: enforced
 // when installed (always, in CI), one loud note otherwise.

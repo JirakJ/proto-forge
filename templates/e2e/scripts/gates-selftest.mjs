@@ -12,6 +12,8 @@ import { fail, ok } from "./lib.mjs";
 const SCRIPTS = resolve(dirname(new URL(import.meta.url).pathname));
 const REPO = resolve(SCRIPTS, "..");
 const results = [];
+// Marks an inline-block proof for the citations case registry (no spawned fixture).
+const inlineCase = (name) => name;
 
 function project(files) {
   const dir = mkdtempSync(join(tmpdir(), "proto-forge-gate-"));
@@ -153,6 +155,7 @@ expect("e2e: an absent contract is tolerated with a note", "registry-verify.mjs"
   registryBase({ "contract.json": undefined }),
   { pass: true, matching: /pre-workspace state/ });
 
+inlineCase("e2e: response validation rejects a shape the contract forbids");
 // --- the shared response validator (BR-35) --------------------------------------
 // Proven directly, in-process: the SAME implementation the Playwright suite
 // imports through src/contract/validate.ts. One schema, one conforming body,

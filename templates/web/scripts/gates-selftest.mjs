@@ -2,7 +2,7 @@ import { cpSync, existsSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } fro
 import { tmpdir } from "node:os";
 import { join, dirname, resolve } from "node:path";
 import { execSync, spawnSync } from "node:child_process";
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { fail, ok } from "./lib.mjs";
 
 // @adr 009 - the gates are the product, so the gates get tested
@@ -12,6 +12,8 @@ import { fail, ok } from "./lib.mjs";
 
 const SCRIPTS = resolve(dirname(new URL(import.meta.url).pathname));
 const results = [];
+// Marks an inline-block proof for the citations case registry (no spawned fixture).
+const inlineCase = (name) => name;
 
 function project(files) {
   const dir = mkdtempSync(join(tmpdir(), "proto-forge-gate-"));
@@ -884,6 +886,7 @@ expect(
   },
 );
 
+inlineCase("deploy: render stages to the outbox without touching a cluster");
 // render is an OFFLINE `helm template` into the outbox — the staged artefact
 // deploy replays. helm-gated exactly like deploy:verify's tool half: enforced
 // when installed (always, in CI), one loud note otherwise.
@@ -1659,6 +1662,47 @@ expect("budget: JS over the gzipped ceiling fails", "budget.mjs", {}, {
   matching: /exceeds/,
   prepare: (dir) => writeDist(dir, { "assets/app.js": randomBytes(500_000).toString("base64") }),
 });
+
+// --- contract:client -----------------------------------------------------------
+// BR-22's consumer half: the typed client is a locked derivation of the RECORDED
+// contract. The demo persists locally, so the shipped gate passes vacuously — and
+// says so — while these fixtures prove every door of the api-facet path.
+const API_FACETS = {
+  facetsVersion: 2, entities: [], flows: [], roles: ["user"],
+  persistence: "api", apiContract: "docs/external/api-contract/openapi.json",
+  locales: ["en"], nonFunctional: {},
+};
+const RECORDED_CONTRACT = '{"openapi":"3.1.0","info":{"title":"svc","version":"1.0.0"}}\n';
+const RECORDED_SHA = createHash("sha256").update(RECORDED_CONTRACT).digest("hex");
+const clientProject = (over = {}) => ({
+  ".proto-forge/config.json": {},
+  ".proto-forge/facets.json": API_FACETS,
+  "docs/external/api-contract/openapi.json": RECORDED_CONTRACT,
+  "docs/external/api-contract/contract.mdx": "---\nsource: confluence\n---\nrecord\n",
+  "src/api/client.d.ts": "export interface paths {}\n",
+  "src/api/.client.lock": { contractSha256: RECORDED_SHA, source: "docs/external/api-contract/openapi.json" },
+  ...over,
+});
+
+expect("client: no api facet passes with a note", "contract-client.mjs", {
+  ".proto-forge/config.json": {},
+  ".proto-forge/facets.json": { ...API_FACETS, persistence: "local" },
+}, { pass: true, matching: /no contract to hold/ });
+
+expect("client: a client lock matching the recorded contract passes", "contract-client.mjs",
+  clientProject(), { pass: true });
+
+expect("client: a drifted recorded contract fails until the client regenerates", "contract-client.mjs",
+  clientProject({ "docs/external/api-contract/openapi.json": RECORDED_CONTRACT.replace("1.0.0", "2.0.0") }),
+  { pass: false, matching: /contract:client:generate/ });
+
+expect("client: an api facet with no recorded contract fails", "contract-client.mjs",
+  (() => {
+    const f = clientProject();
+    delete f["docs/external/api-contract/openapi.json"];
+    return f;
+  })(),
+  { pass: false, matching: /no recorded openapi\.json/ });
 
 // --- sec:scan ----------------------------------------------------------------
 // Only the deterministic half is self-testable: that the secret scan cannot be

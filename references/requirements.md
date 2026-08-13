@@ -392,8 +392,8 @@ intrinsics. Code clones over 30 tokens fail, except among library primitives.
 - **Enforced by:** `dup:scan`, which runs jscpd for clones and component-dup-scan for
   re-implemented primitives
 - **Proven by:** `gates:selftest` → "dup: a feature composing proto-ui primitives
-  passes", "dup: a raw <button> in a feature fails" (web), "dup: a raw element wearing a
-  primitive role fails"
+  passes" (web), "dup: a raw <button> in a feature fails" (web), "dup: a raw element wearing a
+  primitive role fails" (web)
 - **Decided in:** ADR 020
 
 ### BR-11 — Hard accessibility primitives are not re-invented, and not depended on
@@ -424,14 +424,14 @@ first-party path (`@/`, `@jj/`, relative).
   asserts the mock.
 - **Scope:** frontend, backend, e2e
 - **Enforced by:** `stub:scan`; `consistency` (frontend, backend) for the dead-weight
-  corollary — a runtime `dependencies` entry nothing in `src/` or `packages/` imports
+  corollary — a runtime *dependencies* entry nothing in `src/` or `packages/` imports
   fails (devDependencies are wired through configs and CLIs, where "is it used?" has
   no cheap mechanical answer, so they are held by review; the e2e template ships zero
   runtime dependencies by construction)
 - **Proven by:** `gates:selftest` → "stub: clean production code passes", "stub: a
   banned marker in production code fails", "stub: 'not implemented' in production code
   fails", "stub: mocking a first-party module fails", "stub: pulling __fixtures__ into
-  production code fails", "consistency: a runtime dependency nothing imports fails" (frontend, backend),
+  production code fails" (frontend, backend), "consistency: a runtime dependency nothing imports fails" (frontend, backend),
   "consistency: an imported runtime dependency passes" (frontend, backend)
 - **Limit, stated:** grep cannot prove the absence of inline mock data — a large static
   dataset inside a feature could still pass. The mechanically detectable surface is
@@ -562,9 +562,9 @@ operator's agreement. It is never a way to make a red gate green.
   a waiver with no real justification fails", "config: a waiver for a gate that is not
   relaxed fails as dead paperwork", "hook: switching a gate to warn in the config is
   blocked", "hook: lowering a coverage threshold is blocked" (frontend, backend), "hook: lowering the
-  mutation-score floor is blocked", "hook: narrowing the mutation scope is blocked" (frontend, backend),
+  mutation-score floor is blocked" (frontend, backend), "hook: narrowing the mutation scope is blocked" (frontend, backend),
   "hook: raising the duplication threshold is blocked" (frontend, backend), "hook: widening the duplication
-  ignore list is blocked"
+  ignore list is blocked" (frontend, backend)
 - **Decided in:** ADR 009
 
 ### BR-18 — Every external object has a local record with provenance and an owner list
@@ -685,19 +685,28 @@ tool's active rule set does not match the derived style.
 **MUST.** `contract/openapi.json` is regenerated from the route registry and schemas,
 normalized by the shared normalizer, and byte-compared against the committed spec;
 `contract/contract.lock` pins its sha256 and contract SemVer (§14). A breaking change
-against the last released contract requires a contract major bump plus an ADR.
+against the last released contract requires a contract major bump plus an ADR. On the
+CONSUMER side the same discipline holds one hop later: a frontend with the `api`
+facet generates its typed client from the BR-18-recorded copy of the contract, and
+`src/api/.client.lock` pins the recorded contract's sha256 the committed client was
+generated from — a newer record with a stale client fails.
 
 - **Why:** A hand-edited spec and the code it describes drift within days, and the
   consumer who trusted the spec finds out in production. A locked derivation cannot
   drift: either the code changed and the lock proves it, or nothing changed.
-- **Scope:** backend
-- **Enforced by:** `contract:verify`; `contract:breaking` (a dependency-free structural
-  diff against the last released contract: removed paths/methods/operations, narrowed
-  responses, new required request fields)
+- **Scope:** frontend, backend
+- **Enforced by:** `contract:verify` (backend); `contract:breaking` (backend) — a
+  dependency-free structural diff against the last released contract: removed
+  paths/methods/operations, narrowed responses, new required request fields;
+  `contract:client` (frontend) for the consumer half
 - **Proven by:** `gates:selftest` → "contract: a committed spec matching the
-  regeneration passes", "contract: code drift from the committed spec fails",
-  "contract: a stale contract.lock fails", "contract: a breaking change without a
-  major bump fails"
+  regeneration passes" (backend), "contract: code drift from the committed spec
+  fails" (backend), "contract: a stale contract.lock fails" (backend), "contract: a
+  breaking change without a major bump fails" (backend), "client: no api facet
+  passes with a note" (frontend), "client: a client lock matching the recorded
+  contract passes" (frontend), "client: a drifted recorded contract fails until the
+  client regenerates" (frontend), "client: an api facet with no recorded contract
+  fails" (frontend)
 - **Decided in:** ADR 008 (prototype namespace)
 
 ### BR-23 — Every error is a registered problem type
@@ -1208,8 +1217,8 @@ code depends on the library's public surface, never on a file inside it.
   layer down, which is why persistence sits behind a port.
 - **Enforced by:** `lint` (`boundaries/element-types`), `typecheck`, `consistency`
 - **Proven by:** `lint` and `typecheck` running over the template's own tree, which
-  contains one module per layer, plus the overlay suite's "keeps two provider trees
-  independent" and "uses the capabilities it is given rather than detecting them"
+  contains one module per layer, plus the overlay suite's *keeps two provider trees
+  independent* and *uses the capabilities it is given rather than detecting them*
 - **Decided in:** ADR 001, ADR 008, ADR 022
 
 ### NFR-23 — Narrow interfaces (ISP)
@@ -1225,7 +1234,7 @@ not the library's internals.
   system, and a cast is where a test starts asserting its own fiction.
 - **Enforced by:** `typecheck`, `lint`
 - **Proven by:** `typecheck` over the template's own tree, plus the overlay suite's
-  "survives a view missing each constructor entirely"
+  *survives a view missing each constructor entirely*
 - **Decided in:** ADR 008
 
 ### NFR-24 — One contract, interchangeable surfaces (LSP)

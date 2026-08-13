@@ -45,7 +45,7 @@ Across files, namespace them: `notes-submit`, not `submit`. The primitives make 
 
 ## When a gate is genuinely wrong
 
-Fix the code first — that is the answer roughly always. If the floor itself is wrong, write an ADR. To relax a **mandatory** gate (i18n, testid, layer, docs, security, stub, consistency, snapshot, overlay, coverage, ignores, mutation, external, env, deploy — the `MANDATORY_GATES` list in `scripts/config.mjs`) you also need a `waivers[]` entry in `.proto-forge/config.json` with a reason, that ADR, and an expiry date:
+Fix the code first — that is the answer roughly always. If the floor itself is wrong, write an ADR. To relax a **mandatory** gate (i18n, testid, layer, docs, security, stub, consistency, snapshot, overlay, coverage, ignores, mutation, external, env, deploy, client — the `MANDATORY_GATES` list in `scripts/config.mjs`) you also need a `waivers[]` entry in `.proto-forge/config.json` with a reason, that ADR, and an expiry date:
 
 ```json
 { "gate": "i18n", "reason": "single-locale pilot for the September demo", "adr": 150, "expires": "2026-09-30" }

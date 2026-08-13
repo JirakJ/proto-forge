@@ -26,7 +26,8 @@
         "test:e2e",
         "deploy:plan",
         "env:local",
-        "env:remote"
+        "env:remote",
+        "contract:client:generate"
       ]
     },
     {
