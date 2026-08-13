@@ -108,8 +108,27 @@ Forge a prototype: a habit tracker where a user creates habits, checks one off
 each day, and sees a weekly streak. Persist locally.
 ```
 
-Claude copies the template, normalizes your brief into typed *facets*, then runs
-the pipeline phase by phase — each phase gated, each ADR its own commit.
+Claude derives the target(s) from your brief, copies the matching template(s),
+normalizes the brief into typed *facets*, then runs the pipeline phase by phase —
+each phase gated, each ADR its own commit. Six templates ship
+(`references/templates.json`): the **web** app (React 19 + TS + Vite), three
+**backend** stacks — `api-node` (Fastify), `api-java` (Spring Boot), `api-python`
+(FastAPI) — with the architecture (layered / modular monolith / hexagonal)
+**derived from the brief's complexity**, and the **workspace** + **e2e** templates
+that compose a frontend and a backend as separate repositories in one workspace,
+sharing an OpenAPI contract and proven by a cross-app Playwright layer. A second
+skill, **`proto-forge:discovery`**, turns a brief + Figma + Confluence into a
+SPIN/DAPA gap-analysis with pre-allocated testids that Phase 0 ingests.
+
+```
+/proto-forge
+A parcel-tracking service: couriers update parcel status over a REST API, a
+dispatcher watches deliveries on a dashboard. Backend in Java. Integrations:
+the SMS gateway and the customs registry.
+```
+
+That brief derives `api-java` + `web` + `e2e` in one workspace — and with three
+external systems it would cross the hexagonal threshold (T15).
 
 ### More example briefs
 
@@ -246,14 +265,24 @@ project other people work in.
 ## Repository layout
 
 ```
-SKILL.md                     the skill definition + full pipeline spec
+SKILL.md                     the main skill + full pipeline spec
 skill.json                   skill manifest (name, version)
+skills/discovery/            the second skill: SPIN/DAPA gap analysis + its mini-template
 references/
-  decision-table.md          T1-T13 when→then rules + ADR ranges
+  templates.json             the template registry every plugin gate loops over
+  decision-table.md          T1-T23 when→then rules + ADR ranges
   facets.schema.ts           canonical brief schema (Phase 0 target)
+  requirements.md            the normative register (BR/NFR rules, BRS sections)
   adr-template.md            MADR ADR skeleton
-templates/web/                    the fixed skeleton copied per run (a full working app)
-plugin/                      packaging notes for the agentic-os marketplace
+templates/
+  web/                       React 19 + TS + Vite app (a full working app)
+  api-node/                  Fastify service (PGlite-verified Postgres persistence)
+  api-python/                FastAPI service (uv-locked)
+  api-java/                  Spring Boot service (Gradle-locked)
+  workspace/                 the <project>/ container for composed FE+BE projects
+  e2e/                       the cross-app Playwright layer (flows + contract checks)
+docs/adr/                    the plugin's own decision records
+plugin/                      the installable (.claude-plugin/plugin.json)
 ```
 
 ---
