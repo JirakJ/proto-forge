@@ -8,8 +8,8 @@
     {
       "name": "proto-forge",
       "source": "./plugin",
-      "version": "0.5.0",
-      "description": "Scaffold a production-grade React 19 + TypeScript + Vite prototype from a short product brief."
+      "version": "0.6.0",
+      "description": "Scaffold production-grade web apps, backend services (Node/Java/Python) and composed workspaces from a short brief — with a SPIN/DAPA discovery skill."
     }
   ]
 }
