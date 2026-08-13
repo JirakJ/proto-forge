@@ -32,6 +32,11 @@ extra["jackson-bom.version"] = "2.22.1"
 // MODERATE GHSA-j288-q9x7-2f5v: uncontrolled recursion in commons-lang3 — reached
 // through the test classpath AND the PIT tool configuration.
 extra["commons-lang3.version"] = "3.18.0"
+// MODERATE GHSA-qv9r-c865-cp47: improper encoding of non-finite floats in
+// log4j-api's MapMessage. It arrives through spring-boot-starter-logging's
+// log4j-to-slf4j bridge, so the app never calls it — pinned anyway, because an
+// advisory a scanner can see is one a reviewer has to answer for.
+extra["log4j2.version"] = "2.25.5"
 
 java {
     toolchain {
