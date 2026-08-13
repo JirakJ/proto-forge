@@ -31,8 +31,9 @@ relaxed through a live `waivers[]` entry carrying a reason, an existing ADR and 
 expiry date (BR-17). Any other state is non-conforming, and a run whose remediation
 was exhausted ends `blocked` and is never released.
 
-A **conforming plugin** is one where `pnpm verify` and `pnpm verify:template` both exit
-0 at the repository root.
+A **conforming plugin** is one where `pnpm verify` exits 0 at the repository root and
+`node scripts/verify-template.mjs --template <id>` exits 0 for every template listed in
+`references/templates.json`.
 
 Requirement levels are **MUST** (a gate fails on violation) and **SHOULD** (reviewed,
 not gated). There are no unenforced MUSTs: `scripts/citations.mjs` fails when a rule
@@ -453,12 +454,19 @@ code it produced is committed. Secret-shaped values and PII are redacted before 
 ### BR-14 — Brief identity is the facet hash
 
 **MUST.** Two briefs whose normalized facets are equal are the same brief, and produce
-the same structure (§8). The hash of `.proto-forge/facets.json` is that identity. ADR
-numbers are allocated by facet order rather than by encounter order, so the ADR set is a
+the same structure (§8). Brief identity is the **pair** `(facetsVersion, sha256 of the
+normalized facets)` — `facetsVersion` is part of the hashed document, and absent
+optional subtrees (a frontend-only brief has no `backend` key) are omitted from the
+serialization, never written as null. The plugin claims no identity across schema
+versions: determinism — same brief, same output, in a year — is a promise **per plugin
+version**, which is already the doctrine (pinned toolchain, pinned seed). ADR numbers
+are allocated by facet order rather than by encounter order, so the ADR set is a
 function of the facets.
 
 - **Why:** "Deterministic" has to mean something checkable. Structure is checkable; prose
-  is not.
+  is not. And two schema versions calling different structures "the same brief" is the
+  exact lie this rule exists to prevent — which is why the version is inside the
+  identity, not next to it.
 - **Enforced by:** `snapshot:diff`
 - **Proven by:** `gates:selftest` → "snapshot: a tree matching its committed baseline
   passes", "snapshot: a file added after the baseline fails", "snapshot: a gate removed
@@ -638,6 +646,118 @@ unattended. `autoPropagate` stands in for `--approve` and for nothing else.
 - **Decided in:** ADR 009 (prototype namespace); ADR 005 (plugin namespace) for the
   standing-consent form
 
+### BR-21 — Dependency direction follows the derived profile
+
+**MUST.** Imports obey the active architecture profile (§13): the domain layer imports
+no framework and no adapter; adapters depend inward through ports; in the modular
+profile no module reaches into another module's internals. The profile in force is the
+one derived from the facets — `arch:verify` re-derives the style from `facets.json`,
+fails when `.proto-forge/architecture.json` disagrees, and fails when the boundary
+tool's active rule set does not match the derived style.
+
+- **Why:** An architecture that lives in a diagram decays in a week. One that lives in
+  a dependency-direction gate cannot: the wrong import fails the build, and the
+  "chosen by complexity" claim stays true because the chooser is re-executed on every
+  run, not remembered.
+- **Scope:** backend
+- **Enforced by:** `arch:verify` (eslint-plugin-boundaries / ArchUnit / import-linter
+  per stack, driven by one gate script)
+- **Proven by:** `gates:selftest` → "arch: the derived style matching
+  architecture.json passes", "arch: a domain module importing a framework fails",
+  "arch: an adapter importing another adapter's internals fails", "arch: a profile
+  disagreeing with the derived style fails"
+- **Decided in:** ADR 005 (prototype namespace)
+
+### BR-22 — The committed contract is a locked derivation of the code
+
+**MUST.** `contract/openapi.yaml` is regenerated from the route registry and schemas,
+normalized by the shared normalizer, and byte-compared against the committed spec;
+`contract/contract.lock` pins its sha256 and contract SemVer (§14). A breaking change
+against the last released contract requires a contract major bump plus an ADR.
+
+- **Why:** A hand-edited spec and the code it describes drift within days, and the
+  consumer who trusted the spec finds out in production. A locked derivation cannot
+  drift: either the code changed and the lock proves it, or nothing changed.
+- **Scope:** backend
+- **Enforced by:** `contract:verify`; `contract:breaking` with a pinned `oasdiff`
+- **Proven by:** `gates:selftest` → "contract: a committed spec matching the
+  regeneration passes", "contract: code drift from the committed spec fails",
+  "contract: a stale contract.lock fails", "contract: a breaking change without a
+  major bump fails"
+- **Decided in:** ADR 008 (prototype namespace)
+
+### BR-23 — Every error is a registered problem type
+
+**MUST.** Every error a route can emit maps to a registered RFC 9457 problem type with
+a stable `type` URI and a unique code, documented in the problem catalogue. An
+unregistered 4xx/5xx shape, a duplicate code, and a catalogue entry no code can emit
+all fail. API responses are English; the catalogue is the backend's i18n-catalogue
+equivalent — the single source a frontend translates FROM, never a string invented at
+the throw site.
+
+- **Why:** Error shapes are the API surface consumers program against hardest, and the
+  one nobody specifies. A registered catalogue makes the error contract diffable and
+  makes "what can this endpoint return?" a lookup instead of an archaeology.
+- **Scope:** backend
+- **Enforced by:** `error:catalog`
+- **Proven by:** `gates:selftest` → "errors: a registered problem type passes",
+  "errors: an unregistered error shape fails", "errors: a duplicate problem code
+  fails", "errors: a stale catalogue entry fails"
+- **Decided in:** ADR 004 (prototype namespace)
+
+### BR-24 — Migrations are append-only and agree with the model
+
+**MUST.** The migrations directory is history: an existing migration is never edited
+or deleted (a correction is a new migration), and the schema the migrations produce
+must agree with the ORM/model layer per §15. A destructive statement (`DROP`,
+truncation) requires an ADR marker in the migration.
+
+- **Why:** A rewritten migration is a database whose past changed under it — every
+  environment that already ran the old version now disagrees with every environment
+  that ran the new one, silently.
+- **Scope:** backend
+- **Enforced by:** `migration:verify`
+- **Proven by:** `gates:selftest` → "migrations: an append-only history passes",
+  "migrations: a rewritten migration fails", "migrations: a model the migrations do
+  not produce fails"
+- **Decided in:** ADR 006 (prototype namespace)
+
+### BR-25 — Every operation has a unique, deterministic operationId
+
+**MUST.** Every route carries an `operationId` derived as `<resource>-<verb>` in
+kebab-case — the same grammar as the frontend's testids — unique across the app, with
+route paths coming from a single route registry, never literals. The ids are the
+backend's addressability surface: contract clients, docs examples and e2e scenarios
+all key on them.
+
+- **Why:** The testid lesson (BR-02) applies verbatim: an operation nothing can name
+  reliably is an operation nothing can test, document or generate a client for
+  without guessing.
+- **Scope:** backend
+- **Enforced by:** `opid:scan`
+- **Proven by:** `gates:selftest` → "opid: unique deterministic operation ids pass",
+  "opid: a duplicate operation id fails", "opid: a route path literal outside the
+  registry fails"
+- **Decided in:** ADR 008 (prototype namespace)
+
+### BR-26 — An endpoint is not finished until its docs carry a current captured example
+
+**MUST.** Every documented operation shows a captured request/response example
+produced by running the app against the harness scenario registry, with an
+`example.lock` hashing the handler sources — editing a handler invalidates its
+examples until `docs:examples` reruns. A missing example needs an explicit
+`<!-- no-example: reason -->`. This is BR-19's screenshot discipline with the
+artefact swapped: a picture of an API is a captured exchange.
+
+- **Why:** An example written by hand stays green forever while quietly becoming
+  fiction — which is worse than no example, because a reader trusts it.
+- **Scope:** backend
+- **Enforced by:** `docs:verify`, `docs:examples` for capture freshness
+- **Proven by:** `gates:selftest` → "docs: an endpoint with a current captured example
+  passes", "docs: a handler edit invalidates its example until docs:examples reruns",
+  "docs: an endpoint with no example and no stated reason fails"
+- **Decided in:** ADR 009 (prototype namespace)
+
 ### NFR-02 — No heavy runtime UI dependency
 
 **MUST.** The prototype ships no component-framework runtime beyond React. The owned
@@ -701,6 +821,75 @@ blocked locally by a hook.
 - **Proven by:** `gates:selftest` → "hook: rewriting an existing prompt-log entry is
   blocked", "hook: adding a NEW prompt-log entry is allowed"
 - **Decided in:** ADR 002 (prototype namespace)
+
+### NFR-11 — Backend toolchains are pinned per stack
+
+**MUST.** Every backend template pins its whole toolchain the way the web template
+pins node+pnpm: exact framework versions with a committed lockfile-equivalent —
+`pnpm-lock.yaml` (node), a checksum-pinned Gradle wrapper plus committed dependency
+locks (java), a committed `uv.lock` plus `.python-version` (python) — and node+pnpm
+besides, because the gate corpus is Node everywhere (§18). Installs in CI use the
+frozen/locked mode; a resolution the lock does not name is a failure, not an update.
+
+- **Why:** "The same brief generates the same way in a year" (BR-14) is void the day a
+  floating dependency resolves differently. Reproducibility is the toolchain's
+  property before it is the generator's (NFR-08, extended per stack).
+- **Scope:** backend
+- **Enforced by:** `snapshot:diff` (the lockfiles are in the pinned tree), the frozen
+  install flags in each template's CI workflow
+- **Proven by:** `gates:selftest` → "snapshot: a tree matching its committed baseline
+  passes", "snapshot: a file added after the baseline fails"
+- **Decided in:** ADR 001 (prototype namespace)
+
+### NFR-12 — Structured, redacting logging only
+
+**MUST.** Production code logs through the platform kernel's structured logger only —
+no bare `console.*`, `print`, `System.out` — and log calls do not carry fields whose
+names match the PII denylist; the redaction configuration ships in `platform/` and is
+part of the byte-pinned seed.
+
+- **Why:** Logs are the output most likely to leave the trust boundary (aggregators,
+  vendors, tickets). A field named `password` or `email` in a log call is an incident
+  with a delay on it, and grep can catch it before the logger does.
+- **Scope:** backend
+- **Enforced by:** `log:scan`
+- **Proven by:** `gates:selftest` → "logs: structured logger calls pass", "logs: a
+  bare console/print in production code fails", "logs: a PII field name in a log call
+  fails"
+- **Decided in:** ADR 009 (prototype namespace)
+
+### NFR-13 — The dependency budget is a ceiling with a name on it
+
+**MUST.** Each backend template carries a ceiling on production dependency count and
+installed size — the service analogue of the web bundle budget (ADR 007 (prototype
+namespace)). Exceeding it is remediated by removing weight, never by raising the
+number; a genuine budget change is an ADR.
+
+- **Why:** Latency budgets are environment-noise; dependency count and size are
+  deterministic and measure the same thing supply-chain risk does — surface.
+- **Scope:** backend
+- **Enforced by:** `deps:budget`
+- **Proven by:** `gates:selftest` → "deps: a runtime dependency set under the ceiling
+  passes", "deps: a dependency past the ceiling fails without an ADR"
+- **Decided in:** ADR 007 (prototype namespace)
+
+### NFR-14 — Mutation thresholds per stack, ratchet-only
+
+**MUST.** The behavioural core of every backend template runs under mutation testing
+with a break threshold pinned per stack — Stryker `break: 90` (node), PIT 85 (java),
+mutmut 85 (python), the lower JVM/Python floors reflecting weaker operator sets, each
+recorded in the template's ADR 003 (prototype namespace) — and thresholds only ever
+ratchet up. The floors are frozen by the guard hook exactly like coverage thresholds.
+
+- **Why:** §3.2's argument does not stop at the browser: 100 % coverage that asserts
+  nothing is theatre in a service too, and the first web run proved the gate finds
+  real assertion gaps immediately.
+- **Scope:** backend
+- **Enforced by:** `test:mutation` per stack, `templates/web/scripts/hooks/guard-write.mjs`
+  pattern copied per template
+- **Proven by:** `gates:selftest` → "hook: lowering the mutation-score floor is
+  blocked", "hook: narrowing the mutation scope is blocked"
+- **Decided in:** ADR 003 (prototype namespace)
 
 ### NFR-20 — One responsibility per module (SRP)
 
@@ -805,7 +994,7 @@ covered by a case that only proves the binary is absent.
 
 ## §11 The decision table
 
-`references/decision-table.md` holds the when→then table T1-T13: the deterministic core
+`references/decision-table.md` holds the when→then table T1-T22: the deterministic core
 of the pipeline. A generative decision traces either to a row of that table, to a fixed
 rule in `SKILL.md`, or to a recorded `.prompts/` entry. Nothing else is a source.
 
@@ -841,6 +1030,66 @@ definition:
 | route table (`routes`) | `src/app/routes.ts` (at most once; a minimal app may have none) |
 | domain shape | the entity's zod schema, with its type derived (§12.2) |
 
+## §13 Backend architecture
+
+`Scope: backend` for §13–§16 — these sections bind the backend templates
+(`kind: backend` in `references/templates.json`) and everything generated from them.
+
+The architecture style is **derived, never chosen**: a pure function of the normalized
+facets (T15–T17) over three counts — E = entities, X = external systems, C = connected
+components of the entity reference graph — plus the messaging flag. First matching row
+wins: hexagonal when `X ≥ 3 ∨ messaging = broker`; modular monolith when
+`C ≥ 2 ∨ E ≥ 8`; layered otherwise. The derivation is recorded at generation time in
+`.proto-forge/architecture.json` (`{ style, inputs: {E, X, C, flags} }`) and in the
+template's pre-written ADR 005 (prototype namespace), and `arch:verify` re-derives it
+from `facets.json` on every run — the selection rule is a gated fact, not
+documentation. A brief demanding a contradicting style escalates (T22).
+
+Every backend template ships ONE physical skeleton — `domain/`, `application/`,
+`adapters/in/http/`, `adapters/out/persistence/`, `adapters/out/<external>/`,
+`platform/` — and the style is an **enforcement profile** over it: which dependency
+edges are legal (BR-21), how many modules exist, whether ports must be explicit
+interfaces. The domain layer is framework-pure in every profile.
+
+The `platform/` kernel (problem types, logging with redaction, security headers,
+health endpoints) plus `scripts/` form the template's byte-pinned seed, with the same
+`seed.lock` machinery as the web template's `packages/proto-ui` (§17.2).
+
+## §14 Backend contract
+
+The committed `contract/openapi.yaml` is a **locked derivation of the code** (BR-22):
+regenerated from the route registry and schemas, normalized (sorted keys, version
+noise stripped, one shared normalizer across stacks), diffed byte-wise, and pinned by
+`contract/contract.lock` (sha256 + contract SemVer). It is re-locked in the same
+accepted-ADR commit as the code that changed it. Every operation carries a stable,
+deterministic `operationId` (BR-25); every error shape is a registered problem type
+(RFC 9457, BR-23). A breaking contract change requires a contract major bump plus an
+ADR — `contract:breaking` diffs against the last released contract with a pinned
+`oasdiff` and fails otherwise.
+
+The backend owns the contract; a paired frontend consumes the emitted artifact through
+its BR-18 record and generates its typed client from that recorded copy.
+
+## §15 Backend persistence and migrations
+
+Migrations are **append-only** (BR-24): the migrations directory is history, and a
+rewritten or deleted migration fails exactly as a rewritten prompt-log entry does.
+The schema derivable from the migrations must agree with the ORM/model layer, checked
+per stack (drizzle-kit diff / `flyway validate` + `ddl-auto=validate` / Alembic
+autogenerate-empty). Persistence tests run against a **real database** via
+Testcontainers — an in-memory reimplementation of Postgres is a mock of a first-party
+boundary and is banned by BR-12's reasoning.
+
+## §16 Backend security baseline
+
+The BRS §4 posture, restated for services: security headers from the `platform/`
+kernel; schema validation on every route boundary (the route registry type requires
+it); an authN/Z skeleton per the `authModel` facet with authorization asserted per
+route in tests (T21); structured, PII-redacting logging only (NFR-12); secret scan
+(gitleaks), dependency audit and SBOM per ecosystem — `pnpm audit` / OSV-Scanner over
+the CycloneDX SBOM / `pip-audit` — with high/critical findings a hard stop, never
+auto-suppressed; SAST per stack (eslint-security / SpotBugs+findsecbugs / bandit).
+
 ## §17 The plugin
 
 `Scope: plugin` for this whole section.
@@ -873,6 +1122,37 @@ edited during generation — a hook blocks it. A legitimate upgrade is an ADR pl
   vendored seed that differs from seed.lock fails", "hook: editing the byte-pinned seed
   is blocked", "hook: an ordinary feature edit is allowed"
 - **Decided in:** ADR 020, §8
+
+## §18 Multi-template invariants
+
+`Scope: plugin` for this section.
+
+`references/templates.json` is the template registry: the single source every
+plugin-level gate loops over (ADR 007 (plugin namespace)). Adding a template is one
+registry entry plus the tree it names; `manifest:lint` then demands the complete shape
+(a `verify` script, `gates-selftest`, `snapshot-diff`, the `.proto-forge` pins,
+`docs/adr/`), `template:integrity` verifies its seed pin, and CI runs its
+`verify-template` leg.
+
+**Structural symmetry is mechanical, not aspirational.** A §10 rule binds the
+templates its `Scope:` bullet names, and `citations` requires the rule's enforcer
+script in EVERY covered template — so a gate that exists under one name in api-node
+and another in api-java cannot pass. The phase numbering (0–9), the gate-failure
+protocol, the waiver machinery, the prompt-log rules and the ADR bands hold verbatim
+in every template; only per-phase content differs by kind.
+
+**The gate corpus is Node everywhere.** Java and Python templates delegate
+build/test/coverage/mutation/architecture checks to their native toolchains (Gradle,
+uv), but the gates that orchestrate them — and every technology-neutral gate — are the
+same `.mjs` scripts, so a generated backend repo pins node+pnpm alongside its own
+toolchain (its ADR 009 (prototype namespace) records this). One gate framework is what
+keeps `citations`, the selftest harness and the hook layer working identically across
+four templates.
+
+Backend gate selftests are two-tier: **Tier 1** fixture-directory cases run inside
+`pnpm verify` (seconds, no JVM/pip); **Tier 2** (`gates:selftest:native`) builds real
+throwaway Gradle/pytest projects and runs in CI only — the `verify-template`
+precedent, recorded per stack in §19.
 
 ## §19 Reconstruction notes
 
