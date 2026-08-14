@@ -1,6 +1,6 @@
 ---
 name: proto-forge
-description: "Use when the user wants to scaffold or build a new app prototype, MVP, service/API, or first shippable product slice from a short brief — triggers on /proto-forge, \"forge a prototype\", \"scaffold an app\", \"build me a prototype/MVP\", \"scaffold a service/API/backend\". Turns a product brief (optionally with a discovery gap-analysis) into production-grade code with zero placeholders: a React 19 + TypeScript + Vite frontend, a backend service in Node (Fastify), Java (Spring Boot) or Python (FastAPI) with an architecture DERIVED from the brief's complexity (layered / modular monolith / hexagonal), or both composed as one workspace of separate repositories with an OpenAPI contract and a cross-app Playwright e2e layer. Every template ships 100% unit coverage behind a mutation-testing gate, a strict security + delivery baseline (environments local→dev→sit→uat→test→prod, non-root digest-pinned containers, Helm for OpenShift/AKS), per-ADR commits, an append-only prompt log and a `pnpm verify` gate suite. Deterministic: the same normalized brief yields the same structure."
+description: "Use when the user wants to scaffold or build a new app prototype, MVP, service/API, desktop application, or first shippable product slice from a short brief — triggers on /proto-forge, \"forge a prototype\", \"scaffold an app\", \"build me a prototype/MVP\", \"scaffold a service/API/backend\", \"build a desktop app\". Turns a product brief (optionally with a discovery gap-analysis) into production-grade code with zero placeholders: a React 19 + TypeScript + Vite frontend, a backend service in Node (Fastify), Java (Spring Boot), Kotlin (Ktor), Python (FastAPI) or C# (ASP.NET Core) with an architecture DERIVED from the brief's complexity (layered / modular monolith / hexagonal), a Tauri or Electron desktop shell over that frontend, or several of them composed as one workspace of separate repositories with an OpenAPI contract and a cross-app Playwright e2e layer. Every template ships 100% unit coverage behind a mutation-testing gate, a strict security + delivery baseline (environments local→dev→sit→uat→test→prod, non-root digest-pinned containers, Helm for OpenShift/AKS), per-ADR commits, an append-only prompt log and a `pnpm verify` gate suite. Deterministic: the same normalized brief yields the same structure."
 ---
 
 # proto-forge
@@ -11,7 +11,7 @@ Turn a short product brief into a **first shippable product slice** — it compi
 
 ## When to use
 
-User wants a new prototype / MVP / app or service scaffold from a description. Targets come from `references/templates.json`: a web app (React 19 + TS + Vite), a backend service (`api-node` Fastify / `api-java` Spring Boot / `api-python` FastAPI — the stack comes from the brief, never a default), or both composed as **one workspace** of separate repositories with a cross-app e2e layer (T14). Not for: native mobile/desktop, or modifying an existing app.
+User wants a new prototype / MVP / app, service or desktop-app scaffold from a description. Targets come from `references/templates.json`: a web app (React 19 + TS + Vite), a backend service (`api-node` Fastify / `api-java` Spring Boot / `api-kotlin` Ktor / `api-python` FastAPI / `api-dotnet` ASP.NET Core — the stack comes from the brief, never a default), a desktop shell over that web UI (`desktop-tauri` / `desktop-electron`, T24), or several composed as **one workspace** of separate repositories with a cross-app e2e layer (T14). Not for: native mobile, or modifying an existing app.
 
 ## Inputs you need
 
@@ -53,7 +53,7 @@ and the e2e-against-the-pair run belongs to the workspace CI (T23, BR-35).
 
 ### Phase 0 — Brief intake (the only interpretive step)
 
-1. **Derive the target(s) (T14).** No `backend` facet ⇒ one repo from `templates/web/`, named by the kebab-slug of the first entity (or `app`). A `backend` facet ⇒ ONE WORKSPACE: scaffold `<project>/` from `templates/workspace/` (its own git repo; write the brief hash as `pairedBrief` into `workspace.json`, rewrite `parts[]` and the `.gitignore` part-dir block together, manifest order = generation order), then generate each part as a SEPARATE git repository inside it: `api/` from `templates/api-<stack>/` FIRST (its contract must exist before its consumers, BR-22), `web/` from `templates/web/` when the brief names a UI, `e2e/` from `templates/e2e/` whenever ≥2 parts exist (T23). Every part's `facets.json` records `pairedBrief`. **Copy the template byte-for-byte and work inside it** — `.prompts/` and `.proto-forge/` exist only after this copy, so the copy is the first action (per part).
+1. **Derive the target(s) (T14, T24).** No `backend` facet ⇒ one repo from `templates/web/` — or from `templates/desktop-<shell>/` when the brief asks for a desktop/standalone application (T24; the brief names the shell or it escalates with the conservative default `tauri`) — named by the kebab-slug of the first entity (or `app`). A `backend` facet ⇒ ONE WORKSPACE: scaffold `<project>/` from `templates/workspace/` (its own git repo; write the brief hash as `pairedBrief` into `workspace.json`, rewrite `parts[]` and the `.gitignore` part-dir block together, manifest order = generation order), then generate each part as a SEPARATE git repository inside it: `api/` from `templates/api-<stack>/` FIRST (its contract must exist before its consumers, BR-22), the UI part when the brief names one — `web/` from `templates/web/`, or `desktop/` from `templates/desktop-<shell>/` when that UI is a desktop application — and `e2e/` from `templates/e2e/` whenever ≥2 parts exist (T23). Every part's `facets.json` records `pairedBrief`. **Copy the template byte-for-byte and work inside it** — `.prompts/` and `.proto-forge/` exist only after this copy, so the copy is the first action (per part).
 2. Write the raw brief verbatim to `.prompts/0002-brief.md` (id `0002`; the shipped `0001-scaffold.md` is the scaffold record — never reuse id `0001`) **before** generating any code.
 3. **Discovery ingest (only when present).** If `discovery/discovery.json` (or `docs/discovery/discovery.json`) sits next to the brief — the discovery skill's bridge — record its `discoveryHash` in `.prompts/0003-discovery.md`, use its `facets` fragment as the **starting point** of the normalization in the next step (the brief wins every conflict; a conflict the brief does not settle escalates), and copy `discovery/docs/**` into the generated repo as `docs/discovery/**`. The facet hash and BR-14 are untouched — discovery provenance lives in the prompt log, never in the brief identity.
 4. Normalize into the typed facets in `references/facets.schema.ts`: `entities[]`, `flows[]`, `roles[]`, `persistence`, `apiContract?`, `locales[]`, `nonFunctional`.
@@ -64,7 +64,7 @@ and the e2e-against-the-pair run belongs to the workspace CI (T23, BR-35).
 5. Write facets to `.proto-forge/facets.json`; its hash is the **brief identity** (BR-14). Two briefs with the same facets are "the same brief."
 6. Leave the shipped `.proto-forge/snapshot.json` in place; it is regenerated at the end of Phase 1 (after demo cleanup) and re-staged with every ADR commit.
 
-**Escalation rule (T-escalation).** If a facet is not covered by T1-T22: (a) write the ambiguity to `.prompts/` as an open question, (b) emit a `proposed` ADR listing the options, (c) pick the **most conservative, most standard** option and record why. Never improvise silently.
+**Escalation rule (T-escalation).** If a facet is not covered by T1-T24: (a) write the ambiguity to `.prompts/` as an open question, (b) emit a `proposed` ADR listing the options, (c) pick the **most conservative, most standard** option and record why. Never improvise silently.
 
 ### Phase 1 — Scaffold cleanup + shell regen (always)
 
@@ -207,9 +207,9 @@ Banned: hardcoded literals ignoring arguments; inline `return [{id:1,...}]` in a
 ## Reference files
 
 - `references/facets.schema.ts` — the canonical brief schema (Phase 0 target).
-- `references/decision-table.md` — T1-T23 when→then + escalation + ADR ranges.
+- `references/decision-table.md` — T1-T24 when→then + escalation + ADR ranges.
 - `references/adr-template.md` — the MADR ADR skeleton.
-- `references/templates.json` — the template registry: every target the pipeline may copy (`web`, `api-node`, `api-python`, `api-java`, `workspace`, `e2e`), with its dir, kind and stack. Read the chosen template's own `README.md` for its layout and its `AGENTS.md` for the rules every change must satisfy.
+- `references/templates.json` — the template registry: every target the pipeline may copy (`web`, `api-node`, `api-python`, `api-java`, `api-kotlin`, `api-dotnet`, `desktop-tauri`, `desktop-electron`, `workspace`, `e2e`), with its dir, kind and stack. Read the chosen template's own `README.md` for its layout and its `AGENTS.md` for the rules every change must satisfy.
 - `skills/discovery/` — the discovery skill whose `discovery.json` bridge Phase 0 ingests.
 
 ## Full requirements

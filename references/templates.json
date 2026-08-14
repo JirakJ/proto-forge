@@ -124,6 +124,37 @@
       ]
     },
     {
+      "id": "api-kotlin",
+      "dir": "templates/api-kotlin",
+      "kind": "backend",
+      "stack": "kotlin",
+      "notAGate": [
+        "dev",
+        "start",
+        "build",
+        "verify",
+        "prepare",
+        "config:show",
+        "snapshot",
+        "seed:lock",
+        "sbom",
+        "sync:jira",
+        "sync:confluence",
+        "sync:pull",
+        "sync:status",
+        "sync:auto",
+        "test:e2e",
+        "contract:generate",
+        "docs:examples",
+        "db:migrate",
+        "gates:selftest:native",
+        "deploy:plan",
+        "env:local",
+        "env:remote",
+        "heal"
+      ]
+    },
+    {
       "id": "api-dotnet",
       "dir": "templates/api-dotnet",
       "kind": "backend",

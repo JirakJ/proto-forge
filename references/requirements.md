@@ -1405,7 +1405,7 @@ covered by a case that only proves the binary is absent.
 
 ## §11 The decision table
 
-`references/decision-table.md` holds the when→then table T1-T22: the deterministic core
+`references/decision-table.md` holds the when→then table T1-T24: the deterministic core
 of the pipeline. A generative decision traces either to a row of that table, to a fixed
 rule in `SKILL.md`, or to a recorded `.prompts/` entry. Nothing else is a source.
 
@@ -1651,6 +1651,23 @@ are untouched: the brief wins every conflict, a conflict the brief does not sett
 escalates, and discovery provenance lives in the prompt log
 (`.prompts/0003-discovery.md`), never in the identity.
 
+## §23 Workspace composition
+
+`Scope: workspace, e2e` for this section.
+
+A brief that yields multiple parts composes them as ONE WORKSPACE (T14): a
+`<project>/` directory that is itself a small git repository — carrying
+`workspace.json`, the shared brief record and the orchestration scripts — which
+`.gitignore`s the part directories, because every part (`api/`, `web/`, `e2e/`) is a
+SEPARATE git repository with its per-repo machinery (verify, CI, prompt log,
+commit discipline, snapshot) unchanged. `workspace.json` is the single source of
+parts; every part's `facets.json` records the shared `pairedBrief` hash and a
+present part whose hash disagrees fails. The e2e part is the cross-app layer:
+a flow suite derived from the flows facets plus consumer-driven contract checks
+replayed against the running pair — its static gates run in its own verify, and
+the against-the-pair run is the workspace repository's orchestration (services
+from `ws:up`), tool-gated locally and mandatory in the workspace CI.
+
 ## §24 Desktop applications
 
 `Scope: desktop` for this section.
@@ -1671,23 +1688,6 @@ The shell itself is configuration under a gate (BR-37). Two shells ship: Tauri
 rather than papered over: the end-to-end suite runs against the built web assets
 in a browser, not against the packaged application — the packaged smoke belongs
 to the packaging stage, and each template's ADR 203 says so in those words.
-
-## §23 Workspace composition
-
-`Scope: workspace, e2e` for this section.
-
-A brief that yields multiple parts composes them as ONE WORKSPACE (T14): a
-`<project>/` directory that is itself a small git repository — carrying
-`workspace.json`, the shared brief record and the orchestration scripts — which
-`.gitignore`s the part directories, because every part (`api/`, `web/`, `e2e/`) is a
-SEPARATE git repository with its per-repo machinery (verify, CI, prompt log,
-commit discipline, snapshot) unchanged. `workspace.json` is the single source of
-parts; every part's `facets.json` records the shared `pairedBrief` hash and a
-present part whose hash disagrees fails. The e2e part is the cross-app layer:
-a flow suite derived from the flows facets plus consumer-driven contract checks
-replayed against the running pair — its static gates run in its own verify, and
-the against-the-pair run is the workspace repository's orchestration (services
-from `ws:up`), tool-gated locally and mandatory in the workspace CI.
 
 ## §19 Reconstruction notes
 
@@ -1761,28 +1761,6 @@ which fails if the script exists with no rule behind it. Stated per NFR-25's own
 escape: a limit is recorded here, not papered over with a fixture that proves only
 that `pnpm` is absent.
 
-### §19.9 The JVM, CPython and .NET real-database tiers are Testcontainers in CI
-
-§15 wants the Postgres engine in-process at verify time, and for node it is
-(PGlite). The JVM and CPython have no maintained in-process Postgres, and an
-in-memory substitute is a BR-12 mock. Per §15's own escape, api-java's and
-api-python's real-database tier runs over Testcontainers Postgres — Flyway
-migrate + `ddl-auto=validate`, resp. `tests/integration` + `alembic check` — plus
-each stack's `gates:selftest:native` Tier-2 suite proving the native gates fire:
-mandatory in CI on a Docker-equipped runner, tool-gated locally with a printed
-skip note. api-dotnet's tier is `tests/App.Tests/Persistence` (xUnit
-`Category=native`, `pnpm test:native`): EF Core `Database.Migrate()` plus
-`HasPendingModelChanges()` against Testcontainers Postgres, with its
-`gates:selftest:native` suite proving ArchUnitNET, the coverlet threshold and the
-EF model-agreement check all fire.
-
-How the adapter stays out of the unit-coverage floor differs by stack, and the
-difference is worth stating rather than smoothing: api-java and api-python name a
-reasoned exclusion entry, while api-dotnet's gated scope is an *include* list
-(`[App]App.Domain.*,[App]App.Application.*`) — the adapter is outside it and the
-template ships **zero** exclusions. Each template's ADR 003/006 records its own
-mechanism. Mirrors §19.4/§19.7: the limit is stated, not papered over.
-
 ### §19.8 `BR-11` describes a tension, not a mechanism
 
 The rule states a goal — do not re-invent accessibility primitives, do not hard-depend
@@ -1794,3 +1772,63 @@ unused so a stale reference fails loudly instead of resolving to something else.
 ownership half of the decision lives in ADR 020, the layering mechanism in ADR 008.
 BR-11 is recorded as **SHOULD** for that reason: what is gated is that the shared test
 suite passes against whichever implementation the current decision selects.
+
+### §19.9 The JVM, CPython and .NET real-database tiers are Testcontainers in CI
+
+§15 wants the Postgres engine in-process at verify time, and for node it is
+(PGlite). The JVM and CPython have no maintained in-process Postgres, and an
+in-memory substitute is a BR-12 mock. Per §15's own escape, api-java's and
+api-python's real-database tier runs over Testcontainers Postgres — Flyway
+migrate + `ddl-auto=validate`, resp. `tests/integration` + `alembic check` — plus
+each stack's `gates:selftest:native` Tier-2 suite proving the native gates fire:
+mandatory in CI on a Docker-equipped runner, tool-gated locally with a printed
+skip note. api-kotlin's tier is the same JVM story with one substitution stated
+rather than smoothed: Exposed has no `ddl-auto=validate` to lean on, so
+`PersistenceNativeTest` runs the committed Flyway history against Testcontainers
+Postgres and then **reads the live catalog back through JDBC metadata**, asserting
+each produced column and its SQL type against what the Exposed table declares
+before driving the adapter through real queries — stricter in one useful way, since
+a failure names the column and the type it actually found. api-dotnet's tier is
+`tests/App.Tests/Persistence` (xUnit `Category=native`, `pnpm test:native`): EF Core
+`Database.Migrate()` plus `HasPendingModelChanges()` against Testcontainers
+Postgres, with its `gates:selftest:native` suite proving ArchUnitNET, the coverlet
+threshold and the EF model-agreement check all fire.
+
+How the adapter stays out of the unit-coverage floor differs by stack, and the
+difference is worth stating rather than smoothing: api-java and api-python name a
+reasoned exclusion entry, while api-dotnet's gated scope is an *include* list
+(`[App]App.Domain.*,[App]App.Application.*`) — the adapter is outside it and the
+template ships **zero** exclusions. api-kotlin takes a third route: the JaCoCo
+floor is scoped to `app.domain` + `app.application` + `app.config` at 1.00
+instruction/branch/line — the same set PIT mutates, so "the core" means one thing
+rather than two — and the persistence adapter is simply outside it, but its `nativeTest`
+execution data is **merged into the same report**, so where Docker exists the
+adapter's coverage counts instead of being silently omitted. Each template's ADR
+003/006 records its own mechanism. Mirrors §19.4/§19.7: the limit is stated, not
+papered over.
+
+### §19.10 Kotlin's two unkillable regions, named rather than excluded
+
+api-kotlin meets the same 1.00 floor and the same mutation bar as its siblings, and
+reaching them exposed two artefacts of the language rather than of the code.
+
+**kotlinx.serialization's generated `$serializer` carries a dead branch.** The
+plugin-generated decoder emits a missing-field path that no kotlinx decoder can
+reach — roughly 6 % of instructions and 25 % of branches of unreachable bytecode
+sitting inside a scope whose floor is 1.00. The template does not exclude it: the
+wire types in `NoteWire.kt` carry **hand-written `KSerializer`s**, so the bytecode
+under the floor is bytecode the tests can actually drive. Recorded in the
+template's ADR 003.
+
+**PIT cannot kill `kotlin.jvm.internal.Intrinsics` mutants.** Every non-null
+parameter check the compiler inserts is a mutable call site with no observable
+behaviour to assert on. `avoidCallsTo` names `Intrinsics` — the mutated *scope* is
+unchanged, only the call class is skipped — and **both numbers are reported**: without
+the filter PIT generated 29 mutations and killed 22 (76 %), all seven survivors that
+one intrinsic; with it, 42 mutations and 42 kills (100 %). A single flattering number
+would have been the papering-over; the pair is the record.
+
+Widening that floor is the move this template makes when a package earns it:
+`app.config` joined the enforced core once it reached 1.00 unaided, and the widening
+went into the JaCoCo rule, the PIT scope **and** `coverage-policy.mjs` together — so
+narrowing it back is a gate edit, not a build tweak.

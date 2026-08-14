@@ -2,6 +2,52 @@
 
 ## Unreleased (0.7.0)
 
+Ten templates, five backend stacks. The registry is the only list anyone maintains:
+registering a template is what gives it its CI legs, its gate parity check and its
+share of the delivery corpus.
+
+### Two more backend stacks (§19.9, §19.10)
+
+- **`api-dotnet` (C#/ASP.NET Core)** — .NET 10 LTS pinned by `global.json`,
+  `packages.lock.json` with locked restore, minimal APIs behind a route registry as
+  the single source, native `ProblemDetails` (RFC 9457 lands without a shim, BR-23),
+  EF Core migrations under the append-only ledger (BR-24), the contract emitted by
+  the app's own `--emit-openapi` mode through the shared normalizer (BR-22), xUnit +
+  coverlet at 100 on domain and application, **Stryker.NET** over that scope,
+  ArchUnitNET for the three profiles (BR-21), and Testcontainers-for-.NET as the
+  real-database tier. Its gated coverage scope is an *include* list, so the template
+  ships **zero** exclusions.
+- **`api-kotlin` (Ktor)** — Gradle-locked, Exposed + Flyway, contract emitted from
+  the route registry and byte-identical across runs, ArchUnit for the profiles,
+  detekt at `maxIssues: 0`, JaCoCo 100/100/100 on `app.domain` + `app.application` +
+  `app.config` with **zero** `jacoco ignore` markers, PIT over that same set at
+  100 % (42/42), 65 unit tests and 9 conformance scenarios, and the same 157-name
+  gate-selftest parity as api-node and api-java — proven programmatically, not by
+  convention. `app.config` was not in the enforced core at first: it joined once it
+  reached 1.00 unaided, and the widening landed in the JaCoCo rule, the PIT scope and
+  `coverage-policy.mjs` together, so narrowing it back is a gate edit.
+- **Two Kotlin limits are named rather than excluded** (§19.10). kotlinx's generated
+  `$serializer` carries a missing-field branch no decoder can reach; instead of
+  excluding roughly 6 % of instructions from a 1.00 floor, the wire types carry
+  hand-written `KSerializer`s, so what the floor covers is what the tests can drive.
+  PIT cannot kill the `Intrinsics` null-checks the Kotlin compiler inserts; the call
+  class is skipped, the mutated scope is not, and **both numbers are reported** —
+  unfiltered, 29 mutations with 22 kills (76 %) and all seven survivors that one
+  intrinsic; filtered, 42 and 42.
+- **Exposed has no `ddl-auto=validate`**, so api-kotlin's real-database tier applies
+  the committed migrations against Testcontainers Postgres and then reads the live
+  catalog back through JDBC metadata, asserting each column and SQL type against the
+  Exposed declaration. Stricter in one useful way: a failure names the column and
+  the type it actually found.
+
+### Fixed
+
+- **api-dotnet died on a fresh clone at the mutation gate**: `.config/dotnet-tools.json`
+  pins the tools, but the resolver cache that makes them runnable is per-machine, so
+  CI met `Run "dotnet tool restore" to make the "dotnet-stryker" command available`.
+  `test:mutation` now restores the local tools before it uses them, and `tools:restore`
+  exposes the step on its own. Reproduced by deleting the resolver cache, not assumed.
+
 ### Desktop applications (BR-37, §24, T24)
 
 - **`desktop-tauri` and `desktop-electron`** — the web template's UI half inside a
