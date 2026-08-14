@@ -1,7 +1,7 @@
 {
   "name": "proto-forge",
-  "version": "0.6.0",
-  "description": "Turn a product brief into production-grade code with zero placeholders: a React 19 + TypeScript + Vite web app, a backend service in Node (Fastify), Java (Spring Boot) or Python (FastAPI) with the architecture derived from the brief's complexity, or both composed as one workspace with an OpenAPI contract and a cross-app e2e layer — plus a SPIN/DAPA discovery skill. Every template ships full tests behind mutation gates, auto-generated quality status, doctor and tiered self-healing, a strict security + delivery baseline (environments, digest-pinned containers, Helm for OpenShift/AKS) and a pnpm verify gate suite.",
+  "version": "0.7.0",
+  "description": "Turn a product brief into production-grade code with zero placeholders: a React 19 + TypeScript + Vite web app, a backend service in Node (Fastify), Java (Spring Boot), Kotlin (Ktor), Python (FastAPI) or C# (ASP.NET Core) with the architecture derived from the brief's complexity, a Tauri or Electron desktop shell over that web UI, or several composed as one workspace with an OpenAPI contract and a cross-app e2e layer — plus a SPIN/DAPA discovery skill. Every template ships full tests behind mutation gates, auto-generated quality status, doctor and tiered self-healing, a strict security + delivery baseline (environments, digest-pinned containers, Helm for OpenShift/AKS) and a pnpm verify gate suite.",
   "author": {
     "name": "Jakub Jirák"
   },
