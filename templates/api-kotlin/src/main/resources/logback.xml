@@ -1,0 +1,15 @@
+<!-- @adr 001 - one pinned stack, configured from one validated source.
+     The framework half of app.config.Settings: logback reads the SAME LOG_LEVEL
+     variable Settings binds, because a logging backend is configured before any
+     Kotlin of ours runs. The application never reads the environment here; it
+     reads Settings, and Settings reads it once. -->
+<configuration>
+  <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <pattern>%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX, UTC} %-5level %logger{36} - %msg%n</pattern>
+    </encoder>
+  </appender>
+  <root level="${LOG_LEVEL:-info}">
+    <appender-ref ref="STDOUT" />
+  </root>
+</configuration>

@@ -181,7 +181,7 @@ export const DEFAULTS = {
     // Paths a hook refuses to let an agent edit (the byte-pinned seed, the locks).
     // The platform kernel is this template's byte-pinned seed (BRS §17.2).
     protectedPaths: [
-      "src/main/java/app/platform/**",
+      "src/main/kotlin/app/platform/**",
       ".proto-forge/seed.lock",
       ".proto-forge/snapshot.json",
       ".prompts/**",
