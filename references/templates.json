@@ -133,7 +133,7 @@
         "config:show", "snapshot", "seed:lock", "sbom",
         "sync:jira", "sync:confluence", "sync:pull", "sync:status", "sync:auto",
         "test:e2e", "test:native", "contract:generate", "docs:examples", "db:migrate",
-        "gates:selftest:native", "deploy:plan", "env:local", "env:remote", "heal"
+        "gates:selftest:native", "deploy:plan", "env:local", "env:remote", "heal", "tools:restore"
       ]
     },
     {

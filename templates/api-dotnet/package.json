@@ -16,7 +16,7 @@
     "typecheck": "dotnet build proto-forge-service.slnx --nologo --verbosity quiet --no-restore",
     "test:unit": "TZ=UTC dotnet test tests/App.Tests/App.Tests.csproj --nologo --filter \"Category!=conformance&Category!=capture&Category!=native\" -p:CollectCoverage=true --logger \"trx;LogFileName=unit.trx\" --results-directory build/test-results/unit",
     "test:e2e": "node scripts/e2e-conformance.mjs",
-    "test:mutation": "TZ=UTC dotnet stryker --output build/reports/stryker",
+    "test:mutation": "dotnet tool restore && TZ=UTC dotnet stryker --output build/reports/stryker",
     "test:native": "TZ=UTC dotnet test tests/App.Tests/App.Tests.csproj --nologo --filter Category=native",
     "config:show": "node scripts/config-cli.mjs show",
     "config:check": "node scripts/config-cli.mjs check",
@@ -61,7 +61,8 @@
     "status:verify": "node scripts/status-verify.mjs",
     "doctor": "node scripts/doctor.mjs",
     "heal": "node scripts/heal.mjs",
-    "prepare": "husky || true"
+    "prepare": "husky || true",
+    "tools:restore": "dotnet tool restore"
   },
   "devDependencies": {
     "husky": "^9.1.7",
