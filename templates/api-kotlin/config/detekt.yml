@@ -1,0 +1,42 @@
+# detekt, layered on top of the default rule set (buildUponDefaultConfig = true).
+# Only deliberate deviations live here, each with the reason on the line above —
+# the same doctrine as the JaCoCo exclusion allow-list: a rule you turn off is a
+# decision, and a decision states why.
+build:
+  # Zero findings. A "weighted budget" is a licence to accumulate.
+  maxIssues: 0
+
+complexity:
+  LongParameterList:
+    # The route registry's rows are named-argument data: seven fields describing
+    # one operation is the point, not a smell.
+    ignoreDataClasses: true
+  TooManyFunctions:
+    thresholdInClasses: 12
+    thresholdInFiles: 12
+
+style:
+  MagicNumber:
+    # HTTP status codes and the registry's response map ARE the literals under
+    # review; naming 200 TWO_HUNDRED hides the contract instead of explaining it.
+    ignorePropertyDeclaration: true
+    ignoreCompanionObjectPropertyDeclaration: true
+  ForbiddenComment:
+    # stub:scan already fails TODO/FIXME anywhere in production code, and it does
+    # it with the marker list the register names. One owner per rule.
+    active: false
+  MaxLineLength:
+    maxLineLength: 140
+
+naming:
+  MemberNameEqualsClassName:
+    # `Problems.PROBLEMS` is deliberate: the catalogue is named identically in every
+    # backend template (§18 structural symmetry), and error:catalog and consistency
+    # both parse that exact declaration as the single source (BR-23).
+    active: false
+
+exceptions:
+  TooGenericExceptionCaught:
+    # The StatusPages install catches Throwable on purpose: the kernel is the one
+    # place an unregistered failure becomes the generic "internal" problem (BR-23).
+    excludes: ['**/platform/**']

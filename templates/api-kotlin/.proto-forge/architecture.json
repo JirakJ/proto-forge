@@ -1,0 +1,12 @@
+{
+  "style": "layered",
+  "inputs": {
+    "E": 1,
+    "X": 0,
+    "C": 1,
+    "flags": {
+      "messaging": "none",
+      "realtime": false
+    }
+  }
+}

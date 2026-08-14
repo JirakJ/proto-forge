@@ -1,0 +1,20 @@
+# Security
+
+The service is treated as internet-facing from commit one. Controls are enforced by gates (`pnpm sec:scan`, `pnpm log:scan`, ArchUnit + arch:verify) and by the byte-pinned platform kernel, not reviewer memory (BRS §16).
+
+## Application controls
+
+- **Input validation** — every external input crosses a validated boundary: the create payload against the domain's own `NoteCreate.violations()` inside the service, path parameters parsed to their type in the handler before the service sees them, an unparseable body rejected by the domain's serializer, and the environment through `app.config.Settings`. An unvalidated field never reaches a use case.
+- **Error responses leak nothing** — every client-visible failure is a registered RFC 9457 problem type (`app.platform.Problems`); an unexpected throw is mapped to the generic `internal` problem by the kernel's `StatusPages` install, and the cause goes to the structured log, never the response. Ktor's own bodyless 404 never reaches a client either: the kernel's tailcard route turns an unmatched path — or a method no row declares — into the registered `route-not-found` problem, so consumers see one error shape and only one.
+- **Security headers** — the kernel's application plugin sets them on every reply (`app.platform.SecurityHeaders`): `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `X-Frame-Options: DENY`, `Cache-Control: no-store`, and a `default-src 'none'` Content-Security-Policy for the JSON API. A slice test asserts all five on a success, a problem and a 404. TLS termination and HSTS belong to the deployment edge — no local server speaks TLS.
+- **Structured, redacting logging only** (NFR-12) — production code logs through the kernel's `AppLogger` (SLF4J behind a redacting key/value renderer); `log:scan` fails a bare `println`/`System.out`, a `printStackTrace`, an `org.slf4j` import outside `app.platform`, and any log-call key named like PII (`password`, `token`, `authorization`, …).
+- **Secrets** — none in the repo. Config via the environment (`Settings`); `gitleaks` scans the whole tree including `.prompts/`.
+- **SQL** — all persistence goes through Exposed's parameterised DSL in `app.adapters.out.persistence`; no string-built SQL outside `src/main/resources/db/migration/`.
+
+## Supply chain (BRS §4.2)
+
+- Two lockfiles committed and enforced (NFR-08/NFR-11): `gradle.lockfile` (dependencyLocking over every configuration; a resolution the lock does not name fails) behind the **checksum-pinned Gradle wrapper** (`distributionSha256Sum` in `gradle/wrapper/gradle-wrapper.properties`), and `pnpm-lock.yaml` (`--frozen-lockfile` in CI) for the gate corpus.
+- **Dependency budget** (NFR-13): `deps:budget` holds the declared runtime surface to a named allowlist (the ten ADR 001 coordinates) under a ceiling of 10 — at the ceiling by design, see ADR 007.
+- **Audit**: `sec:scan` runs osv-scanner over `gradle.lockfile` itself — every locked coordinate, test and tool classpaths included, because a scanner reads the file whether or not we call that surface "shipped". Exit codes are read rather than lumped together: `1` means vulnerabilities, anything else means the audit did not run, and both fail with the message that is true. `pnpm sbom` additionally writes a deterministic CycloneDX 1.5 SBOM of the *runtime* classpath from the same lock (`.proto-forge/sbom.cdx.json`, purl-sorted, no timestamp) as the artefact a consumer asks for. gitleaks and osv-scanner are external binaries: enforced when present, warned locally when absent, mandatory in CI (the §19 gitleaks precedent).
+- **Seed integrity (BRS §17.2)**: `.proto-forge/seed.lock` pins the platform kernel (`src/main/kotlin/app/platform/**`) and the gate corpus (`scripts/**`) by one sha256; `snapshot:diff` re-verifies it every run. Upgrades are explicit (`pnpm seed:lock` + ADR), and a local hook blocks kernel edits before they land.
+- **Image and pipeline** (ADR 201/202): both `FROM`s are digest-pinned, the runtime stage runs as a named non-root user on a JRE-only base, and the delivery pipeline signs what it pushes (cosign, keyless) and verifies the signature before every deploy.
