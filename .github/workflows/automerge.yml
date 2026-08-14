@@ -1,0 +1,105 @@
+name: automerge
+
+# ADR 010: a unit of work is a branch, a pull request, and an automatic merge
+# once it is conflict-free and green.
+#
+# GitHub's own auto-merge is not available here — it needs branch protection to
+# have something to wait for, and branch protection needs a paid plan on a
+# private repository. So the wait is implemented where it can be: this workflow
+# runs AFTER `verify` finishes and merges the pull requests that run belonged to.
+#
+# The bar is deliberately two conditions, not one. "No conflicts" is the
+# operator's rule and is checked as `mergeable == MERGEABLE`. "Green" is this
+# repository's own doctrine — the gates ARE the product (ADR 004), and a robot
+# that merged a red branch would contradict every other decision in the tree.
+# Either one failing leaves the pull request open, with nothing to undo.
+#
+# House rules observed: GitHub context reaches `run:` only through `env:`, never
+# by ${{ }} interpolation inside the script (the shell-injection vector cd.yml
+# and verify.yml both call out); no checkout, because `gh --repo` needs none, so
+# this workflow never executes a line of the code it is about to merge.
+on:
+  workflow_run:
+    workflows: [verify]
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  # One merge at a time: two jobs merging different branches into main at once is
+  # how a green pair becomes a red main.
+  group: automerge
+  cancel-in-progress: false
+
+jobs:
+  merge:
+    runs-on: ubuntu-latest
+    # Door 1: the verify run itself was green. A failed, cancelled or skipped run
+    # never reaches the merge step.
+    if: github.event.workflow_run.conclusion == 'success'
+    steps:
+      - name: merge the pull requests this run proved
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          HEAD_REPO: ${{ github.event.workflow_run.head_repository.full_name }}
+        run: |
+          set -euo pipefail
+
+          # Door 2: same-repository branches only. A fork's pull request must not
+          # be merged by a token this workflow holds — that is how a contributor
+          # merges themselves into main.
+          if [ "$HEAD_REPO" != "$REPO" ]; then
+            echo "head repository $HEAD_REPO is not $REPO — a fork is never auto-merged"
+            exit 0
+          fi
+
+          # The pull requests open for this exact commit. Searching by head SHA
+          # rather than by branch name means a stale run cannot merge whatever
+          # happens to be on that branch now.
+          numbers="$(gh pr list --repo "$REPO" --state open --head "$HEAD_BRANCH" \
+            --json number,headRefOid --jq \
+            ".[] | select(.headRefOid == \"$HEAD_SHA\") | .number")"
+
+          if [ -z "$numbers" ]; then
+            echo "no open pull request at $HEAD_SHA on $HEAD_BRANCH — nothing to merge"
+            exit 0
+          fi
+
+          for number in $numbers; do
+            state="$(gh pr view "$number" --repo "$REPO" \
+              --json isDraft,mergeable,labels \
+              --jq '{draft:.isDraft, mergeable:.mergeable, labels:[.labels[].name]}')"
+            echo "pr #$number: $state"
+
+            # Door 3: drafts are work in progress by definition.
+            if [ "$(echo "$state" | jq -r .draft)" = "true" ]; then
+              echo "pr #$number is a draft — left open"
+              continue
+            fi
+
+            # Door 4: the operator's own rule — conflicts stop the merge. GitHub
+            # reports UNKNOWN while it is still computing mergeability; treating
+            # that as "no" is the safe direction, and the next run re-checks.
+            if [ "$(echo "$state" | jq -r .mergeable)" != "MERGEABLE" ]; then
+              echo "pr #$number is not conflict-free — left open for a human"
+              continue
+            fi
+
+            # Door 5: the manual escape hatch. One label holds a pull request
+            # open regardless of how green it is.
+            if echo "$state" | jq -e '.labels | index("do-not-merge")' >/dev/null; then
+              echo "pr #$number carries do-not-merge — left open"
+              continue
+            fi
+
+            # A merge commit, not a squash: this repository's history is one
+            # accepted ADR per commit (BR-06), and squashing would flatten that
+            # record into a single line the moment it reached main.
+            gh pr merge "$number" --repo "$REPO" --merge --delete-branch
+            echo "pr #$number merged"
+          done
