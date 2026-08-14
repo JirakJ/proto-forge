@@ -256,7 +256,7 @@ tasks.jacocoTestReport {
 }
 
 // LOCKED by scripts/coverage-policy.mjs: every rule below must keep its 1.00 floors
-// on app.domain + app.application, and every exclusion must be on the gate's
+// on app.domain + app.application + app.config, and every exclusion must be on the gate's
 // allow-list with the reason stated on the line above. A new kind of exclusion is a
 // gate edit and an ADR, not a build tweak (BRS §3.1).
 tasks.jacocoTestCoverageVerification {

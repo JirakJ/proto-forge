@@ -110,11 +110,14 @@ each day, and sees a weekly streak. Persist locally.
 
 Claude derives the target(s) from your brief, copies the matching template(s),
 normalizes the brief into typed *facets*, then runs the pipeline phase by phase —
-each phase gated, each ADR its own commit. Six templates ship
-(`references/templates.json`): the **web** app (React 19 + TS + Vite), three
-**backend** stacks — `api-node` (Fastify), `api-java` (Spring Boot), `api-python`
-(FastAPI) — with the architecture (layered / modular monolith / hexagonal)
-**derived from the brief's complexity**, and the **workspace** + **e2e** templates
+each phase gated, each ADR its own commit. Ten templates ship
+(`references/templates.json`): the **web** app (React 19 + TS + Vite), five
+**backend** stacks — `api-node` (Fastify), `api-java` (Spring Boot), `api-kotlin`
+(Ktor), `api-python` (FastAPI), `api-dotnet` (ASP.NET Core) — with the architecture
+(layered / modular monolith / hexagonal) **derived from the brief's complexity**,
+two **desktop** shells over that same web UI — `desktop-tauri` and
+`desktop-electron`, whose shell security posture is itself a gated configuration —
+and the **workspace** + **e2e** templates
 that compose a frontend and a backend as separate repositories in one workspace,
 sharing an OpenAPI contract and proven by a cross-app Playwright layer. A second
 skill, **`proto-forge:discovery`**, turns a brief + Figma + Confluence into a
@@ -270,7 +273,7 @@ skill.json                   skill manifest (name, version)
 skills/discovery/            the second skill: SPIN/DAPA gap analysis + its mini-template
 references/
   templates.json             the template registry every plugin gate loops over
-  decision-table.md          T1-T23 when→then rules + ADR ranges
+  decision-table.md          T1-T24 when→then rules + ADR ranges
   facets.schema.ts           canonical brief schema (Phase 0 target)
   requirements.md            the normative register (BR/NFR rules, BRS sections)
   adr-template.md            MADR ADR skeleton
@@ -279,6 +282,10 @@ templates/
   api-node/                  Fastify service (PGlite-verified Postgres persistence)
   api-python/                FastAPI service (uv-locked)
   api-java/                  Spring Boot service (Gradle-locked)
+  api-kotlin/                Ktor service (Gradle-locked, Exposed + Flyway)
+  api-dotnet/                ASP.NET Core service (.NET 10, locked NuGet restore)
+  desktop-tauri/             Tauri 2 desktop shell over the web UI
+  desktop-electron/          Electron desktop shell over the web UI
   workspace/                 the <project>/ container for composed FE+BE projects
   e2e/                       the cross-app Playwright layer (flows + contract checks)
 docs/adr/                    the plugin's own decision records
