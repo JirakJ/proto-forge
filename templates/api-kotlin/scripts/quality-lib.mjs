@@ -88,7 +88,7 @@ const pct2 = (covered, total) => (total === 0 ? 100 : Math.round((covered / tota
 export function coverageCore(src = read(COVERAGE_REPORT)) {
   const sums = { INSTRUCTION: [0, 0], BRANCH: [0, 0], LINE: [0, 0] };
   for (const pkg of src.matchAll(/<package name="([^"]+)">([\s\S]*?)<\/package>/g)) {
-    if (!/^app\/(domain|application)/.test(pkg[1])) continue;
+    if (!/^app\/(domain|application|config)/.test(pkg[1])) continue;
     for (const type of Object.keys(sums)) {
       const counters = [...pkg[2].matchAll(new RegExp(`<counter type="${type}" missed="(\\d+)" covered="(\\d+)"`, "g"))];
       const last = counters.at(-1);

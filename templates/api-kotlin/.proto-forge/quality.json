@@ -1,8 +1,8 @@
 {
   "unit": {
     "files": 12,
-    "tests": 63,
-    "passed": 63
+    "tests": 65,
+    "passed": 65
   },
   "coverage": {
     "instructions": 100,

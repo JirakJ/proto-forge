@@ -264,10 +264,16 @@ tasks.jacocoTestCoverageVerification {
     violationRules {
         // 100 on the behavioural core: domain and application carry the product
         // logic, and a floor below 100 there is a standing licence for untested
-        // branches exactly where the code changes most (ADR 003).
+        // branches exactly where the code changes most (ADR 003). app.config joins
+        // them because it reached 100 on its own and a settings reader is exactly
+        // the kind of code whose untested branch is discovered in production.
         rule {
             element = "PACKAGE"
-            includes = listOf("app.domain", "app.domain.*", "app.application", "app.application.*")
+            includes = listOf(
+                "app.domain", "app.domain.*",
+                "app.application", "app.application.*",
+                "app.config", "app.config.*",
+            )
             limit {
                 counter = "INSTRUCTION"
                 value = "COVEREDRATIO"
@@ -309,8 +315,8 @@ pitest {
     // api-node's Stryker scope (ADR 003).
     pitestVersion = "1.20.3"
     junit5PluginVersion = "1.2.3"
-    targetClasses = setOf("app.domain.*", "app.application.*")
-    targetTests = setOf("app.domain.*", "app.application.*")
+    targetClasses = setOf("app.domain.*", "app.application.*", "app.config.*")
+    targetTests = setOf("app.domain.*", "app.application.*", "app.config.*")
     // PIT's defaults plus the Kotlin compiler's null-check intrinsics. This is not
     // a narrowed scope — every class above is still mutated — it stops the
     // VOID_METHOD_CALLS mutator from deleting `Intrinsics.checkNotNullExpressionValue`
