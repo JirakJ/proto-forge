@@ -17,7 +17,7 @@ diff of this file shows it.
 | measure | value | enforced floor |
 | --- | --- | --- |
 | unit test classes | 12 | — |
-| unit tests | 63/63 passed | all green |
+| unit tests | 65/65 passed | all green |
 | coverage: instructions (core) | 100% | 100% |
 | coverage: branches (core) | 100% | 100% |
 | coverage: lines (core) | 100% | 100% |

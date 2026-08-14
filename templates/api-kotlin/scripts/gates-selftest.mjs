@@ -556,7 +556,11 @@ ${exclude}
 `;
 const RULE = (minimum) => `        rule {
             element = "PACKAGE"
-            includes = listOf("app.domain", "app.domain.*", "app.application", "app.application.*")
+            includes = listOf(
+                "app.domain", "app.domain.*",
+                "app.application", "app.application.*",
+                "app.config", "app.config.*",
+            )
             limit { counter = "INSTRUCTION"; value = "COVEREDRATIO"; minimum = "${minimum}".toBigDecimal() }
             limit { counter = "BRANCH"; value = "COVEREDRATIO"; minimum = "1.00".toBigDecimal() }
             limit { counter = "LINE"; value = "COVEREDRATIO"; minimum = "1.00".toBigDecimal() }

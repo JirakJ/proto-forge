@@ -1,8 +1,8 @@
 # proto-forge service prototype (Kotlin / Ktor)
 
-[![tests](https://img.shields.io/badge/tests-72%20passing-2f855a)](docs/STATUS.md)
-[![core coverage](https://img.shields.io/badge/core%20coverage-100%25-2f855a)](docs/STATUS.md)
-[![mutation score](https://img.shields.io/badge/mutation-100%25%20(break%2085)-2f855a)](docs/adr/003-test-strategy.md)
+[![tests](https://img.shields.io/badge/tests-74%20passing-2f855a)](docs/STATUS.md)
+[![core coverage](https://img.shields.io/badge/ -2f855a-2f855a)](docs/STATUS.md)
+[![mutation score](https://img.shields.io/badge/mutation-100%25%20(42%2F42%2C%20break%2085)-2f855a)](docs/adr/003-test-strategy.md)
 [![gates](https://img.shields.io/badge/verify%20gates-31-3182ce)](#what-this-template-gives-you)
 [![contract](https://img.shields.io/badge/OpenAPI-derived%20%2B%20locked-3182ce)](contract/openapi.json)
 [![stack](https://img.shields.io/badge/Kotlin%202.2%20%C2%B7%20Ktor%203-7f5af0)](docs/adr/001-tech-stack.md)
@@ -34,7 +34,7 @@ There is no in-memory database mode by design (BR-12/§15): a main run requires 
 | **Addressable operations** | Every operation is one `RouteDef` with a unique kebab-case `<resource>-<verb>` id; paths exist nowhere else | `opid:scan` |
 | **One error surface** | RFC 9457 `problem+json` from a registered catalogue; unmatched paths and methods included | `error:catalog` |
 | **Architecture that stays true** | Style derived from the brief's facets, recorded, and re-proved every run by ArchUnit *and* a JVM-free import scan | `arch:verify` |
-| **Total core coverage** | 1.00/1.00/1.00 instruction/branch/line on `app.domain` + `app.application`, with the config itself guarded | `test:unit`, `coverage:policy`, `ignores` |
+| **Total core coverage** | 1.00/1.00/1.00 instruction/branch/line on `app.domain` + `app.application` + `app.config`, with the config itself guarded | `test:unit`, `coverage:policy`, `ignores` |
 | **Assertions that bite** | PIT mutation testing over the same core, floor 85, ratchet-only | `test:mutation` |
 | **A real database, really** | Flyway history + a live catalog read-back + real SQL against Testcontainers Postgres | `./gradlew nativeTest` (CI-mandatory) |
 | **Append-only schema history** | Every migration hash-pinned; a rewrite or deletion fails, `DROP` needs an ADR | `migration:verify` |
@@ -50,12 +50,12 @@ There is no in-memory database mode by design (BR-12/§15): a main run requires 
 
 | Tier | What it proves | Count |
 | --- | --- | --- |
-| unit (`app.domain`, `app.application`, `app.platform`, `app.config`) | behaviour, in isolation, at the enforced floor | 63 tests / 12 classes |
+| unit (`app.domain`, `app.application`, `app.platform`, `app.config`) | behaviour, in isolation, at the enforced floor | 65 tests / 12 classes |
 | slice (`testApplication`, no socket) | the real kernel, registrar and routes — headers, health, fallback, boundary rejections | included above |
 | conformance (`test:e2e`) | all 9 harness scenarios replayed against the registry's own declarations | 9 scenarios |
 | native (`./gradlew nativeTest`, Docker) | the Exposed adapter against real Postgres, plus schema/model agreement | CI-mandatory |
 
-**The coverage badge is the enforced floor: 100 % instruction, branch and line on `app.domain` + `app.application`**, the packages that carry product logic — that is the scope `jacocoTestCoverageVerification` fails the build over, and it is at 100 % with **zero** `jacoco ignore` markers and no serialization-plugin exclusion (ADR 003 explains how that was earned rather than configured). The remaining tree is covered by the tier whose oracle actually fits it: the http adapter and platform kernel by the slice and conformance replays, the persistence adapter by the native tier (whose execution data merges into the same report wherever Docker exists), and the composition roots — `Main`, `MigrateMain` — by running the service, since a function whose job is to open a socket and a connection pool has no honest unit test. Those three exclusions are allow-listed **with their reason on the line above**, and `coverage:policy` fails any fourth.
+**The coverage badge is the enforced floor: 100 % instruction, branch and line on `app.domain` + `app.application` + `app.config`**, the packages that carry product logic — that is the scope `jacocoTestCoverageVerification` fails the build over, and it is at 100 % with **zero** `jacoco ignore` markers and no serialization-plugin exclusion (ADR 003 explains how that was earned rather than configured). The remaining tree is covered by the tier whose oracle actually fits it: the http adapter and platform kernel by the slice and conformance replays, the persistence adapter by the native tier (whose execution data merges into the same report wherever Docker exists), and the composition roots — `Main`, `MigrateMain` — by running the service, since a function whose job is to open a socket and a connection pool has no honest unit test. Those three exclusions are allow-listed **with their reason on the line above**, and `coverage:policy` fails any fourth.
 
 **Stability is structural, not hopeful.** Nothing in the suite races, sleeps, binds a port or reaches the network: `testApplication` runs Ktor in memory, the clock is `Clock.fixed`, ids come from a counter, the fixture repository is reset per scenario, and `user.timezone`/`user.language`/`TZ` are pinned on every test task *and* in the PIT block — with `TimezonePinTest` failing loudly if that pin is ever dropped. The same inputs give the same bytes, which is why the captured docs examples and the emitted contract can be byte-compared at all.
 

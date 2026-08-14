@@ -1,6 +1,12 @@
 package app.e2e
 
 import app.SERVICE_VERSION
+import app.appModule
+import app.application.IdGenerator
+import app.application.NoteService
+import app.domain.note.Note
+import app.domain.note.NoteRepository
+import app.platform.ServiceInfo
 import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.request.request
@@ -11,8 +17,11 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.http.contentType
 import io.ktor.server.testing.testApplication
+import java.time.Clock
+import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
@@ -119,6 +128,40 @@ class PlatformSliceTest {
         val body = parser.parseToJsonElement(response.bodyAsText()).jsonObject
         assertEquals("validation-failed", body["code"]?.jsonPrimitive?.content)
         assertEquals("body: malformed or missing JSON payload", body["detail"]?.jsonPrimitive?.content)
+    }
+
+    @Test
+    fun anUnregisteredFailureBecomesTheGenericInternalProblemAndLeaksNothing() = testApplication {
+        // Fault injection at the port, not a mock of it (BR-12): the real adapter
+        // is proven natively, and what this case exercises is the KERNEL's last
+        // resort — an exception nobody registered must leave as `internal`, with
+        // the cause in the log and nothing about it in the response (BRS §16).
+        val service = NoteService(ExplodingNoteRepository, Clock.systemUTC(), IdGenerator { UUID.randomUUID() })
+        application { appModule(service, ServiceInfo(SERVICE_VERSION, "dev")) }
+
+        val response = client.get("/notes")
+
+        assertEquals(500, response.status.value)
+        val body = parser.parseToJsonElement(response.bodyAsText()).jsonObject
+        assertEquals("internal", body["code"]?.jsonPrimitive?.content)
+        assertEquals("/problems/internal", body["type"]?.jsonPrimitive?.content)
+        assertEquals("Unexpected server failure", body["title"]?.jsonPrimitive?.content)
+        assertFalse(body.containsKey("detail"), "the generic problem carries no detail")
+        val raw = response.bodyAsText()
+        assertFalse(raw.contains("the storage layer fell over"), "the cause never reaches the client")
+        assertFalse(raw.contains("IllegalStateException"), "no exception type in the response")
+        assertFalse(raw.contains("app.e2e"), "no stack frame in the response")
+    }
+
+    /** A port that always fails, so the kernel's unregistered-failure path can be exercised. */
+    private object ExplodingNoteRepository : NoteRepository {
+        override fun list(): List<Note> = error("the storage layer fell over")
+
+        override fun get(id: UUID): Note = error("the storage layer fell over")
+
+        override fun create(note: Note): Note = error("the storage layer fell over")
+
+        override fun delete(id: UUID): Boolean = error("the storage layer fell over")
     }
 
     @Test

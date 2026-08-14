@@ -41,7 +41,17 @@ const rulesBlock = /violationRules\s*\{([\s\S]*?)\n\s{4}\}/.exec(src)?.[1];
 if (rulesBlock === undefined) {
   errors.push(`${CONFIG}: no jacocoTestCoverageVerification violationRules block — the floors are gone entirely`);
 } else {
-  for (const pkg of ['"app.domain"', '"app.domain.*"', '"app.application"', '"app.application.*"']) {
+  const REQUIRED_PACKAGES = [
+    '"app.domain"',
+    '"app.domain.*"',
+    '"app.application"',
+    '"app.application.*"',
+    // app.config earned its place by reaching 1.00 unaided; widening a floor is
+    // tightening, which needs no waiver — narrowing it back is what this gate stops.
+    '"app.config"',
+    '"app.config.*"',
+  ];
+  for (const pkg of REQUIRED_PACKAGES) {
     if (!rulesBlock.includes(pkg)) {
       errors.push(`${CONFIG}: violationRules no longer include ${pkg} — the behavioural core lost its floor`);
     }

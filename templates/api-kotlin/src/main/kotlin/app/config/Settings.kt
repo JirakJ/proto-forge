@@ -27,11 +27,19 @@ public data class Settings(
         public const val DEFAULT_GIT_SHA: String = "dev"
 
         /**
+         * The process environment — the ONE place this service calls
+         * `System.getenv` (§12.3). Named rather than inlined so a test can prove
+         * the default reader really reads the environment, instead of trusting a
+         * lambda nothing can address.
+         */
+        public val PROCESS_ENVIRONMENT: (String) -> String? = { System.getenv(it) }
+
+        /**
          * Reads the four documented variables (.env.example lists exactly these).
          * [read] is a seam, not a second source: production passes the process
          * environment, tests pass a map so configuration is provable without one.
          */
-        public fun fromEnvironment(read: (String) -> String? = { System.getenv(it) }): Settings = Settings(
+        public fun fromEnvironment(read: (String) -> String? = PROCESS_ENVIRONMENT): Settings = Settings(
             port = read("PORT")?.trim()?.toIntOrNull() ?: DEFAULT_PORT,
             logLevel = read("LOG_LEVEL")?.trim()?.takeIf { it.isNotEmpty() } ?: DEFAULT_LOG_LEVEL,
             databaseUrl = read("DATABASE_URL")?.trim().orEmpty(),
