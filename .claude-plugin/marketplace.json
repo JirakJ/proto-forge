@@ -8,8 +8,8 @@
     {
       "name": "proto-forge",
       "source": "./plugin",
-      "version": "0.6.0",
-      "description": "Scaffold production-grade web apps, backend services (Node/Java/Python) and composed workspaces from a short brief — with a SPIN/DAPA discovery skill."
+      "version": "0.7.0",
+      "description": "Scaffold production-grade web apps, backend services (Node/Java/Kotlin/Python/C#), Tauri or Electron desktop shells and composed workspaces from a short brief — with a SPIN/DAPA discovery skill."
     }
   ]
 }

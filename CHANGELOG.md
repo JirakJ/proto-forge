@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (0.7.0)
+## 0.7.0 — 2026-08-14
 
 Ten templates, five backend stacks. The registry is the only list anyone maintains:
 registering a template is what gives it its CI legs, its gate parity check and its
