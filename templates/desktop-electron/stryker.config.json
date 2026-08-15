@@ -1,6 +1,8 @@
 {
   "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
   "testRunner": "vitest",
+  "$comment_concurrency": "Deterministic by construction, not by luck (NFR-18). Stryker defaults to cpuCount-1 test-runner processes, and concurrent vitest instances inside one Stryker sandbox crash a worker non-deterministically: the run dies in the initial dry run with \"Test runner crashed\" and an error Stryker cannot even stringify. Measured on desktop-electron: 13 processes on a 14-core laptop failed 2 of 6 runs and 2 processes in CI failed about half the time, while 1 process passed 4 of 4. Plain `vitest run` never flaked (4 of 4), so the race is in the runner bridge, not in the tests. One process trades mutation wall time for a suite that means what it says.",
+  "concurrency": 1,
   "plugins": [
     "@stryker-mutator/vitest-runner"
   ],
