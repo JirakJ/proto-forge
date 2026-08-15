@@ -1,0 +1,18 @@
+{
+  "$comment": "The elicitation record — which instrument was chosen for whom, and why (E1/E2). This shipped entry is the SAMPLE the intake step (E0) deletes, kept so the template verifies itself exactly like discovery's and survey's samples.",
+  "version": 1,
+  "audience": "A CTO at a mid-size product company, no prior relationship",
+  "stage": "cold",
+  "sequence": ["diagnostic", "voice", "artifact"],
+  "artifacts": [
+    {
+      "id": "A1",
+      "mode": "artifact",
+      "stage": "cold",
+      "doc": "docs/sample-draft/README.md",
+      "gaps": 3,
+      "reason": "We know the domain well enough to be usefully wrong, and a correction costs the reader two minutes where a specification would cost an hour (E1 #1)."
+    }
+  ],
+  "findings": []
+}

@@ -10,7 +10,7 @@
   },
   "packageManager": "pnpm@10.11.0",
   "scripts": {
-    "verify": "pnpm run citations && pnpm run skill:lint && pnpm run manifest:lint && pnpm run template:integrity && pnpm run deploy:sync && pnpm run discovery:lint && pnpm run survey:lint",
+    "verify": "pnpm run citations && pnpm run skill:lint && pnpm run manifest:lint && pnpm run template:integrity && pnpm run deploy:sync && pnpm run discovery:lint && pnpm run survey:lint && pnpm run elicit:lint",
     "deploy:sync": "node scripts/deploy-sync.mjs",
     "citations": "node scripts/citations.mjs",
     "skill:lint": "node scripts/skill-lint.mjs",
@@ -19,6 +19,7 @@
     "discovery:lint": "node skills/discovery/template/.discovery/lint.mjs skills/discovery/template",
     "verify:template": "node scripts/verify-template.mjs",
     "selftest": "node scripts/selftest-all.mjs",
-    "survey:lint": "node skills/survey/template/.survey/lint.mjs skills/survey/template"
+    "survey:lint": "node skills/survey/template/.survey/lint.mjs skills/survey/template",
+    "elicit:lint": "node skills/elicit/template/.elicit/lint.mjs skills/elicit/template"
   }
 }
