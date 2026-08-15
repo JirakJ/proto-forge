@@ -1,0 +1,8 @@
+{
+  "name": "elicit",
+  "version": "0.7.0",
+  "dependencies": {},
+  "adr": [
+    "012"
+  ]
+}
