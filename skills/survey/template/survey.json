@@ -1,0 +1,57 @@
+{
+  "$comment": "The survey bridge (S8) — what an existing system demonstrably contains, with the line that proves each claim. Its sha256 is the survey identity (surveyHash). The discovery skill ingests this as a pinned source, exactly like a Confluence export, so its Q1-Q24 taxonomy generates questions from real evidence. This shipped entry is the SAMPLE the intake step (S0) deletes, kept so the template verifies itself exactly like discovery's sample and the main template's demo.",
+  "version": 1,
+  "surveyHash": "3f1d0a6c9b2e4d8a7c5f1e0b9d3a6c8e2f4b7d1a0c9e6b3d8f2a5c7e1b4d9f60",
+  "commit": "0000000000000000000000000000000000000000",
+  "sources": [
+    {
+      "path": "src/routes/notes.ts",
+      "sha256": "9b74c9897bac770ffc029102a200c5de1cf6e2c0f1a5f5f0f0c94b8f0e4c9f11"
+    }
+  ],
+  "skipped": [
+    { "path": "node_modules", "reason": "dependency directory — surveying it inventories someone else's code (S7)" },
+    { "path": "dist", "reason": "build output — surveying it measures a compiler (S7)" }
+  ],
+  "areas": [
+    {
+      "id": "api-notes",
+      "kind": "api-area",
+      "doc": "docs/sample-area/README.md",
+      "capabilities": 2,
+      "unknowns": 2
+    }
+  ],
+  "capabilities": [
+    {
+      "area": "api-notes",
+      "id": "C1",
+      "capability": "Lists every note, newest first",
+      "evidence": "src/routes/notes.ts:14",
+      "confidence": "observed"
+    },
+    {
+      "area": "api-notes",
+      "id": "C2",
+      "capability": "Rejects a body over 2000 characters",
+      "evidence": "src/routes/notes.ts:31",
+      "confidence": "inferred"
+    }
+  ],
+  "unknowns": [
+    {
+      "area": "api-notes",
+      "id": "U1",
+      "topic": "No error contract — failures leave as the framework's default shape",
+      "evidence": "src/routes/notes.ts carries no error handler; no error middleware is registered",
+      "q": "Q16"
+    },
+    {
+      "area": "api-notes",
+      "id": "U2",
+      "topic": "No pagination on the collection operation",
+      "evidence": "src/routes/notes.ts:14 returns the full table",
+      "q": "Q17"
+    }
+  ]
+}
