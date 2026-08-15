@@ -72,6 +72,7 @@
     "scripts/sync-jira.mjs",
     "scripts/sync-pull.mjs",
     "scripts/sync-status.mjs",
+    "scripts/test-mutation.mjs",
     "src/main/kotlin/app/Main.kt",
     "src/main/kotlin/app/MigrateMain.kt",
     "src/main/kotlin/app/Wiring.kt",

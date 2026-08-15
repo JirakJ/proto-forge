@@ -31,7 +31,9 @@ export const MANDATORY_GATES = [
   "snapshot",
   "coverage",
   "ignores",
-  "mutation",
+  // "mutation" is deliberately NOT here: it is opt-in (ADR 003), and a gate that
+  // is off by default cannot also be one a waiver is required to relax. The floor
+  // it enforces is unchanged — see gates.mutation.enabled below.
   "external",
   "log",
   "deps",
@@ -94,7 +96,9 @@ export const DEFAULTS = {
     snapshot: { mode: "error" },
     coverage: { mode: "error" },
     ignores: { mode: "error" },
-    mutation: { mode: "error" },
+    // Opt-in (ADR 003): the slowest tier in verify stays off until a committed
+    // line turns it on. `mode` still governs how findings are reported when it runs.
+    mutation: { mode: "error", enabled: false },
     external: { mode: "error" },
     log: { mode: "error" },
     deps: { mode: "error" },
