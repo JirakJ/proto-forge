@@ -1,9 +1,22 @@
 name: verify
 
 on:
+  # `main` only. A push to any OTHER branch is already covered by that branch's
+  # pull request, and matching "**" here meant every push to a branch with an
+  # open PR fired the whole workflow TWICE — once as `push`, once as
+  # `pull_request` — so every check appeared twice from two different run ids
+  # and the matrix ran 24 jobs where 12 were asked for. Under the
+  # branch-per-unit rule (ADR 010) nothing reaches main except through a pull
+  # request, so this loses no coverage: the PR run is the one that gates.
   push:
-    branches: ["**"]
+    branches: [main]
   pull_request:
+
+# A second push while the first run is still going supersedes it. The older run
+# can only tell you about bytes nobody is proposing any more.
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: true
 
 # Two kinds of jobs, deliberately separate: a plugin failure and a template failure
 # have different causes and different fixes, and one combined red X hides which
