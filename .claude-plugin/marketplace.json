@@ -1,7 +1,7 @@
 {
   "name": "proto-forge",
   "owner": {
-    "name": "Jakub Jirák",
+    "name": "Jakub Jir\u00e1k",
     "url": "https://github.com/JirakJ"
   },
   "plugins": [
@@ -9,7 +9,7 @@
       "name": "proto-forge",
       "source": "./plugin",
       "version": "0.7.0",
-      "description": "Scaffold production-grade web apps, backend services (Node/Java/Kotlin/Python/C#), Tauri or Electron desktop shells and composed workspaces from a short brief — with a SPIN/DAPA discovery skill."
+      "description": "Scaffold production-grade web apps, backend services (Node/Java/Kotlin/Python/C#), Tauri or Electron desktop shells and composed workspaces from a short brief \u2014 with a SPIN/DAPA discovery skill and a survey skill that inventories an existing system as its input."
     }
   ]
 }

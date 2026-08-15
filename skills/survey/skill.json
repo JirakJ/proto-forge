@@ -1,0 +1,8 @@
+{
+  "name": "survey",
+  "version": "0.7.0",
+  "dependencies": {},
+  "adr": [
+    "011"
+  ]
+}
