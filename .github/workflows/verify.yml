@@ -11,6 +11,11 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Re-run on demand. Without this the only way to re-verify a commit is to push
+  # another one: a run killed mid-flight — by disabling the workflow, by a
+  # runner dying — cannot be restarted, and `gh run rerun` on it silently does
+  # nothing. That happened, and main sat red with no way to ask again.
+  workflow_dispatch:
 
 # A second push while the first run is still going supersedes it. The older run
 # can only tell you about bytes nobody is proposing any more.
