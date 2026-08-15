@@ -121,7 +121,11 @@ and the **workspace** + **e2e** templates
 that compose a frontend and a backend as separate repositories in one workspace,
 sharing an OpenAPI contract and proven by a cross-app Playwright layer. A second
 skill, **`proto-forge:discovery`**, turns a brief + Figma + Confluence into a
-SPIN/DAPA gap-analysis with pre-allocated testids that Phase 0 ingests.
+SPIN/DAPA gap-analysis with pre-allocated testids that Phase 0 ingests. A third,
+**`proto-forge:survey`**, reads a system that already exists and states what is in
+it — every capability citing the file and line that proves it, every row saying
+whether it was observed or inferred — and hands that to discovery as a pinned
+source, so the same Q1-Q24 taxonomy asks its questions about real code.
 
 ```
 /proto-forge
@@ -271,6 +275,7 @@ project other people work in.
 SKILL.md                     the main skill + full pipeline spec
 skill.json                   skill manifest (name, version)
 skills/discovery/            the second skill: SPIN/DAPA gap analysis + its mini-template
+skills/survey/               the third skill: existing-system inventory + its mini-template
 references/
   templates.json             the template registry every plugin gate loops over
   decision-table.md          T1-T24 when→then rules + ADR ranges
