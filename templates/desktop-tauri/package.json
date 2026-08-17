@@ -52,6 +52,7 @@
     "doctor": "node scripts/doctor.mjs",
     "heal": "node scripts/heal.mjs",
     "shell:verify": "node scripts/shell-verify.mjs",
+    "osv:ignores": "node scripts/shell-verify.mjs --write-osv-ignores",
     "package:app": "tauri build",
     "icons:gen": "node scripts/icon-gen.mjs"
   },
