@@ -55,8 +55,11 @@ repositories {
 val securityPins = mapOf(
     // Netty arrives through ktor-server-netty and its artifacts move as a set.
     // HIGH GHSA-w9fj-cfpg-grvv / GHSA-prj3-ccx8-p6x4 (http2 DoS batch), plus the
-    // handler/transport advisories at the same floor.
-    "io.netty" to "4.2.16.Final",
+    // handler/transport advisories at the same floor, and MODERATE
+    // GHSA-8c42-7qj2-3j46 (netty-codec-http overwrites the CORS Vary header,
+    // so a shared cache can serve one origin's response to another) — fixed in
+    // 4.2.17.Final, which is why this floor moved off 4.2.16.Final.
+    "io.netty" to "4.2.17.Final",
     // MODERATE logback-core advisories reached through logback-classic.
     "ch.qos.logback" to "1.5.34",
     // MODERATE GHSA-rcgg-9c38-7xpx, on the Kotlin plugin's swift-export classpath.
