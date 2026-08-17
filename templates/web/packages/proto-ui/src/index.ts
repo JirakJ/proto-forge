@@ -9,7 +9,6 @@ export { Menu, type MenuProps, type MenuItem } from "./Menu";
 export { Table, type TableProps, type Column } from "./Table";
 export { Tabs, type TabsProps, type TabItem } from "./Tabs";
 export { Tooltip, type TooltipProps } from "./Tooltip";
-export { Tooltip, type TooltipProps } from "./Tooltip";
 export { ToastProvider, useToast, type ToastProviderProps } from "./Toast";
 export { Portal, OVERLAY_ROOT_ID } from "./Portal";
 export { tokens, tokensCssEntries, type Tokens, type Layer } from "../tokens";
