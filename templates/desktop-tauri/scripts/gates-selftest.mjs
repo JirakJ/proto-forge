@@ -1494,6 +1494,47 @@ expect(
   { pass: false, matching: /expired/, env: noRustTools },
 );
 
+// The ledger has to reach the scanner that actually runs. cargo-audit reads
+// audit.toml; osv-scanner — CI's and most host guardrails' tool — reads
+// osv-scanner.toml and would otherwise report the very advisories the ledger
+// already triaged. The derived file is generated, so these three cases pin both
+// the drift failures and the exact rendering.
+const LEDGER_TOML = '[advisories]\nignore = [\n  "RUSTSEC-2024-0999", # reason: fixture advisory with a live date until: 2027-01-01\n]\n';
+const LEDGER_OSV = [
+  "# GENERATED from src-tauri/audit.toml by `pnpm osv:ignores` — do not edit.",
+  "# audit.toml is the single source of the triage ledger; shell:verify fails on drift.",
+  "",
+  "[[IgnoredVulns]]",
+  'id = "RUSTSEC-2024-0999"',
+  "ignoreUntil = 2027-01-01",
+  'reason = "fixture advisory with a live date"',
+  "",
+].join("\n");
+
+expect(
+  "shell: a triage no other scanner can see fails",
+  "shell-verify.mjs",
+  shellBase({ "src-tauri/audit.toml": LEDGER_TOML }),
+  { pass: false, matching: /invisible to osv-scanner/, env: noRustTools },
+);
+
+expect(
+  "shell: an osv ignore list that drifted from the ledger fails",
+  "shell-verify.mjs",
+  shellBase({
+    "src-tauri/audit.toml": LEDGER_TOML,
+    "src-tauri/osv-scanner.toml": LEDGER_OSV.replace("RUSTSEC-2024-0999", "RUSTSEC-2024-0998"),
+  }),
+  { pass: false, matching: /disagrees with/, env: noRustTools },
+);
+
+expect(
+  "shell: a ledger carried into both scanner dialects passes",
+  "shell-verify.mjs",
+  shellBase({ "src-tauri/audit.toml": LEDGER_TOML, "src-tauri/osv-scanner.toml": LEDGER_OSV }),
+  { pass: true, env: noRustTools },
+);
+
 // --- heal --------------------------------------------------------------------
 // NFR-19: self-healing is layered, bounded and on the record. The loop is
 // proven offline through the three fixture seams documented in scripts/heal.mjs

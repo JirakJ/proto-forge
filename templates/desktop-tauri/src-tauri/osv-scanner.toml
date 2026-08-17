@@ -1,0 +1,87 @@
+# GENERATED from src-tauri/audit.toml by `pnpm osv:ignores` — do not edit.
+# audit.toml is the single source of the triage ledger; shell:verify fails on drift.
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2024-0411"
+ignoreUntil = 2027-02-13
+reason = "gdkwayland-sys — gtk3-rs bindings archived upstream; linux GTK backend of tauri 2, no fix inside tauri 2.x"
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2024-0412"
+ignoreUntil = 2027-02-13
+reason = "gdk — gtk3-rs bindings archived upstream; linux GTK backend of tauri 2, no fix inside tauri 2.x"
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2024-0413"
+ignoreUntil = 2027-02-13
+reason = "atk — gtk3-rs bindings archived upstream; linux GTK backend of tauri 2, no fix inside tauri 2.x"
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2024-0414"
+ignoreUntil = 2027-02-13
+reason = "gdkx11-sys — gtk3-rs bindings archived upstream; linux GTK backend of tauri 2, no fix inside tauri 2.x"
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2024-0415"
+ignoreUntil = 2027-02-13
+reason = "gtk — gtk3-rs bindings archived upstream; linux GTK backend of tauri 2, no fix inside tauri 2.x"
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2024-0416"
+ignoreUntil = 2027-02-13
+reason = "atk-sys — gtk3-rs bindings archived upstream; linux GTK backend of tauri 2, no fix inside tauri 2.x"
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2024-0417"
+ignoreUntil = 2027-02-13
+reason = "gdkx11 — gtk3-rs bindings archived upstream; linux GTK backend of tauri 2, no fix inside tauri 2.x"
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2024-0418"
+ignoreUntil = 2027-02-13
+reason = "gdk-sys — gtk3-rs bindings archived upstream; linux GTK backend of tauri 2, no fix inside tauri 2.x"
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2024-0419"
+ignoreUntil = 2027-02-13
+reason = "gtk3-macros — gtk3-rs bindings archived upstream; linux GTK backend of tauri 2, no fix inside tauri 2.x"
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2024-0420"
+ignoreUntil = 2027-02-13
+reason = "gtk-sys — gtk3-rs bindings archived upstream; linux GTK backend of tauri 2, no fix inside tauri 2.x"
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2024-0429"
+ignoreUntil = 2027-02-13
+reason = "glib 0.18 VariantStrIter unsoundness (GHSA-wrw7-89jp-8q8g, MODERATE) — fix needs glib 0.20, which the tauri 2 gtk stack does not accept; the shell never constructs a Variant"
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2024-0370"
+ignoreUntil = 2027-02-13
+reason = "proc-macro-error unmaintained — build-time macro helper via the gtk stack, never in the shipped binary"
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2025-0075"
+ignoreUntil = 2027-02-13
+reason = "unic-char-range unmaintained — build-time/codegen transitive of the tauri stack"
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2025-0080"
+ignoreUntil = 2027-02-13
+reason = "unic-common unmaintained — build-time/codegen transitive of the tauri stack"
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2025-0081"
+ignoreUntil = 2027-02-13
+reason = "unic-char-property unmaintained — build-time/codegen transitive of the tauri stack"
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2025-0098"
+ignoreUntil = 2027-02-13
+reason = "unic-ucd-version unmaintained — build-time/codegen transitive of the tauri stack"
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2025-0100"
+ignoreUntil = 2027-02-13
+reason = "unic-ucd-ident unmaintained — build-time/codegen transitive of the tauri stack"

@@ -176,7 +176,7 @@
         "dev", "build", "preview", "verify", "prepare",
         "i18n:extract", "docs:shots", "config:show", "snapshot", "seed:lock", "sbom",
         "sync:jira", "sync:confluence", "sync:pull", "sync:status", "sync:auto",
-        "test:e2e", "doctor", "heal", "package:app", "icons:gen"
+        "test:e2e", "doctor", "heal", "package:app", "icons:gen", "osv:ignores"
       ]
     },
     {
