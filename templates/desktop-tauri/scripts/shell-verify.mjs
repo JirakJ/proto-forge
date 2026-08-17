@@ -1,7 +1,7 @@
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
-import { read, note } from "./lib.mjs";
+import { read, note, ok } from "./lib.mjs";
 import { gateResult, today } from "./config.mjs";
 
 // @adr 203 - the shell's security posture is configuration under a gate (BR-37)
@@ -146,6 +146,8 @@ if (!existsSync(CARGO_TOML)) {
 // `# reason: … until: YYYY-MM-DD`, and an undated, unreasoned or expired entry
 // fails — a suppression is a triaged decision that ends by itself.
 const AUDIT_TOML = "src-tauri/audit.toml";
+const OSV_TOML = "src-tauri/osv-scanner.toml";
+const ledger = [];
 if (existsSync(AUDIT_TOML)) {
   const now = today();
   for (const line of read(AUDIT_TOML).split("\n")) {
@@ -156,7 +158,55 @@ if (existsSync(AUDIT_TOML)) {
       errors.push(`${AUDIT_TOML}: ${id} has no "# reason: … until: YYYY-MM-DD" — an unreasoned suppression is a hole, not a triage`);
     } else if (m[2] < now) {
       errors.push(`${AUDIT_TOML}: ${id} expired on ${m[2]} — re-review it against the current tauri stack or remove it`);
+    } else {
+      ledger.push({ id, reason: m[1], until: m[2] });
     }
+  }
+}
+
+// --- the same ledger, in the dialect every other scanner reads -----------------
+// cargo-audit reads audit.toml and nothing else does. osv-scanner — what CI, the
+// SBOM path and most host-level guardrails actually run — reads osv-scanner.toml
+// and never learns of the triage above, so the SAME advisory reads "suppressed
+// with a reason and an end date" to one tool and "unanswered finding" to the
+// next. A triage a scanner cannot see is not a triage.
+//
+// So osv-scanner.toml is DERIVED, never authored: audit.toml stays the single
+// source (BR-15), this renders it, and the gate re-renders and compares the way
+// snapshot:diff does. The two cannot drift, because disagreeing is the failure.
+// Regenerate with `pnpm osv:ignores` after editing audit.toml.
+const renderOsvIgnores = (entries) =>
+  [
+    "# GENERATED from src-tauri/audit.toml by `pnpm osv:ignores` — do not edit.",
+    "# audit.toml is the single source of the triage ledger; shell:verify fails on drift.",
+    "",
+    ...entries.flatMap((e) => [
+      "[[IgnoredVulns]]",
+      `id = ${JSON.stringify(e.id)}`,
+      // A bare TOML local-date, which is what osv-scanner expects here. The date
+      // is audit.toml's `until:`, so a suppression expires in both tools at once.
+      `ignoreUntil = ${e.until}`,
+      `reason = ${JSON.stringify(e.reason)}`,
+      "",
+    ]),
+  ].join("\n");
+
+if (process.argv.includes("--write-osv-ignores")) {
+  if (errors.length > 0) {
+    process.stderr.write(`✗ ${AUDIT_TOML} is not valid, so nothing was written:\n${errors.map((e) => `  - ${e}`).join("\n")}\n`);
+    process.exit(1);
+  }
+  writeFileSync(OSV_TOML, renderOsvIgnores(ledger));
+  ok(`shell: wrote ${OSV_TOML} — ${ledger.length} triaged advisory suppression(s) derived from ${AUDIT_TOML}`);
+  process.exit(0);
+}
+
+if (existsSync(AUDIT_TOML) && errors.length === 0) {
+  const expected = renderOsvIgnores(ledger);
+  if (!existsSync(OSV_TOML)) {
+    errors.push(`${OSV_TOML} is missing — the triage in ${AUDIT_TOML} is invisible to osv-scanner. Run \`pnpm osv:ignores\``);
+  } else if (read(OSV_TOML) !== expected) {
+    errors.push(`${OSV_TOML} disagrees with ${AUDIT_TOML} — one scanner would see a suppression the other does not. Run \`pnpm osv:ignores\``);
   }
 }
 
