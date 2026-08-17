@@ -1689,6 +1689,68 @@ rather than papered over: the end-to-end suite runs against the built web assets
 in a browser, not against the packaged application — the packaged smoke belongs
 to the packaging stage, and each template's ADR 203 says so in those words.
 
+## §25 Security conformance
+
+`Scope: plugin` for this section.
+
+BRS §4 and §16 state a security baseline that is real, gate-enforced, and **defined by
+itself**. That is enough to be secure and not enough to say so: "it is secure" cannot be
+handed to a reviewer, an auditor or a customer as a claim they can re-check. §25 binds
+the baseline to named external standards and makes the binding machine-readable.
+
+**The bar.** OWASP ASVS 5.0 **Level 2** for the application (its L1 ∪ L2 set, 253 of 345
+requirements), SLSA v1.1 **Build Level 3** for the supply chain, NIST SSDF SP 800-218 as
+the process mapping. Level 2 rather than Level 3 deliberately: L3 asks for properties a
+generated prototype cannot honestly claim — hardware key storage, environment
+segregation, a per-feature formal threat model — and answering a third of a standard
+with "not applicable" weakens a conformance claim more than a lower, fully-held bar
+does. Level 3 is a per-project **ratchet** (`asvsLevel` in `.proto-forge/config.json`);
+tightening is free, and dropping below the default is BR-17's waiver path.
+
+**The standard is vendored, not transcribed.** `references/standards/asvs-5.0.0.flat.json`
+is the published machine-readable release, pinned by tag (`v5.0.0_release`, never the
+rolling `latest`) and by sha256. `references/security-controls.json` cites `req_id`s into
+it; nothing copies a requirement number or its level.
+
+**Conformance output is two artefacts, because it has to be.** `conformance.json` is the
+CLAIM — derived only from repository content, byte-reproducible, its digest recorded in
+`.proto-forge/snapshot.json`. `findings.sarif` is the OBSERVATION — what the scanners saw
+at one moment, threshold-gated and never hashed. A single artefact mixing them would
+either lie about determinism or omit findings: CVE feeds move under a fixed commit, so no
+report embedding them can be byte-stable. (Delivered from stage E2; §25's rules bind what
+exists.)
+
+### BR-38 — Every security control cites a resolvable requirement, or admits it is ours
+
+**MUST.** `references/security-controls.json` is the single source binding each control a
+generated application carries to the standard requirement that asks for it. Every
+`requires[]` entry naming ASVS resolves to a `req_id` in the vendored standard and sits at
+or below the binding profile's level. The vendored standard matches its pinned sha256.
+Every control binds at least one registered template kind or id. A control marked
+`enforced` names the probe that proves it; one marked `planned` names the stage that will
+and carries **no** probe. A control citing no standard requirement states a `rationale`.
+
+- **Why:** The first draft of the design this rule comes from cited Trusted Types as an
+  ASVS requirement (5.0 does not mention them anywhere), SRI at Level 2 (it is Level 3)
+  and cookie attributes in V7 (they are in V3) — every number written from memory, every
+  one plausible, none correct. A requirement id nobody can resolve is an id nobody
+  checks, and a conformance claim built on unresolvable ids is worse than no claim: it
+  reads as rigour. The `rationale` half closes the opposite leak — proto-forge tightens
+  beyond ASVS in places (Trusted Types, Permissions-Policy, cross-origin isolation), and
+  presenting our own strictness as someone else's requirement misleads the reader about
+  what the standard demands. The `planned`-carries-no-probe rule keeps the catalogue from
+  reading as coverage it does not have: an admitted gap is information, a probe that
+  never runs is a lie with a green tick.
+- **Scope:** plugin
+- **Enforced by:** `security:catalogue`
+- **Proven by:** `pnpm selftest` → "catalogue: a requirement id the standard does not
+  contain fails", "catalogue: citing an L3 requirement under an L2 profile fails",
+  "catalogue: a vendored standard that is not the pinned one fails", "catalogue: a
+  control citing no standard and giving no rationale fails", "catalogue: a planned
+  control carrying a probe fails", "catalogue: a control bound to a kind no template has
+  fails"
+- **Decided in:** ADR 013 (plugin namespace)
+
 ## §19 Reconstruction notes
 
 What the reconstruction could not establish from evidence, and what was done instead.
