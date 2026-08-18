@@ -25,9 +25,9 @@ diff of this file shows it.
 | conformance scenarios | 9/9 passed | all green |
 | contract operations | 4 | — |
 | problem types | 4 | — |
-| verify gates | 31 | fail-fast chain |
+| verify gates | 32 | fail-fast chain |
 
-Gate chain: config:check → env:verify → gates:selftest → lint → typecheck → coverage:policy → ignores → test:unit → test:mutation → build → deploy:verify → deps:budget → arch:verify → opid:scan → log:scan → error:catalog → migration:verify → contract:verify → contract:breaking → docs:verify → external:verify → stub:scan → adr:lint → prompt:lint → dup:scan → consistency → sec:scan → snapshot:diff → test:e2e → quality:report → status:verify
+Gate chain: config:check → env:verify → gates:selftest → lint → typecheck → coverage:policy → ignores → test:unit → test:mutation → build → deploy:verify → deps:budget → arch:verify → opid:scan → log:scan → error:catalog → migration:verify → contract:verify → contract:breaking → docs:verify → external:verify → stub:scan → adr:lint → prompt:lint → dup:scan → consistency → sec:scan → sec:conformance → snapshot:diff → test:e2e → quality:report → status:verify
 <!-- quality:end -->
 
 The floors and counts in the table are mirrors, not sources: the coverage

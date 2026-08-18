@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { read, fail, ok } from "./lib.mjs";
 import { gateResult } from "./config.mjs";
 
-// @adr 100 - the security claim is derived from this repository, and reproducible
+// @adr 009 - the security claim is derived from this repository, and reproducible
 //
 // Two artefacts, because conformance has two halves that behave differently:
 //
@@ -99,7 +99,9 @@ if (existsSync(standardPath)) {
 }
 
 const errors = [];
-const applies = (c) => (c.appliesTo?.kinds ?? []).includes(KIND) || (c.appliesTo?.templates ?? []).includes("web");
+const TEMPLATE_ID = "web"; // this template's id in references/templates.json
+const applies = (c) =>
+  (c.appliesTo?.kinds ?? []).includes(KIND) || (c.appliesTo?.templates ?? []).includes(TEMPLATE_ID);
 
 const rows = [];
 for (const c of (catalogue.controls ?? []).filter(applies)) {

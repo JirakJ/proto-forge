@@ -11,7 +11,7 @@
     "dev": "tsx watch src/main.ts",
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/main.js",
-    "verify": "pnpm run config:check && pnpm run env:verify && pnpm run gates:selftest && pnpm run lint && pnpm run typecheck && pnpm run coverage:policy && pnpm run ignores && pnpm run test:unit && pnpm run test:mutation && pnpm run build && pnpm run deploy:verify && pnpm run deps:budget && pnpm run arch:verify && pnpm run opid:scan && pnpm run log:scan && pnpm run error:catalog && pnpm run migration:verify && pnpm run contract:verify && pnpm run contract:breaking && pnpm run docs:verify && pnpm run external:verify && pnpm run stub:scan && pnpm run adr:lint && pnpm run prompt:lint && pnpm run dup:scan && pnpm run consistency && pnpm run sec:scan && pnpm run snapshot:diff && pnpm run test:e2e && pnpm run quality:report && pnpm run status:verify",
+    "verify": "pnpm run config:check && pnpm run env:verify && pnpm run gates:selftest && pnpm run lint && pnpm run typecheck && pnpm run coverage:policy && pnpm run ignores && pnpm run test:unit && pnpm run test:mutation && pnpm run build && pnpm run deploy:verify && pnpm run deps:budget && pnpm run arch:verify && pnpm run opid:scan && pnpm run log:scan && pnpm run error:catalog && pnpm run migration:verify && pnpm run contract:verify && pnpm run contract:breaking && pnpm run docs:verify && pnpm run external:verify && pnpm run stub:scan && pnpm run adr:lint && pnpm run prompt:lint && pnpm run dup:scan && pnpm run consistency && pnpm run sec:scan && pnpm run sec:conformance && pnpm run snapshot:diff && pnpm run test:e2e && pnpm run quality:report && pnpm run status:verify",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test:unit": "vitest run --coverage",
@@ -59,7 +59,9 @@
     "status:verify": "node scripts/status-verify.mjs",
     "doctor": "node scripts/doctor.mjs",
     "heal": "node scripts/heal.mjs",
-    "prepare": "husky || true"
+    "prepare": "husky || true",
+    "sec:conformance": "node scripts/sec-conformance.mjs",
+    "sec:conformance:write": "node scripts/sec-conformance.mjs --write"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.2",

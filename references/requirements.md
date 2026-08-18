@@ -1788,7 +1788,11 @@ close.
 
 **MUST.** A template's conformance claim (`.proto-forge/security/conformance.json`)
 is **derived**, never written: every control in the vendored catalogue that binds this
-template is answered by a probe that is a pure function of repository content — no
+template is answered by a probe that is a pure function of repository content. The probe
+reads whatever actually serves the header for that kind — the shipped nginx and the
+preview server for a web app, the WebView policy and the preview server for a desktop
+shell, the byte-pinned platform header kernel for a service — because a control is met
+where the runtime sets it, not where a document says so — no
 network, no clock, no environment (NFR-16) — and the report is regenerated and compared
 byte-wise on every verify, the way `snapshot:diff` compares the structure. A probe that
 does not hold fails the gate; a committed claim that the tree no longer derives fails
@@ -1807,7 +1811,7 @@ SARIF report, gated by threshold and never hashed.
   lying about determinism and omitting findings. The claim is the half that CAN be
   reproducible, so it is held to that; the findings are the half that cannot, so they
   are held to a threshold instead.
-- **Scope:** web
+- **Scope:** frontend, desktop, backend
 - **Enforced by:** `sec:conformance`, with `sec:conformance:write` as the producer
 - **Proven by:** `gates:selftest` → "conformance: a derived claim that matches the tree
   passes", "conformance: no committed claim at all fails", "conformance: a claim that no
