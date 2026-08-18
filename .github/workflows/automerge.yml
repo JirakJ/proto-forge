@@ -35,7 +35,7 @@ concurrency:
 
 jobs:
   merge:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
     # Door 1: the verify run itself was green. A failed, cancelled or skipped run
     # never reaches the merge step.
     if: github.event.workflow_run.conclusion == 'success'
