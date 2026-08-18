@@ -1,0 +1,248 @@
+{
+  "$comment": "The security control catalogue (single source, BR-15 / BR-38): every control a generated application must carry, bound to the requirement of a named external standard that asks for it. Requirement NUMBERS are never transcribed here — they are references into references/standards/asvs-5.0.0.flat.json, and security:catalogue resolves every one of them against that file, so a number nobody can resolve cannot survive review. Levels are NOT recorded per control either: the level is a property of the requirement in the vendored standard, and a second copy here would drift. `status` is honest rather than aspirational: `enforced` means a control exists in the templates today, `planned` means the gap is identified and names the spec stage that closes it. A control with an empty `requires` is OUR strictness, not the standard's, and must say why in `rationale` — so proto-forge's own tightening never reads as someone else's requirement.",
+  "standards": {
+    "asvs": {
+      "name": "OWASP Application Security Verification Standard",
+      "version": "5.0.0",
+      "tag": "v5.0.0_release",
+      "vendored": "references/standards/asvs-5.0.0.flat.json",
+      "sha256": "8201b20eec2908c3380ac600c91c8ba746346fbb808859366abb232027532311",
+      "profile": {
+        "default": 2,
+        "ratchet": [3],
+        "$comment": "Level 2 is the binding bar: requirements at L1 and L2 (253 of 345). Level 3 is a per-project ratchet in .proto-forge/config.json — tightening is free, dropping below the default needs a waiver with an ADR and an expiry (BR-17)."
+      }
+    },
+    "slsa": {
+      "name": "Supply-chain Levels for Software Artifacts",
+      "version": "1.1",
+      "$comment": "Build Level 3. Not machine-vendored: SLSA is a short prose specification of build-platform properties, not an enumerable requirement list, so its controls cite the level rather than a requirement id."
+    },
+    "ssdf": {
+      "name": "NIST Secure Software Development Framework",
+      "version": "SP 800-218 1.1",
+      "$comment": "Process practices (PO/PS/PW/RV). Cited as a mapping so an auditor's vocabulary resolves onto gates that already exist; nothing here is enforced BY SSDF."
+    }
+  },
+  "controls": [
+    {
+      "id": "SEC-001",
+      "title": "Untrusted HTML is sanitized by one library at one sink",
+      "requires": [{ "standard": "asvs", "req": "V1.3.1" }],
+      "maps": [{ "standard": "ssdf", "practice": "PW.5.1" }],
+      "appliesTo": { "kinds": ["frontend", "desktop"] },
+      "control": "src/shared/SafeHtml.tsx (DOMPurify) is the only sanctioned sink; react/no-danger and no-unsanitized/* ban dangerouslySetInnerHTML everywhere else",
+      "status": "enforced",
+      "probe": "safeHtmlIsSoleSink",
+      "stage": "E2"
+    },
+    {
+      "id": "SEC-002",
+      "title": "Responses carry a Content-Security-Policy",
+      "requires": [{ "standard": "asvs", "req": "V3.4.3" }],
+      "appliesTo": { "kinds": ["frontend", "desktop"] },
+      "control": "vite preview sets the strict policy; the shipped nginx runtime sets it per location; the desktop shell holds it byte-equal in tauri.conf.json under shell:verify (BR-37)",
+      "status": "enforced",
+      "probe": "cspHeaderPresent",
+      "stage": "E2"
+    },
+    {
+      "id": "SEC-003",
+      "title": "Responses forbid MIME sniffing",
+      "requires": [{ "standard": "asvs", "req": "V3.4.4" }],
+      "appliesTo": { "kinds": ["frontend", "desktop"] },
+      "control": "X-Content-Type-Options: nosniff on every response",
+      "status": "enforced",
+      "probe": "headerNosniff",
+      "stage": "E2"
+    },
+    {
+      "id": "SEC-004",
+      "title": "A referrer policy stops technically sensitive data leaking cross-origin",
+      "requires": [{ "standard": "asvs", "req": "V3.4.5" }],
+      "appliesTo": { "kinds": ["frontend", "desktop"] },
+      "control": "Referrer-Policy: strict-origin-when-cross-origin",
+      "status": "enforced",
+      "probe": "headerReferrerPolicy",
+      "stage": "E2"
+    },
+    {
+      "id": "SEC-005",
+      "title": "Framing is refused by policy, not only by a legacy header",
+      "requires": [{ "standard": "asvs", "req": "V3.4.6" }],
+      "appliesTo": { "kinds": ["frontend", "desktop"] },
+      "control": "frame-ancestors 'none' in the CSP, with X-Frame-Options: DENY alongside it for older agents",
+      "status": "enforced",
+      "probe": "cspFrameAncestors",
+      "stage": "E2"
+    },
+    {
+      "id": "SEC-006",
+      "title": "An inventory of third-party components is maintained",
+      "requires": [{ "standard": "asvs", "req": "V15.1.2" }],
+      "maps": [{ "standard": "ssdf", "practice": "PS.3.2" }],
+      "appliesTo": { "kinds": ["frontend", "backend", "desktop"] },
+      "control": "sec:scan emits a deterministic CycloneDX 1.5 SBOM from the real dependency graph (purl-sorted, no timestamp) as .proto-forge/sbom.cdx.json",
+      "status": "enforced",
+      "probe": "sbomIsCurrent",
+      "stage": "E2"
+    },
+    {
+      "id": "SEC-010",
+      "title": "The artifact enforces HTTPS itself, not only at someone else's edge",
+      "requires": [{ "standard": "asvs", "req": "V3.4.1" }],
+      "appliesTo": { "kinds": ["frontend", "backend"] },
+      "control": "Strict-Transport-Security set by the shipped runtime rather than delegated to the TLS edge in prose",
+      "status": "planned",
+      "gap": "docs/SECURITY.md states HSTS is the deployment target's job because no local server speaks TLS. That is true of the local server and irrelevant to the requirement: the shipped nginx can set the header regardless of who terminates TLS.",
+      "stage": "E3"
+    },
+    {
+      "id": "SEC-011",
+      "title": "Access-Control-Allow-Origin is a fixed, trusted value",
+      "requires": [{ "standard": "asvs", "req": "V3.4.2" }],
+      "appliesTo": { "kinds": ["frontend", "backend"] },
+      "control": "the origin allowlist is configuration validated at the boundary; reflecting the request Origin is rejected by the probe",
+      "status": "planned",
+      "gap": "nothing reads the CORS configuration today",
+      "stage": "E3"
+    },
+    {
+      "id": "SEC-012",
+      "title": "Cookies state their scope and their reach into scripts",
+      "requires": [
+        { "standard": "asvs", "req": "V3.3.2" },
+        { "standard": "asvs", "req": "V3.3.4" }
+      ],
+      "appliesTo": { "kinds": ["backend"] },
+      "whenFacet": "authModel != none",
+      "control": "every cookie the service sets carries SameSite per purpose, and HttpOnly whenever client-side script has no business reading it",
+      "status": "planned",
+      "stage": "E5"
+    },
+    {
+      "id": "SEC-013",
+      "title": "State-changing requests are not accepted from a foreign origin",
+      "requires": [{ "standard": "asvs", "req": "V3.5.1" }],
+      "appliesTo": { "kinds": ["frontend", "backend"] },
+      "whenFacet": "persistence == api",
+      "control": "an origin check on state-changing routes, proven by a test that replays the request from a foreign origin",
+      "status": "planned",
+      "stage": "E3"
+    },
+    {
+      "id": "SEC-014",
+      "title": "Browser storage holds nothing sensitive",
+      "requires": [{ "standard": "asvs", "req": "V14.3.3" }],
+      "appliesTo": { "kinds": ["frontend", "desktop"] },
+      "control": "a scan over the storage call sites, against the domain schema's sensitivity marking",
+      "status": "planned",
+      "gap": "docs/SECURITY.md asserts it in prose and no gate reads prose",
+      "stage": "E3"
+    },
+    {
+      "id": "SEC-015",
+      "title": "Remediation time frames are written down, and nothing outlives them",
+      "requires": [
+        { "standard": "asvs", "req": "V15.1.1" },
+        { "standard": "asvs", "req": "V15.2.1" }
+      ],
+      "maps": [{ "standard": "ssdf", "practice": "RV.1.1" }],
+      "appliesTo": { "kinds": ["frontend", "backend", "desktop"] },
+      "control": "a stated per-severity remediation window in docs/SECURITY.md, and the dated suppression ledgers (.trivyignore, audit.toml, osv-scanner.toml) enforced against it",
+      "status": "planned",
+      "gap": "the ledgers already carry `until:` dates per entry and gates already fail expired ones — what is missing is the POLICY the dates are measured against, which is what V15.1.1 asks for",
+      "stage": "E6"
+    },
+    {
+      "id": "SEC-016",
+      "title": "Expensive and authentication paths resist automation",
+      "requires": [{ "standard": "asvs", "req": "V2.4.1" }],
+      "appliesTo": { "kinds": ["backend"] },
+      "control": "rate limiting on the routes the brief marks expensive, and on every authentication path",
+      "status": "planned",
+      "stage": "E5"
+    },
+    {
+      "id": "SEC-017",
+      "title": "JavaScript is written so prototype pollution has nowhere to land",
+      "requires": [{ "standard": "asvs", "req": "V15.3.6" }],
+      "appliesTo": { "kinds": ["frontend", "backend", "desktop"] },
+      "control": "Map/Set over object literals for dynamic keys, and a lint rule over the merge/assign call sites",
+      "status": "planned",
+      "stage": "E5"
+    },
+    {
+      "id": "SEC-018",
+      "title": "Inbound objects cannot assign fields nobody offered",
+      "requires": [{ "standard": "asvs", "req": "V15.3.3" }],
+      "appliesTo": { "kinds": ["backend"] },
+      "control": "zod/Pydantic/Jackson boundary schemas are strict — unknown keys are rejected, never carried through",
+      "status": "planned",
+      "stage": "E5"
+    },
+    {
+      "id": "SEC-030",
+      "title": "Script injection has no sink even if a bug reaches one",
+      "requires": [],
+      "rationale": "ASVS 5.0 does not mention Trusted Types anywhere — this is proto-forge's own tightening (BR-17). A React application pays almost nothing for require-trusted-types-for 'script' plus a named DOMPurify policy, and it turns the whole class of DOM-XSS sinks from a review question into a browser-enforced one.",
+      "appliesTo": { "kinds": ["frontend", "desktop"] },
+      "control": "require-trusted-types-for 'script' and trusted-types in the CSP, with SafeHtml creating the single named policy",
+      "status": "planned",
+      "stage": "E3"
+    },
+    {
+      "id": "SEC-031",
+      "title": "Powerful browser features are denied by default",
+      "requires": [],
+      "rationale": "ASVS 5.0 has no Permissions-Policy requirement. A prototype needs none of geolocation, camera, microphone or payment, so denying them costs nothing and removes them from the attack surface before a feature ever asks.",
+      "appliesTo": { "kinds": ["frontend", "desktop"] },
+      "control": "Permissions-Policy denying every feature the application does not use",
+      "status": "planned",
+      "stage": "E3"
+    },
+    {
+      "id": "SEC-032",
+      "title": "The document is cross-origin isolated",
+      "requires": [],
+      "rationale": "ASVS 5.0 touches this only at L3 (V3.5.8, authenticated-resource embedding). COOP/COEP/CORP are cheap on an application that loads no third-party frames and close the cross-window and Spectre-adjacent leak paths outright.",
+      "appliesTo": { "kinds": ["frontend"] },
+      "control": "Cross-Origin-Opener-Policy: same-origin, Cross-Origin-Resource-Policy: same-origin on the shipped runtime",
+      "status": "planned",
+      "stage": "E3"
+    },
+    {
+      "id": "SEC-040",
+      "title": "The application states what it is defending against",
+      "requires": [],
+      "maps": [{ "standard": "ssdf", "practice": "PW.1.1" }],
+      "rationale": "ASVS 5.0 has no threat-model requirement at L1 or L2, so this is carried by SSDF rather than dressed up as an ASVS obligation.",
+      "appliesTo": { "kinds": ["frontend", "backend", "desktop"] },
+      "control": "docs/THREAT-MODEL.md derived from the flows facet — every flow has an entry, and a flow with none fails",
+      "status": "planned",
+      "stage": "E6"
+    },
+    {
+      "id": "SEC-041",
+      "title": "There is a way to report a vulnerability, and it names a deadline",
+      "requires": [],
+      "maps": [{ "standard": "ssdf", "practice": "RV.1.3" }],
+      "rationale": "An externally reachable application with no disclosure channel converts a helpful finder into a public one. Not an ASVS requirement; an SSDF response practice.",
+      "appliesTo": { "kinds": ["frontend", "backend", "desktop"] },
+      "control": "a disclosure section in docs/SECURITY.md naming a channel and a response window",
+      "status": "planned",
+      "stage": "E6"
+    },
+    {
+      "id": "SEC-042",
+      "title": "What runs is provably what CI built, from the source it claims",
+      "requires": [],
+      "maps": [{ "standard": "slsa", "level": "Build L3" }],
+      "rationale": "Most of Build L3 already holds — images are pushed by digest, signed with cosign keyless, and CD verifies the workflow identity before deploying. What is missing is generated provenance and its verification, which is the part that makes the claim checkable by someone who does not trust us.",
+      "appliesTo": { "kinds": ["frontend", "backend", "desktop"] },
+      "control": "in-toto/SLSA provenance generated in CI and verified before deploy",
+      "status": "planned",
+      "stage": "E7"
+    }
+  ]
+}

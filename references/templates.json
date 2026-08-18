@@ -28,7 +28,8 @@
         "env:local",
         "env:remote",
         "contract:client:generate",
-        "heal"
+        "heal",
+        "sec:conformance:write"
       ]
     },
     {
@@ -160,11 +161,31 @@
       "kind": "backend",
       "stack": "dotnet",
       "notAGate": [
-        "dev", "start", "build", "verify", "prepare",
-        "config:show", "snapshot", "seed:lock", "sbom",
-        "sync:jira", "sync:confluence", "sync:pull", "sync:status", "sync:auto",
-        "test:e2e", "test:native", "contract:generate", "docs:examples", "db:migrate",
-        "gates:selftest:native", "deploy:plan", "env:local", "env:remote", "heal", "tools:restore"
+        "dev",
+        "start",
+        "build",
+        "verify",
+        "prepare",
+        "config:show",
+        "snapshot",
+        "seed:lock",
+        "sbom",
+        "sync:jira",
+        "sync:confluence",
+        "sync:pull",
+        "sync:status",
+        "sync:auto",
+        "test:e2e",
+        "test:native",
+        "contract:generate",
+        "docs:examples",
+        "db:migrate",
+        "gates:selftest:native",
+        "deploy:plan",
+        "env:local",
+        "env:remote",
+        "heal",
+        "tools:restore"
       ]
     },
     {
@@ -173,10 +194,28 @@
       "kind": "desktop",
       "stack": "ts",
       "notAGate": [
-        "dev", "build", "preview", "verify", "prepare",
-        "i18n:extract", "docs:shots", "config:show", "snapshot", "seed:lock", "sbom",
-        "sync:jira", "sync:confluence", "sync:pull", "sync:status", "sync:auto",
-        "test:e2e", "doctor", "heal", "package:app", "icons:gen", "osv:ignores"
+        "dev",
+        "build",
+        "preview",
+        "verify",
+        "prepare",
+        "i18n:extract",
+        "docs:shots",
+        "config:show",
+        "snapshot",
+        "seed:lock",
+        "sbom",
+        "sync:jira",
+        "sync:confluence",
+        "sync:pull",
+        "sync:status",
+        "sync:auto",
+        "test:e2e",
+        "doctor",
+        "heal",
+        "package:app",
+        "icons:gen",
+        "osv:ignores"
       ]
     },
     {
@@ -185,10 +224,27 @@
       "kind": "desktop",
       "stack": "ts",
       "notAGate": [
-        "dev", "build", "preview", "verify", "prepare",
-        "i18n:extract", "docs:shots", "config:show", "snapshot", "seed:lock", "sbom",
-        "sync:jira", "sync:confluence", "sync:pull", "sync:status", "sync:auto",
-        "test:e2e", "doctor", "heal", "package:app", "build:shell"
+        "dev",
+        "build",
+        "preview",
+        "verify",
+        "prepare",
+        "i18n:extract",
+        "docs:shots",
+        "config:show",
+        "snapshot",
+        "seed:lock",
+        "sbom",
+        "sync:jira",
+        "sync:confluence",
+        "sync:pull",
+        "sync:status",
+        "sync:auto",
+        "test:e2e",
+        "doctor",
+        "heal",
+        "package:app",
+        "build:shell"
       ]
     },
     {

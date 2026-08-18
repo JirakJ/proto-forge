@@ -1717,8 +1717,8 @@ CLAIM — derived only from repository content, byte-reproducible, its digest re
 `.proto-forge/snapshot.json`. `findings.sarif` is the OBSERVATION — what the scanners saw
 at one moment, threshold-gated and never hashed. A single artefact mixing them would
 either lie about determinism or omit findings: CVE feeds move under a fixed commit, so no
-report embedding them can be byte-stable. (Delivered from stage E2; §25's rules bind what
-exists.)
+report embedding them can be byte-stable. BR-39 binds the claim half; the findings half
+stays with `sec:scan`.
 
 ### BR-38 — Every security control cites a resolvable requirement, or admits it is ours
 
@@ -1783,6 +1783,38 @@ prose documents (`ARCHITECTURE.md`, `SECURITY.md`, `TROUBLESHOOTING.md`) the der
 treatment `STATUS.md` already has. That rule is written when its enforcer is, never
 before: a register entry naming a gate nobody wrote is the gap this register exists to
 close.
+
+### BR-39 — The conformance claim is derived from the repository, and reproducible
+
+**MUST.** A template's conformance claim (`.proto-forge/security/conformance.json`)
+is **derived**, never written: every control in the vendored catalogue that binds this
+template is answered by a probe that is a pure function of repository content — no
+network, no clock, no environment (NFR-16) — and the report is regenerated and compared
+byte-wise on every verify, the way `snapshot:diff` compares the structure. A probe that
+does not hold fails the gate; a committed claim that the tree no longer derives fails
+the gate; a catalogue naming a probe the template does not implement fails the gate.
+The report carries no timestamp, no absolute path and no tool version, and its rows are
+sorted, so two runs from the same tree produce identical bytes.
+
+Scanner findings do **not** live in this artefact. They belong to `sec:scan` and to a
+SARIF report, gated by threshold and never hashed.
+
+- **Why:** "It is secure" is worth nothing to a reader who cannot re-check it, and a
+  report generated once and committed is green forever regardless of what the code
+  does afterwards — which is worse than no report, because it reads as evidence. The
+  split between the claim and the findings is not tidiness: CVE feeds move under a
+  fixed commit, so a single artefact containing both would have to choose between
+  lying about determinism and omitting findings. The claim is the half that CAN be
+  reproducible, so it is held to that; the findings are the half that cannot, so they
+  are held to a threshold instead.
+- **Scope:** web
+- **Enforced by:** `sec:conformance`, with `sec:conformance:write` as the producer
+- **Proven by:** `gates:selftest` → "conformance: a derived claim that matches the tree
+  passes", "conformance: no committed claim at all fails", "conformance: a claim that no
+  longer matches the tree fails", "conformance: a control whose probe stops holding
+  fails", "conformance: a catalogue naming a probe this template lacks fails",
+  "conformance: no catalogue at all fails"
+- **Decided in:** ADR 013 (plugin namespace)
 
 ### BR-42 — A documented subject records the decision it was written against
 
