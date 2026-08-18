@@ -11,7 +11,7 @@
     "lines": 100
   },
   "mutation": {
-    "score": 92.75,
+    "score": 92.99,
     "break": 90
   },
   "e2e": {
@@ -19,7 +19,7 @@
     "passed": 83
   },
   "gates": {
-    "count": 29,
+    "count": 30,
     "chain": [
       "config:check",
       "env:verify",
@@ -46,6 +46,7 @@
       "dup:scan",
       "consistency",
       "sec:scan",
+      "sec:conformance",
       "snapshot:diff",
       "test:e2e",
       "quality:report",

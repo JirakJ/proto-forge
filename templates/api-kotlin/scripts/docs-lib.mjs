@@ -1,4 +1,5 @@
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { hashFiles, isProd, read, stripComments, walk } from "./lib.mjs";
 
@@ -57,3 +58,46 @@ export function readExamplesLock() {
   if (!existsSync(EXAMPLES_LOCK)) return null;
   return JSON.parse(read(EXAMPLES_LOCK));
 }
+
+// --- the decision half of the lock (BR-42) --------------------------------------
+// A captured exchange can be a perfect record of an endpoint that implements a
+// decision nobody holds any more: change the ADR alone and the handler hash above
+// does not move, because the handlers did not. So the lock also records the
+// DECISIONS these handlers implement, discovered from the `// @adr NNN` anchors
+// already in them — never a hand-written list, which is a second source of truth
+// and drifts the moment an anchor moves.
+
+/** ADR numbers anchored in these sources, sorted, deduplicated. */
+export function anchoredAdrs(sources = handlerSources()) {
+  const found = new Set();
+  for (const p of sources) {
+    for (const m of read(p).matchAll(/@adr\s+(\d{3})\b/g)) found.add(m[1]);
+  }
+  return [...found].sort();
+}
+
+/**
+ * `{ "030": <sha256 of the decision> }` for each anchored ADR.
+ *
+ * The hash covers the ADR from its first `## ` heading down, NOT the whole file.
+ * Frontmatter moves when a status flips proposed → accepted and when a prompt-log
+ * link is backfilled; both are changes to the EVIDENCE for a decision, not to the
+ * decision, and staling every page over them would train people to re-lock without
+ * reading. What is left is the decision itself.
+ */
+export function adrDigests(numbers) {
+  const digests = {};
+  for (const n of numbers) {
+    const dir = "docs/adr";
+    const file = existsSync(dir) ? readdirSync(dir).find((f) => f.startsWith(`${n}-`)) : undefined;
+    // A missing ADR is adr:lint's finding, not this gate's.
+    digests[n] = file === undefined ? "absent" : sha256(adrBody(read(join(dir, file))));
+  }
+  return digests;
+}
+
+const sha256 = (s) => createHash("sha256").update(s).digest("hex");
+const adrBody = (markdown) => {
+  const i = markdown.indexOf("\n## ");
+  return i === -1 ? markdown : markdown.slice(i);
+};

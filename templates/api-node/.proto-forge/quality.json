@@ -23,7 +23,7 @@
     "problems": 4
   },
   "gates": {
-    "count": 31,
+    "count": 32,
     "chain": [
       "config:check",
       "env:verify",
@@ -52,6 +52,7 @@
       "dup:scan",
       "consistency",
       "sec:scan",
+      "sec:conformance",
       "snapshot:diff",
       "test:e2e",
       "quality:report",

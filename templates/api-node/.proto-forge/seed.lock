@@ -5,6 +5,6 @@
   ],
   "version": "0.1.0",
   "sha": null,
-  "sha256": "a9b5883e61a54adbcb414d166dd2beaffeba84d298d0d2c1c32758e2b27bd51e",
+  "sha256": "d45d9f252916e15b4672b6bb88a8d3e8a8574fbb3f6d8f11876dd6f90b32a2ad",
   "note": "sha = upstream git commit of the skill release that vendored this seed; null until first published release. sha256 covers the platform kernel AND the gate corpus as one digest; snapshot:diff re-verifies it."
 }

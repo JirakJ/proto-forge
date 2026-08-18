@@ -210,6 +210,7 @@ Banned: hardcoded literals ignoring arguments; inline `return [{id:1,...}]` in a
 - `references/decision-table.md` — T1-T24 when→then + escalation + ADR ranges.
 - `references/adr-template.md` — the MADR ADR skeleton.
 - `references/templates.json` — the template registry: every target the pipeline may copy (`web`, `api-node`, `api-python`, `api-java`, `api-kotlin`, `api-dotnet`, `desktop-tauri`, `desktop-electron`, `workspace`, `e2e`), with its dir, kind and stack. Read the chosen template's own `README.md` for its layout and its `AGENTS.md` for the rules every change must satisfy.
+- `references/security-controls.json` — the security control catalogue (BRS §25, BR-38): every control a generated application carries, bound to the OWASP ASVS 5.0 requirement that asks for it, with SLSA Build L3 and NIST SSDF alongside. Requirement numbers are references into the vendored, sha-pinned `references/standards/asvs-5.0.0.flat.json`, never transcriptions, and `security:catalogue` resolves each one. A control marked `planned` is an admitted gap naming its stage — read the catalogue for what the bar *is*, not for what already holds.
 - `skills/discovery/` — the discovery skill whose `discovery.json` bridge Phase 0 ingests.
 
 ## Full requirements
