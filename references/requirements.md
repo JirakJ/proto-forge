@@ -1774,8 +1774,11 @@ documentation. Recording the decision *in the lock* has neither problem, and it 
 covers an ADR amended long after it was accepted, which a commit rule never would.
 
 Delivery is staged (`docs/specs/2026-08-17-documentation-follows-reality-design.md`):
-BR-42 binds `web` first, widens to the desktop templates and then to `api-*`, where
-`docs:examples` is the producer and the lock is `.doc.lock`. A second rule then gives the
+BR-42 binds every template whose documentation is generated from the code it describes:
+`web` and the two desktop shells, where the artefact is a screenshot and the producer is
+`docs:shots`, and the five `api-*` templates, where the artefact is a captured exchange
+and the producer is `docs:examples`. `workspace` and `e2e` are outside it — they document
+no subject that anchors a decision. A second rule then gives the
 prose documents (`ARCHITECTURE.md`, `SECURITY.md`, `TROUBLESHOOTING.md`) the derived-block
 treatment `STATUS.md` already has. That rule is written when its enforcer is, never
 before: a register entry naming a gate nobody wrote is the gap this register exists to
@@ -1799,12 +1802,13 @@ link — evidence moving, not the decision — does not stale anything.
   anchor moves, which is exactly what BR-15 exists to prevent. And because the only way
   to re-lock is `pnpm docs:shots`, re-photographing happens in the same act: "update the
   images too" is the mechanism rather than a rule someone has to remember.
-- **Scope:** web
-- **Enforced by:** `docs:verify`, with `docs:shots` as the producer that writes the lock
-- **Proven by:** `gates:selftest` → "docs: a page written against the current decision
-  passes", "docs: a page written against an older decision fails", "docs: a subject
-  implementing a decision with no lock at all fails", "docs: flipping an ADR's status
-  does not stale the page"
+- **Scope:** frontend, desktop, backend
+- **Enforced by:** `docs:verify`, with `docs:shots` (frontend, desktop) and
+  `docs:examples` (backend) as the producers that write the lock
+- **Proven by:** `gates:selftest` → "docs: a subject written against the current decision
+  passes", "docs: a subject written against an older decision fails", "docs: a subject
+  implementing a decision with no lock at all fails", "docs: flipping an ADR's status does
+  not stale the subject"
 - **Decided in:** ADR 014 (plugin namespace)
 
 ## §19 Reconstruction notes
