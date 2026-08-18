@@ -16,7 +16,7 @@
     "typecheck": "./gradlew -q compileKotlin compileTestKotlin",
     "test:unit": "./gradlew -q test jacocoTestReport jacocoTestCoverageVerification",
     "test:e2e": "node scripts/e2e-conformance.mjs",
-    "test:mutation": "./gradlew -q pitest",
+    "test:mutation": "node scripts/test-mutation.mjs",
     "config:show": "node scripts/config-cli.mjs show",
     "config:check": "node scripts/config-cli.mjs check",
     "env:verify": "node scripts/env-verify.mjs",

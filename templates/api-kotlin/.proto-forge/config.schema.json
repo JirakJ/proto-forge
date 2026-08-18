@@ -5,39 +5,99 @@
   "type": "object",
   "additionalProperties": false,
   "properties": {
-    "$schema": { "type": "string" },
+    "$schema": {
+      "type": "string"
+    },
     "policy": {
       "type": "string",
-      "enum": ["strict", "custom"],
+      "enum": [
+        "strict",
+        "custom"
+      ],
       "description": "Documentation of intent. Enforcement comes from gates[].mode and waivers[], not from this field."
     },
     "gates": {
       "type": "object",
-      "description": "Per-gate settings. Tightening is always allowed. Relaxing a mandatory gate (the MANDATORY_GATES list in scripts/config.mjs — arch, contract, errors, migration, opid, docs, security, stub, consistency, snapshot, coverage, ignores, mutation, external, log, deps, env, deploy, status) below \"error\" additionally requires a live waivers[] entry — without one, config:check fails AND the gate runs at \"error\" regardless of what is written here.",
+      "description": "Per-gate settings. Tightening is always allowed. Relaxing a mandatory gate (the MANDATORY_GATES list in scripts/config.mjs — arch, contract, errors, migration, opid, docs, security, stub, consistency, snapshot, coverage, ignores, external, log, deps, env, deploy, status) below \"error\" additionally requires a live waivers[] entry — without one, config:check fails AND the gate runs at \"error\" regardless of what is written here.",
       "additionalProperties": false,
       "properties": {
-        "arch": { "$ref": "#/$defs/simpleGate" },
-        "contract": { "$ref": "#/$defs/simpleGate" },
-        "errors": { "$ref": "#/$defs/simpleGate" },
-        "migration": { "$ref": "#/$defs/simpleGate" },
-        "opid": { "$ref": "#/$defs/simpleGate" },
-        "docs": { "$ref": "#/$defs/simpleGate" },
-        "security": { "$ref": "#/$defs/simpleGate" },
-        "stub": { "$ref": "#/$defs/simpleGate" },
-        "consistency": { "$ref": "#/$defs/simpleGate" },
-        "snapshot": { "$ref": "#/$defs/simpleGate" },
-        "coverage": { "$ref": "#/$defs/simpleGate" },
-        "ignores": { "$ref": "#/$defs/simpleGate" },
-        "mutation": { "$ref": "#/$defs/simpleGate" },
-        "external": { "$ref": "#/$defs/simpleGate" },
-        "log": { "$ref": "#/$defs/simpleGate" },
-        "deps": { "$ref": "#/$defs/simpleGate" },
-        "adr": { "$ref": "#/$defs/simpleGate" },
-        "prompt": { "$ref": "#/$defs/simpleGate" },
-        "dup": { "$ref": "#/$defs/simpleGate" },
-        "env": { "$ref": "#/$defs/simpleGate" },
-        "deploy": { "$ref": "#/$defs/simpleGate" },
-        "status": { "$ref": "#/$defs/simpleGate" }
+        "arch": {
+          "$ref": "#/$defs/simpleGate"
+        },
+        "contract": {
+          "$ref": "#/$defs/simpleGate"
+        },
+        "errors": {
+          "$ref": "#/$defs/simpleGate"
+        },
+        "migration": {
+          "$ref": "#/$defs/simpleGate"
+        },
+        "opid": {
+          "$ref": "#/$defs/simpleGate"
+        },
+        "docs": {
+          "$ref": "#/$defs/simpleGate"
+        },
+        "security": {
+          "$ref": "#/$defs/simpleGate"
+        },
+        "stub": {
+          "$ref": "#/$defs/simpleGate"
+        },
+        "consistency": {
+          "$ref": "#/$defs/simpleGate"
+        },
+        "snapshot": {
+          "$ref": "#/$defs/simpleGate"
+        },
+        "coverage": {
+          "$ref": "#/$defs/simpleGate"
+        },
+        "ignores": {
+          "$ref": "#/$defs/simpleGate"
+        },
+        "mutation": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "The mutation tier (PIT). OFF by default because it is the slowest thing in verify; committing enabled:true IS the decision to pay for it, visible in review. The floor it enforces (mutationThreshold in build.gradle.kts) is unchanged either way — a disabled tier is one nobody ran, not a standard nobody holds. PROTO_FORGE_MUTATION=1 forces a single run.",
+          "properties": {
+            "mode": {
+              "$ref": "#/$defs/mode"
+            },
+            "enabled": {
+              "type": "boolean",
+              "description": "Run the mutation tier during verify. Default false."
+            }
+          }
+        },
+        "external": {
+          "$ref": "#/$defs/simpleGate"
+        },
+        "log": {
+          "$ref": "#/$defs/simpleGate"
+        },
+        "deps": {
+          "$ref": "#/$defs/simpleGate"
+        },
+        "adr": {
+          "$ref": "#/$defs/simpleGate"
+        },
+        "prompt": {
+          "$ref": "#/$defs/simpleGate"
+        },
+        "dup": {
+          "$ref": "#/$defs/simpleGate"
+        },
+        "env": {
+          "$ref": "#/$defs/simpleGate"
+        },
+        "deploy": {
+          "$ref": "#/$defs/simpleGate"
+        },
+        "status": {
+          "$ref": "#/$defs/simpleGate"
+        }
       }
     },
     "environments": {
@@ -45,12 +105,24 @@
       "additionalProperties": false,
       "description": "The single declaration of the delivery chain: local, dev, sit, uat, test, prod — an object with fixed keys so an override merges deep instead of replacing the chain. An environment exists by being declared here and nowhere else: values files, the DEPLOYMENT.md table and the CD plan are derived from this object, and env:verify fails when they disagree. The template ships with only dev enabled; enabling a later environment is a reviewed config diff, never a regeneration.",
       "properties": {
-        "local": { "$ref": "#/$defs/localEnv" },
-        "dev": { "$ref": "#/$defs/remoteEnv" },
-        "sit": { "$ref": "#/$defs/remoteEnv" },
-        "uat": { "$ref": "#/$defs/remoteEnv" },
-        "test": { "$ref": "#/$defs/remoteEnv" },
-        "prod": { "$ref": "#/$defs/remoteEnv" }
+        "local": {
+          "$ref": "#/$defs/localEnv"
+        },
+        "dev": {
+          "$ref": "#/$defs/remoteEnv"
+        },
+        "sit": {
+          "$ref": "#/$defs/remoteEnv"
+        },
+        "uat": {
+          "$ref": "#/$defs/remoteEnv"
+        },
+        "test": {
+          "$ref": "#/$defs/remoteEnv"
+        },
+        "prod": {
+          "$ref": "#/$defs/remoteEnv"
+        }
       }
     },
     "deployment": {
@@ -60,7 +132,10 @@
       "properties": {
         "flavor": {
           "type": "string",
-          "enum": ["helm", "compose"],
+          "enum": [
+            "helm",
+            "compose"
+          ],
           "description": "helm deploys deploy/chart per environment. compose runs deploy/compose/docker-compose.yml on one host — dev at most, never a chain."
         },
         "imageRegistry": {
@@ -81,7 +156,11 @@
             },
             "severityThreshold": {
               "type": "string",
-              "enum": ["critical", "high", "medium"],
+              "enum": [
+                "critical",
+                "high",
+                "medium"
+              ],
               "description": "The lowest severity that fails the image scan. \"high\" (the default) fails HIGH and CRITICAL. Exceptions live in .trivyignore, each with a reason and an expiry — never here."
             }
           }
@@ -90,7 +169,10 @@
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "chartPath": { "type": "string", "description": "Path to the chart, relative to the repository root." },
+            "chartPath": {
+              "type": "string",
+              "description": "Path to the chart, relative to the repository root."
+            },
             "keepHistory": {
               "type": "integer",
               "minimum": 2,
@@ -108,7 +190,9 @@
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "enabled": { "type": "boolean" },
+            "enabled": {
+              "type": "boolean"
+            },
             "dryRun": {
               "type": "boolean",
               "description": "true (default) writes payloads to .proto-forge/outbox/ and contacts nothing. Live writes happen via `pnpm sync:jira --commit`, or unattended via `pnpm sync:auto` when autoPropagate is on."
@@ -117,37 +201,78 @@
               "type": "boolean",
               "description": "Standing, reviewed consent for unattended live writes: `pnpm sync:auto` (run by the pipeline after each accepted ADR and at release) sends without a per-run --approve. Stands in for --approve ONLY — enabled, dryRun:false, the network allowlist and credentials are still required."
             },
-            "baseUrl": { "type": "string", "description": "e.g. https://acme.atlassian.net" },
-            "projectKey": { "type": "string" },
-            "issueType": { "type": "string" },
+            "baseUrl": {
+              "type": "string",
+              "description": "e.g. https://acme.atlassian.net"
+            },
+            "projectKey": {
+              "type": "string"
+            },
+            "issueType": {
+              "type": "string"
+            },
             "createFor": {
               "type": "array",
-              "items": { "type": "string", "enum": ["adr", "blocked-gate", "waiver"] },
+              "items": {
+                "type": "string",
+                "enum": [
+                  "adr",
+                  "blocked-gate",
+                  "waiver"
+                ]
+              },
               "description": "Which pipeline events produce a ticket payload."
             },
-            "tokenEnv": { "type": "string", "description": "Name of the env var holding the API token. Never the token itself." },
-            "userEnv": { "type": "string" }
+            "tokenEnv": {
+              "type": "string",
+              "description": "Name of the env var holding the API token. Never the token itself."
+            },
+            "userEnv": {
+              "type": "string"
+            }
           }
         },
         "confluence": {
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "enabled": { "type": "boolean" },
-            "dryRun": { "type": "boolean" },
+            "enabled": {
+              "type": "boolean"
+            },
+            "dryRun": {
+              "type": "boolean"
+            },
             "autoPropagate": {
               "type": "boolean",
               "description": "Standing, reviewed consent for unattended live publishes via `pnpm sync:auto`. Stands in for --approve only; all other requirements remain."
             },
-            "baseUrl": { "type": "string" },
-            "spaceKey": { "type": "string" },
-            "parentPageId": { "type": "string" },
+            "baseUrl": {
+              "type": "string"
+            },
+            "spaceKey": {
+              "type": "string"
+            },
+            "parentPageId": {
+              "type": "string"
+            },
             "publish": {
               "type": "array",
-              "items": { "type": "string", "enum": ["architecture", "adr-index", "api-docs", "security"] }
+              "items": {
+                "type": "string",
+                "enum": [
+                  "architecture",
+                  "adr-index",
+                  "api-docs",
+                  "security"
+                ]
+              }
             },
-            "tokenEnv": { "type": "string" },
-            "userEnv": { "type": "string" }
+            "tokenEnv": {
+              "type": "string"
+            },
+            "userEnv": {
+              "type": "string"
+            }
           }
         }
       }
@@ -160,18 +285,29 @@
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "allow": { "type": "boolean" },
-            "allowedHosts": { "type": "array", "items": { "type": "string" } }
+            "allow": {
+              "type": "boolean"
+            },
+            "allowedHosts": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
           }
         },
         "requireApproval": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "description": "Outward-facing effects an operator must confirm interactively, e.g. \"jira.create\", \"confluence.publish\"."
         },
         "protectedPaths": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "description": "Glob patterns an agent hook refuses to edit — the byte-pinned platform kernel, the locks, the append-only prompt log."
         },
         "freezeThresholds": {
@@ -239,12 +375,32 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["gate", "reason", "adr", "expires"],
+        "required": [
+          "gate",
+          "reason",
+          "adr",
+          "expires"
+        ],
         "properties": {
-          "gate": { "type": "string" },
-          "reason": { "type": "string", "minLength": 15, "description": "What the relaxation buys and why the risk is acceptable." },
-          "adr": { "type": ["integer", "string"], "description": "Number of an ADR that exists in docs/adr/." },
-          "expires": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" }
+          "gate": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 15,
+            "description": "What the relaxation buys and why the risk is acceptable."
+          },
+          "adr": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Number of an ADR that exists in docs/adr/."
+          },
+          "expires": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          }
         }
       }
     }
@@ -252,21 +408,34 @@
   "$defs": {
     "mode": {
       "type": "string",
-      "enum": ["error", "warn", "off"],
+      "enum": [
+        "error",
+        "warn",
+        "off"
+      ],
       "description": "error = fails the build. warn = prints findings and passes. off = does not enforce."
     },
     "simpleGate": {
       "type": "object",
       "additionalProperties": false,
-      "properties": { "mode": { "$ref": "#/$defs/mode" } }
+      "properties": {
+        "mode": {
+          "$ref": "#/$defs/mode"
+        }
+      }
     },
     "localEnv": {
       "type": "object",
       "additionalProperties": false,
       "description": "The developer's own machine. Not part of the promotion chain, and not optional: config:check fails when local is disabled, because local is where the prototype actually runs.",
       "properties": {
-        "enabled": { "type": "boolean" },
-        "url": { "type": "string", "description": "Where the service answers locally, e.g. http://localhost:8080 (`pnpm dev` and the compose-built image alike)." }
+        "enabled": {
+          "type": "boolean"
+        },
+        "url": {
+          "type": "string",
+          "description": "Where the service answers locally, e.g. http://localhost:8080 (`pnpm dev` and the compose-built image alike)."
+        }
       }
     },
     "remoteEnv": {
@@ -278,24 +447,43 @@
           "type": "boolean",
           "description": "Whether this environment exists. An enabled environment must name its cluster.namespace and cluster.type; a values file for a DISABLED environment fails env:verify as an orphan."
         },
-        "url": { "type": "string", "description": "The externally reachable base URL, the smoke test's target. Empty is a config:check warning: an environment nobody can reach cannot prove a deploy landed." },
+        "url": {
+          "type": "string",
+          "description": "The externally reachable base URL, the smoke test's target. Empty is a config:check warning: an environment nobody can reach cannot prove a deploy landed."
+        },
         "cluster": {
           "type": "object",
           "additionalProperties": false,
           "properties": {
             "type": {
               "type": "string",
-              "enum": ["openshift", "aks", "generic"],
+              "enum": [
+                "openshift",
+                "aks",
+                "generic"
+              ],
               "description": "What is on the other side. Drives the exposure cross-check (a Route is OpenShift-only), the login step in CD and the platform notes in DEPLOYMENT.md."
             },
-            "server": { "type": "string", "description": "API server URL. config:check warns when its host is missing from guardrails.network.allowedHosts — operator deploys to it would be refused." },
-            "namespace": { "type": "string", "description": "Namespace (OpenShift: project) the release lands in. Required as soon as the environment is enabled." },
-            "registry": { "type": "string", "description": "Registry this cluster pulls from when it differs from deployment.imageRegistry (e.g. an ACR the AKS cluster is attached to)." }
+            "server": {
+              "type": "string",
+              "description": "API server URL. config:check warns when its host is missing from guardrails.network.allowedHosts — operator deploys to it would be refused."
+            },
+            "namespace": {
+              "type": "string",
+              "description": "Namespace (OpenShift: project) the release lands in. Required as soon as the environment is enabled."
+            },
+            "registry": {
+              "type": "string",
+              "description": "Registry this cluster pulls from when it differs from deployment.imageRegistry (e.g. an ACR the AKS cluster is attached to)."
+            }
           }
         },
         "approval": {
           "type": "string",
-          "enum": ["none", "required"],
+          "enum": [
+            "none",
+            "required"
+          ],
           "description": "Whether a human stands before the deploy. \"required\" maps to a GitHub environment with required reviewers, and CD preflights that the protection actually exists rather than trusting the label. prod with \"none\" is a config:check error; uat/test with \"none\" is a warning."
         },
         "autoDeploy": {
@@ -309,14 +497,33 @@
           "properties": {
             "method": {
               "type": "string",
-              "enum": ["oidc", "token", "kubeconfig"],
+              "enum": [
+                "oidc",
+                "token",
+                "kubeconfig"
+              ],
               "description": "oidc = federated login (AKS via azure *Env names below). token = bearer token (OpenShift oc login). kubeconfig = a context from the file kubeconfigEnv points at."
             },
-            "tokenEnv": { "type": "string", "description": "Name of the env var holding the bearer token. Never the token itself." },
-            "kubeconfigEnv": { "type": "string", "description": "Name of the env var pointing at the kubeconfig file." },
-            "azureClientIdEnv": { "type": "string", "description": "Name of the env var holding the Azure client id for OIDC login." },
-            "azureTenantIdEnv": { "type": "string", "description": "Name of the env var holding the Azure tenant id." },
-            "azureSubscriptionIdEnv": { "type": "string", "description": "Name of the env var holding the Azure subscription id." }
+            "tokenEnv": {
+              "type": "string",
+              "description": "Name of the env var holding the bearer token. Never the token itself."
+            },
+            "kubeconfigEnv": {
+              "type": "string",
+              "description": "Name of the env var pointing at the kubeconfig file."
+            },
+            "azureClientIdEnv": {
+              "type": "string",
+              "description": "Name of the env var holding the Azure client id for OIDC login."
+            },
+            "azureTenantIdEnv": {
+              "type": "string",
+              "description": "Name of the env var holding the Azure tenant id."
+            },
+            "azureSubscriptionIdEnv": {
+              "type": "string",
+              "description": "Name of the env var holding the Azure subscription id."
+            }
           }
         }
       }
