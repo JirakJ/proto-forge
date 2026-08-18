@@ -22,6 +22,9 @@ import { readJson, fail, ok } from "./lib.mjs";
 //      never a probe — a probe that does not run is worse than an admitted gap
 //   6. a control with no `requires` carries a `rationale` — our own strictness is
 //      allowed, passing it off as the standard's is not
+//   7. every template's vendored copy of the catalogue and the standard is byte-equal
+//      to this repository's — a copy that drifts is a template measuring itself
+//      against a bar nobody agreed to
 //
 // Scope: plugin. The catalogue lives here because it binds ALL templates and no
 // single template may hold the list the others are measured against.
@@ -136,6 +139,35 @@ for (const c of controls) {
     }
   } else {
     errors.push(`${where} has status ${JSON.stringify(c.status)} — expected "enforced" or "planned"`);
+  }
+}
+
+// --- 7. the vendored copies are the catalogue, byte for byte --------------------
+// A generated application is a standalone repository: it cannot read this file, so
+// each template carries a copy and measures itself against that. Two copies of one
+// normative document is exactly the drift BR-15 forbids, so the copies are checked
+// rather than trusted — a template quietly measuring itself against an older bar
+// would still print a green conformance line, which is the worst possible failure
+// mode for a claim whose entire purpose is to be checkable.
+const VENDORED = ".proto-forge/security/controls.json";
+const VENDORED_STD = ".proto-forge/standards";
+const catalogueBytes = readFileSync(CATALOGUE);
+const standardBytes = existsSync(asvs.vendored) ? readFileSync(asvs.vendored) : undefined;
+for (const t of templates) {
+  const copy = `${t.dir}/${VENDORED}`;
+  if (!existsSync(copy)) continue; // a template that carries no copy runs no conformance gate
+  if (!readFileSync(copy).equals(catalogueBytes)) {
+    errors.push(
+      `${copy} differs from ${CATALOGUE} — template "${t.id}" measures itself against a different ` +
+        `catalogue than the one this repository defines; re-vendor it`,
+    );
+  }
+  const stdCopy = `${t.dir}/${VENDORED_STD}/${(asvs.vendored ?? "").split("/").pop()}`;
+  if (standardBytes !== undefined && (!existsSync(stdCopy) || !readFileSync(stdCopy).equals(standardBytes))) {
+    errors.push(
+      `${stdCopy} is missing or differs from ${asvs.vendored} — template "${t.id}" would resolve ` +
+        `requirement ids and levels against a standard this repository does not pin`,
+    );
   }
 }
 

@@ -1001,6 +1001,84 @@ expect("docs: flipping an ADR's status does not stale the subject", "docs-verify
 }), { pass: true });
 
 
+// --- sec:conformance (BR-39) --------------------------------------------------
+// The claim has to be DERIVED, not written: a conformance report nobody re-derives
+// stays green while becoming false. These pin the three ways that breaks — a probe
+// that stops holding, a committed claim that no longer matches the tree, and no
+// claim at all — plus the property the whole thing rests on: byte-reproducibility.
+const CONF_STANDARD = JSON.stringify({
+  requirements: [{ chapter_id: "V3", req_id: "V3.4.4", req_description: "nosniff", L: "2" }],
+});
+const CONF_CATALOGUE = {
+  standards: {
+    asvs: {
+      name: "OWASP ASVS",
+      version: "5.0.0",
+      vendored: "references/standards/asvs.flat.json",
+      sha256: "unused-by-the-template",
+      profile: { default: 2 },
+    },
+  },
+  controls: [
+    {
+      id: "SEC-003",
+      title: "Responses forbid MIME sniffing",
+      requires: [{ standard: "asvs", req: "V3.4.4" }],
+      appliesTo: { kinds: ["desktop"] },
+      control: "X-Content-Type-Options: nosniff",
+      status: "enforced",
+      probe: "headerNosniff",
+    },
+  ],
+};
+const NGINX_OK = `{\n  "app": { "security": { "csp": "default-src 'self'; frame-ancestors 'none'" } }\n}\n`;
+const VITE_OK = 'const headers = { "X-Content-Type-Options": "nosniff" };\n';
+const confBase = (over = {}) => ({
+  ".proto-forge/security/controls.json": CONF_CATALOGUE,
+  ".proto-forge/standards/asvs.flat.json": CONF_STANDARD,
+  "src-electron/main.ts": NGINX_OK,
+  "vite.config.ts": VITE_OK,
+  ...over,
+});
+const writeClaim = (dir) => run("sec-conformance.mjs", dir, ["--write"]);
+
+expect("conformance: a derived claim that matches the tree passes", "sec-conformance.mjs", confBase(), {
+  pass: true,
+  prepare: writeClaim,
+});
+
+expect("conformance: no committed claim at all fails", "sec-conformance.mjs", confBase(), {
+  pass: false,
+  matching: /is missing/,
+});
+
+expect("conformance: a claim that no longer matches the tree fails", "sec-conformance.mjs", confBase(), {
+  pass: false,
+  matching: /have\s+diverged|diverged/,
+  prepare: (dir) => {
+    writeClaim(dir);
+    // The header goes away AFTER the claim was written: the committed claim still
+    // says the control is met, and the tree no longer backs that.
+    writeFileSync(join(dir, "vite.config.ts"), "// nothing\\n");
+  },
+});
+
+expect("conformance: a control whose probe stops holding fails", "sec-conformance.mjs", confBase({
+  "vite.config.ts": "// nothing\\n",
+}), { pass: false, matching: /does not hold/, prepare: (dir) => run("sec-conformance.mjs", dir, ["--write"]) });
+
+expect("conformance: a catalogue naming a probe this template lacks fails", "sec-conformance.mjs", confBase({
+  ".proto-forge/security/controls.json": {
+    ...CONF_CATALOGUE,
+    controls: [{ ...CONF_CATALOGUE.controls[0], probe: "quantumEntanglementCheck" }],
+  },
+}), { pass: false, matching: /does not implement/ });
+
+expect("conformance: no catalogue at all fails", "sec-conformance.mjs", { "vite.config.ts": VITE_OK }, {
+  pass: false,
+  matching: /no catalogue to measure against/,
+});
+
 // --- stub:scan ---------------------------------------------------------------
 expect("stub: clean production code passes", "stub-scan.mjs", {
   "src/features/f.ts": "export const f = () => 1;\n",

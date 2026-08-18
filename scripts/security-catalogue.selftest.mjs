@@ -157,4 +157,35 @@ expect(
   { pass: false, matching: /a wish/ },
 );
 
+// 7 — a template measuring itself against a different catalogue than this one
+expect(
+  "catalogue: a template whose vendored copy drifted from the source fails",
+  "security-catalogue.mjs",
+  base({}, {
+    "templates/web/package.json": "{}",
+    "templates/web/.proto-forge/security/controls.json": { standards: {}, controls: [] },
+    "templates/web/.proto-forge/standards/asvs.flat.json": STANDARD_JSON,
+  }),
+  { pass: false, matching: /measures itself against a different catalogue/ },
+);
+
+// A template that carries no copy at all runs no conformance gate, so it is not
+// measuring itself against anything and there is nothing to disagree with.
+expect(
+  "catalogue: a template that vendors no copy at all is not a drift",
+  "security-catalogue.mjs",
+  base({}, { "templates/web/package.json": "{}" }),
+  { pass: true },
+);
+
+expect(
+  "catalogue: a vendored copy with no matching standard beside it fails",
+  "security-catalogue.mjs",
+  base({}, {
+    "templates/web/package.json": "{}",
+    "templates/web/.proto-forge/security/controls.json": base()["references/security-controls.json"],
+  }),
+  { pass: false, matching: /does not pin/ },
+);
+
 report();

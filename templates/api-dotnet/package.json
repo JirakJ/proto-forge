@@ -11,7 +11,7 @@
     "dev": "dotnet run --project src/App",
     "build": "dotnet build proto-forge-service.slnx --nologo --verbosity quiet",
     "start": "dotnet run --project src/App --no-build",
-    "verify": "pnpm run config:check && pnpm run env:verify && pnpm run gates:selftest && pnpm run lint && pnpm run typecheck && pnpm run coverage:policy && pnpm run ignores && pnpm run test:unit && pnpm run test:mutation && pnpm run build && pnpm run deploy:verify && pnpm run deps:budget && pnpm run arch:verify && pnpm run opid:scan && pnpm run log:scan && pnpm run error:catalog && pnpm run migration:verify && pnpm run contract:verify && pnpm run contract:breaking && pnpm run docs:verify && pnpm run external:verify && pnpm run stub:scan && pnpm run adr:lint && pnpm run prompt:lint && pnpm run dup:scan && pnpm run consistency && pnpm run sec:scan && pnpm run snapshot:diff && pnpm run test:e2e && pnpm run quality:report && pnpm run status:verify",
+    "verify": "pnpm run config:check && pnpm run env:verify && pnpm run gates:selftest && pnpm run lint && pnpm run typecheck && pnpm run coverage:policy && pnpm run ignores && pnpm run test:unit && pnpm run test:mutation && pnpm run build && pnpm run deploy:verify && pnpm run deps:budget && pnpm run arch:verify && pnpm run opid:scan && pnpm run log:scan && pnpm run error:catalog && pnpm run migration:verify && pnpm run contract:verify && pnpm run contract:breaking && pnpm run docs:verify && pnpm run external:verify && pnpm run stub:scan && pnpm run adr:lint && pnpm run prompt:lint && pnpm run dup:scan && pnpm run consistency && pnpm run sec:scan && pnpm run sec:conformance && pnpm run snapshot:diff && pnpm run test:e2e && pnpm run quality:report && pnpm run status:verify",
     "lint": "dotnet build proto-forge-service.slnx --nologo --verbosity quiet",
     "typecheck": "dotnet build proto-forge-service.slnx --nologo --verbosity quiet --no-restore",
     "test:unit": "TZ=UTC dotnet test tests/App.Tests/App.Tests.csproj --nologo --filter \"Category!=conformance&Category!=capture&Category!=native\" -p:CollectCoverage=true --logger \"trx;LogFileName=unit.trx\" --results-directory build/test-results/unit",
@@ -62,7 +62,9 @@
     "doctor": "node scripts/doctor.mjs",
     "heal": "node scripts/heal.mjs",
     "prepare": "husky || true",
-    "tools:restore": "dotnet tool restore"
+    "tools:restore": "dotnet tool restore",
+    "sec:conformance": "node scripts/sec-conformance.mjs",
+    "sec:conformance:write": "node scripts/sec-conformance.mjs --write"
   },
   "devDependencies": {
     "husky": "^9.1.7",
