@@ -2,7 +2,7 @@ import { existsSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fail, ok } from "./lib.mjs";
-import { operationIds, examplesDirFor, handlerSourceHash, EXAMPLES_LOCK } from "./docs-lib.mjs";
+import { adrDigests, anchoredAdrs, operationIds, examplesDirFor, handlerSourceHash, EXAMPLES_LOCK } from "./docs-lib.mjs";
 
 // @adr 009 - the capture half of BR-26 (support tool, not a gate)
 //   pnpm docs:examples    run the capture harness, then re-pin .examples.lock
@@ -38,6 +38,8 @@ for (const { id } of operationIds()) {
   }
 }
 
-const lock = { source: handlerSourceHash(), captured: [...new Set(captured)].sort() };
+// BR-42: the decisions these handlers implement, at the version the pages were
+// written against. Derived from the @adr anchors, so it cannot disagree with them.
+const lock = { source: handlerSourceHash(), adrs: adrDigests(anchoredAdrs()), captured: [...new Set(captured)].sort() };
 writeFileSync(EXAMPLES_LOCK, JSON.stringify(lock, null, 2) + "\n");
 ok(`docs:examples: ${lock.captured.length} capture(s), source ${lock.source.slice(0, 12)}… pinned in ${EXAMPLES_LOCK}`);

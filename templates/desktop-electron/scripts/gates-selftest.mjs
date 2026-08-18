@@ -965,6 +965,42 @@ expect("docs: a screenshot taken from older code fails", "docs-verify.mjs", docs
   "docs/components/Button/.shot.lock": { source: "0000000000000000000000000000000000000000000000000000000000000000" },
 }), { pass: false, matching: /older/ });
 
+// --- BR-42: the page was written against a decision that still stands ----------
+// The source hash cannot see an ADR edit — change the decision, leave the code, and
+// every hash still matches while the page describes something nobody decided any
+// more. These four pin both directions, including the one that must NOT fire:
+// flipping a status is evidence moving, not the decision moving.
+const ADR_BODY = "## Context\n\nOverlays need one stacking order.\n\n## Decision\n\nTop layer, ordered by open time.\n";
+const decisionBase = (over = {}) => ({
+  "packages/proto-ui/src/index.ts": 'export { Button } from "./Button";\n',
+  "packages/proto-ui/src/Button.tsx": "// @adr 008 - the overlay stacking order\nexport function Button() {\n  return null;\n}\n",
+  "docs/components/Button/README.md": `# Button\n\n${PROSE}\n\n<!-- no-screenshot: a headless primitive renders nothing of its own -->\n`,
+  "docs/adr/008-overlay-layering.md": `# ADR 008\n\n- Status: accepted\n${ADR_BODY}`,
+  ...over,
+});
+const digest = (s) => createHash("sha256").update(s).digest("hex");
+// The gate hashes the ADR from its first `## ` heading down, leading newline included.
+const CURRENT_008 = digest(`\n${ADR_BODY}`);
+
+expect("docs: a subject written against the current decision passes", "docs-verify.mjs", decisionBase({
+  "docs/components/Button/.shot.lock": { source: "unused-here", adrs: { "008": CURRENT_008 } },
+}), { pass: true });
+
+expect("docs: a subject written against an older decision fails", "docs-verify.mjs", decisionBase({
+  "docs/components/Button/.shot.lock": { source: "unused-here", adrs: { "008": digest("\n## Decision\n\nSomething else entirely.\n") } },
+}), { pass: false, matching: /older ADR 008/ });
+
+expect("docs: a subject implementing a decision with no lock at all fails", "docs-verify.mjs", decisionBase(), {
+  pass: false,
+  matching: /which version of that decision/,
+});
+
+expect("docs: flipping an ADR's status does not stale the subject", "docs-verify.mjs", decisionBase({
+  "docs/adr/008-overlay-layering.md": `# ADR 008\n\n- Status: proposed\n- Prompt-log: .prompts/0004-overlays.md\n${ADR_BODY}`,
+  "docs/components/Button/.shot.lock": { source: "unused-here", adrs: { "008": CURRENT_008 } },
+}), { pass: true });
+
+
 // --- stub:scan ---------------------------------------------------------------
 expect("stub: clean production code passes", "stub-scan.mjs", {
   "src/features/f.ts": "export const f = () => 1;\n",

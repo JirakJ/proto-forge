@@ -1351,11 +1351,11 @@ const digest = (s) => createHash("sha256").update(s).digest("hex");
 // The gate hashes the ADR from its first `## ` heading down, leading newline included.
 const CURRENT_008 = digest(`\n${ADR_BODY}`);
 
-expect("docs: a page written against the current decision passes", "docs-verify.mjs", decisionBase({
+expect("docs: a subject written against the current decision passes", "docs-verify.mjs", decisionBase({
   "docs/components/Button/.shot.lock": { source: "unused-here", adrs: { "008": CURRENT_008 } },
 }), { pass: true });
 
-expect("docs: a page written against an older decision fails", "docs-verify.mjs", decisionBase({
+expect("docs: a subject written against an older decision fails", "docs-verify.mjs", decisionBase({
   "docs/components/Button/.shot.lock": { source: "unused-here", adrs: { "008": digest("\n## Decision\n\nSomething else entirely.\n") } },
 }), { pass: false, matching: /older ADR 008/ });
 
@@ -1364,7 +1364,7 @@ expect("docs: a subject implementing a decision with no lock at all fails", "doc
   matching: /which version of that decision/,
 });
 
-expect("docs: flipping an ADR's status does not stale the page", "docs-verify.mjs", decisionBase({
+expect("docs: flipping an ADR's status does not stale the subject", "docs-verify.mjs", decisionBase({
   "docs/adr/008-overlay-layering.md": `# ADR 008\n\n- Status: proposed\n- Prompt-log: .prompts/0004-overlays.md\n${ADR_BODY}`,
   "docs/components/Button/.shot.lock": { source: "unused-here", adrs: { "008": CURRENT_008 } },
 }), { pass: true });

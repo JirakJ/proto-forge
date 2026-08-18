@@ -1188,6 +1188,49 @@ expect("docs: a stated no-example reason stands in for a capture", "docs-verify.
   "docs/api/note-list/README.md": `# note-list\n\n${DOCS_PROSE}\n\n<!-- no-example: a health probe has no meaningful exchange to capture -->\n`,
 }), { pass: true });
 
+// --- BR-42: the pages were written against decisions that still stand ---------
+// The handler hash cannot see an ADR edit — change the decision, leave the handlers,
+// and the captures still match while the pages document endpoints nobody decided on.
+// The third case pins the direction that must NOT fire: a status flip is evidence
+// moving, not the decision.
+const ADR_DECISION = "## Context\n\nThe list endpoint needs a stable order.\n\n## Decision\n\nNewest first.\n";
+const anchoredDocsBase = (over = {}) =>
+  docsBase({
+    "src/App/Application/Notes.cs": "// @adr 008 - newest-first ordering\nnamespace App.Application;\n\npublic static class Notes\n{\n    public static object? List()\n    {\n        return null;\n    }\n}\n",
+    "docs/adr/008-ordering.md": `# ADR 008\n\n- Status: accepted\n${ADR_DECISION}`,
+    ...over,
+  });
+
+expect("docs: a subject written against the current decision passes", "docs-verify.mjs", anchoredDocsBase(), {
+  pass: true,
+  prepare: captureExamples,
+});
+
+expect("docs: a subject written against an older decision fails", "docs-verify.mjs", anchoredDocsBase(), {
+  pass: false,
+  matching: /older ADR 008/,
+  prepare: (dir) => {
+    captureExamples(dir);
+    writeFileSync(join(dir, "docs", "adr", "008-ordering.md"), "# ADR 008\n\n- Status: accepted\n## Decision\n\nOldest first.\n");
+  },
+});
+
+expect("docs: a subject implementing a decision with no lock at all fails", "docs-verify.mjs", anchoredDocsBase(), {
+  pass: false,
+  matching: /which version of that decision/,
+});
+
+expect("docs: flipping an ADR's status does not stale the subject", "docs-verify.mjs", anchoredDocsBase(), {
+  pass: true,
+  prepare: (dir) => {
+    captureExamples(dir);
+    writeFileSync(
+      join(dir, "docs", "adr", "008-ordering.md"),
+      `# ADR 008\n\n- Status: proposed\n- Prompt-log: .prompts/0004-ordering.md\n${ADR_DECISION}`,
+    );
+  },
+});
+
 // --- deps:budget (NFR-13) ----------------------------------------------------
 const csprojDeps = (deps) => `<Project Sdk="Microsoft.NET.Sdk.Web">\n  <ItemGroup>\n${deps}\n  </ItemGroup>\n</Project>\n`;
 
