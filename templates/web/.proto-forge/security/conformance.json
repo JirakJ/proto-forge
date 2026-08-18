@@ -1,0 +1,221 @@
+{
+  "standard": {
+    "name": "OWASP Application Security Verification Standard",
+    "version": "5.0.0",
+    "tag": "v5.0.0_release",
+    "sha256": "8201b20eec2908c3380ac600c91c8ba746346fbb808859366abb232027532311"
+  },
+  "profile": 2,
+  "kind": "frontend",
+  "summary": {
+    "pass": 6,
+    "fail": 0,
+    "gap": 12,
+    "notApplicable": 0
+  },
+  "controls": [
+    {
+      "id": "SEC-001",
+      "title": "Untrusted HTML is sanitized by one library at one sink",
+      "requires": [
+        {
+          "standard": "asvs",
+          "req": "V1.3.1",
+          "level": 1
+        }
+      ],
+      "verdict": "pass",
+      "evidence": "safeHtmlIsSoleSink"
+    },
+    {
+      "id": "SEC-002",
+      "title": "Responses carry a Content-Security-Policy",
+      "requires": [
+        {
+          "standard": "asvs",
+          "req": "V3.4.3",
+          "level": 2
+        }
+      ],
+      "verdict": "pass",
+      "evidence": "cspHeaderPresent"
+    },
+    {
+      "id": "SEC-003",
+      "title": "Responses forbid MIME sniffing",
+      "requires": [
+        {
+          "standard": "asvs",
+          "req": "V3.4.4",
+          "level": 2
+        }
+      ],
+      "verdict": "pass",
+      "evidence": "headerNosniff"
+    },
+    {
+      "id": "SEC-004",
+      "title": "A referrer policy stops technically sensitive data leaking cross-origin",
+      "requires": [
+        {
+          "standard": "asvs",
+          "req": "V3.4.5",
+          "level": 2
+        }
+      ],
+      "verdict": "pass",
+      "evidence": "headerReferrerPolicy"
+    },
+    {
+      "id": "SEC-005",
+      "title": "Framing is refused by policy, not only by a legacy header",
+      "requires": [
+        {
+          "standard": "asvs",
+          "req": "V3.4.6",
+          "level": 2
+        }
+      ],
+      "verdict": "pass",
+      "evidence": "cspFrameAncestors"
+    },
+    {
+      "id": "SEC-006",
+      "title": "An inventory of third-party components is maintained",
+      "requires": [
+        {
+          "standard": "asvs",
+          "req": "V15.1.2",
+          "level": 2
+        }
+      ],
+      "verdict": "pass",
+      "evidence": "sbomIsCurrent"
+    },
+    {
+      "id": "SEC-010",
+      "title": "The artifact enforces HTTPS itself, not only at someone else's edge",
+      "requires": [
+        {
+          "standard": "asvs",
+          "req": "V3.4.1",
+          "level": 1
+        }
+      ],
+      "verdict": "gap",
+      "evidence": "planned for E3"
+    },
+    {
+      "id": "SEC-011",
+      "title": "Access-Control-Allow-Origin is a fixed, trusted value",
+      "requires": [
+        {
+          "standard": "asvs",
+          "req": "V3.4.2",
+          "level": 1
+        }
+      ],
+      "verdict": "gap",
+      "evidence": "planned for E3"
+    },
+    {
+      "id": "SEC-013",
+      "title": "State-changing requests are not accepted from a foreign origin",
+      "requires": [
+        {
+          "standard": "asvs",
+          "req": "V3.5.1",
+          "level": 1
+        }
+      ],
+      "verdict": "gap",
+      "evidence": "planned for E3"
+    },
+    {
+      "id": "SEC-014",
+      "title": "Browser storage holds nothing sensitive",
+      "requires": [
+        {
+          "standard": "asvs",
+          "req": "V14.3.3",
+          "level": 2
+        }
+      ],
+      "verdict": "gap",
+      "evidence": "planned for E3"
+    },
+    {
+      "id": "SEC-015",
+      "title": "Remediation time frames are written down, and nothing outlives them",
+      "requires": [
+        {
+          "standard": "asvs",
+          "req": "V15.1.1",
+          "level": 1
+        },
+        {
+          "standard": "asvs",
+          "req": "V15.2.1",
+          "level": 1
+        }
+      ],
+      "verdict": "gap",
+      "evidence": "planned for E6"
+    },
+    {
+      "id": "SEC-017",
+      "title": "JavaScript is written so prototype pollution has nowhere to land",
+      "requires": [
+        {
+          "standard": "asvs",
+          "req": "V15.3.6",
+          "level": 2
+        }
+      ],
+      "verdict": "gap",
+      "evidence": "planned for E5"
+    },
+    {
+      "id": "SEC-030",
+      "title": "Script injection has no sink even if a bug reaches one",
+      "requires": [],
+      "verdict": "gap",
+      "evidence": "planned for E3"
+    },
+    {
+      "id": "SEC-031",
+      "title": "Powerful browser features are denied by default",
+      "requires": [],
+      "verdict": "gap",
+      "evidence": "planned for E3"
+    },
+    {
+      "id": "SEC-032",
+      "title": "The document is cross-origin isolated",
+      "requires": [],
+      "verdict": "gap",
+      "evidence": "planned for E3"
+    },
+    {
+      "id": "SEC-040",
+      "title": "The application states what it is defending against",
+      "requires": [],
+      "verdict": "gap",
+      "evidence": "planned for E6"
+    },
+    {
+      "id": "SEC-041",
+      "title": "There is a way to report a vulnerability, and it names a deadline",
+      "requires": [],
+      "verdict": "gap",
+      "evidence": "planned for E6"
+    },
+    {
+      "id": "SEC-042",
+      "title": "What runs is provably what CI built, from the source it claims",
+      "requires": [],
+      "verdict": "gap",
+      "evidence": "planned for E7"
+    }
+  ]
+}

@@ -1,5 +1,8 @@
 {
   "source": "f6f4a1dfd236bec3d2010da6be27761ac64ab77976ea3f3043fb1944f9ce175e",
+  "adrs": {
+    "008": "896f2d265671496eedfc963c451e6b987dc8ce249e6322cb236ea132dba91f34"
+  },
   "shots": [
     {
       "file": "info.png",

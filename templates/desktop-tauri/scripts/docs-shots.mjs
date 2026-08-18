@@ -2,7 +2,16 @@ import { spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { chromium } from "@playwright/test";
-import { componentSources, documentableComponents, lockFor, sourceHash } from "./docs-lib.mjs";
+import {
+  adrDigests,
+  anchoredAdrs,
+  componentSources,
+  documentableComponents,
+  featureSources,
+  features,
+  lockFor,
+  sourceHash,
+} from "./docs-lib.mjs";
 import { fail, note, ok } from "./lib.mjs";
 
 // @adr 009 - documentation screenshots are generated, never hand-managed
@@ -91,13 +100,43 @@ for (const c of manifest) {
 await browser.close();
 stop();
 
-for (const [component, shots] of byComponent) {
+const writeLock = (kind, name, sources, shots) =>
+  writeFileSync(
+    lockFor(kind, name),
+    `${JSON.stringify(
+      {
+        source: sourceHash(sources),
+        // BR-42: the decisions this subject implements, at the version its page was
+        // written against. Derived from the @adr anchors in `sources`, so the list
+        // cannot disagree with the code.
+        adrs: adrDigests(anchoredAdrs(sources)),
+        shots: shots.sort((a, b) => a.file.localeCompare(b.file)),
+        capturedBy: "docs:shots",
+      },
+      null,
+      2,
+    )}\n`,
+  );
+
+// Every documentable component, not only the photographed ones. A component can be
+// legitimately documented without a picture — Portal renders nothing of its own,
+// ProtoUIProvider is structural — and those still anchor decisions, so skipping them
+// would leave BR-42 covering only the subjects that happen to be photogenic.
+for (const component of documentableComponents()) {
   const sources = componentSources(component);
   if (sources.length === 0) note(`docs:shots — no source file found for ${component}; lock will hash the registry only`);
-  writeFileSync(
-    lockFor("components", component),
-    `${JSON.stringify({ source: sourceHash(sources), shots: shots.sort((a, b) => a.file.localeCompare(b.file)), capturedBy: "docs:shots" }, null, 2)}\n`,
-  );
+  if (!existsSync(join(OUT, component))) continue; // BR-19's docs gate owns "the page is missing"
+  writeLock("components", component, sources, byComponent.get(component) ?? []);
+}
+
+// Features get a lock even though this run photographs none of them. A feature is
+// where the 030-099 ADR band actually lands, so it is the subject BR-42 exists for;
+// without a lock there would be nothing to record which decision its page was
+// written against, and the rule would cover only the components — the half of the
+// tree where decisions are least likely to change.
+for (const feature of features()) {
+  if (!existsSync(join("docs", "features", feature))) continue; // BR-19's docs gate owns "the page is missing"
+  writeLock("features", feature, featureSources(feature), []);
 }
 
 // A component folder for something that no longer exists is worse than no folder:

@@ -1689,6 +1689,164 @@ rather than papered over: the end-to-end suite runs against the built web assets
 in a browser, not against the packaged application — the packaged smoke belongs
 to the packaging stage, and each template's ADR 203 says so in those words.
 
+## §25 Security conformance
+
+`Scope: plugin` for this section.
+
+BRS §4 and §16 state a security baseline that is real, gate-enforced, and **defined by
+itself**. That is enough to be secure and not enough to say so: "it is secure" cannot be
+handed to a reviewer, an auditor or a customer as a claim they can re-check. §25 binds
+the baseline to named external standards and makes the binding machine-readable.
+
+**The bar.** OWASP ASVS 5.0 **Level 2** for the application (its L1 ∪ L2 set, 253 of 345
+requirements), SLSA v1.1 **Build Level 3** for the supply chain, NIST SSDF SP 800-218 as
+the process mapping. Level 2 rather than Level 3 deliberately: L3 asks for properties a
+generated prototype cannot honestly claim — hardware key storage, environment
+segregation, a per-feature formal threat model — and answering a third of a standard
+with "not applicable" weakens a conformance claim more than a lower, fully-held bar
+does. Level 3 is a per-project **ratchet** (`asvsLevel` in `.proto-forge/config.json`);
+tightening is free, and dropping below the default is BR-17's waiver path.
+
+**The standard is vendored, not transcribed.** `references/standards/asvs-5.0.0.flat.json`
+is the published machine-readable release, pinned by tag (`v5.0.0_release`, never the
+rolling `latest`) and by sha256. `references/security-controls.json` cites `req_id`s into
+it; nothing copies a requirement number or its level.
+
+**Conformance output is two artefacts, because it has to be.** `conformance.json` is the
+CLAIM — derived only from repository content, byte-reproducible, its digest recorded in
+`.proto-forge/snapshot.json`. `findings.sarif` is the OBSERVATION — what the scanners saw
+at one moment, threshold-gated and never hashed. A single artefact mixing them would
+either lie about determinism or omit findings: CVE feeds move under a fixed commit, so no
+report embedding them can be byte-stable. BR-39 binds the claim half; the findings half
+stays with `sec:scan`.
+
+### BR-38 — Every security control cites a resolvable requirement, or admits it is ours
+
+**MUST.** `references/security-controls.json` is the single source binding each control a
+generated application carries to the standard requirement that asks for it. Every
+`requires[]` entry naming ASVS resolves to a `req_id` in the vendored standard and sits at
+or below the binding profile's level. The vendored standard matches its pinned sha256.
+Every control binds at least one registered template kind or id. A control marked
+`enforced` names the probe that proves it; one marked `planned` names the stage that will
+and carries **no** probe. A control citing no standard requirement states a `rationale`.
+
+- **Why:** The first draft of the design this rule comes from cited Trusted Types as an
+  ASVS requirement (5.0 does not mention them anywhere), SRI at Level 2 (it is Level 3)
+  and cookie attributes in V7 (they are in V3) — every number written from memory, every
+  one plausible, none correct. A requirement id nobody can resolve is an id nobody
+  checks, and a conformance claim built on unresolvable ids is worse than no claim: it
+  reads as rigour. The `rationale` half closes the opposite leak — proto-forge tightens
+  beyond ASVS in places (Trusted Types, Permissions-Policy, cross-origin isolation), and
+  presenting our own strictness as someone else's requirement misleads the reader about
+  what the standard demands. The `planned`-carries-no-probe rule keeps the catalogue from
+  reading as coverage it does not have: an admitted gap is information, a probe that
+  never runs is a lie with a green tick.
+- **Scope:** plugin
+- **Enforced by:** `security:catalogue`
+- **Proven by:** `pnpm selftest` → "catalogue: a requirement id the standard does not
+  contain fails", "catalogue: citing an L3 requirement under an L2 profile fails",
+  "catalogue: a vendored standard that is not the pinned one fails", "catalogue: a
+  control citing no standard and giving no rationale fails", "catalogue: a planned
+  control carrying a probe fails", "catalogue: a control bound to a kind no template has
+  fails"
+- **Decided in:** ADR 013 (plugin namespace)
+
+## §26 Documentation fidelity
+
+Documentation in a generated application is not commentary on the code — it is part of
+what ships, and the gates treat it that way already: a component page must exist, must
+show the component, and must show **today's** code (BR-19); `docs/STATUS.md` is
+re-rendered from the last green verify rather than typed (BR-36); the environment table
+is derived from configuration; `docs/external/**` carries provenance. §26 closes the one
+direction none of those cover.
+
+**A page can be a faithful description of code that implements a decision nobody holds.**
+Edit an ADR and leave the code alone: every source hash still matches, every screenshot
+is still of current code, and the page now explains an application built on a decision
+that changed. `commit-lint` does not catch it either — it checks that a commit flips
+exactly one ADR to `accepted`, never that the documentation moved with it.
+
+The mechanism is a **tree invariant, not a commit rule**. "A commit touching an ADR must
+also touch its pages" cannot work: when only the ADR text changes, `docs:shots` produces
+a byte-identical image and the lock does not move, so there is nothing to stage and the
+gate would force a cosmetic edit — teaching people to add a space instead of writing
+documentation. Recording the decision *in the lock* has neither problem, and it also
+covers an ADR amended long after it was accepted, which a commit rule never would.
+
+Delivery is staged (`docs/specs/2026-08-17-documentation-follows-reality-design.md`):
+BR-42 binds every template whose documentation is generated from the code it describes:
+`web` and the two desktop shells, where the artefact is a screenshot and the producer is
+`docs:shots`, and the five `api-*` templates, where the artefact is a captured exchange
+and the producer is `docs:examples`. `workspace` and `e2e` are outside it — they document
+no subject that anchors a decision. A second rule then gives the
+prose documents (`ARCHITECTURE.md`, `SECURITY.md`, `TROUBLESHOOTING.md`) the derived-block
+treatment `STATUS.md` already has. That rule is written when its enforcer is, never
+before: a register entry naming a gate nobody wrote is the gap this register exists to
+close.
+
+### BR-39 — The conformance claim is derived from the repository, and reproducible
+
+**MUST.** A template's conformance claim (`.proto-forge/security/conformance.json`)
+is **derived**, never written: every control in the vendored catalogue that binds this
+template is answered by a probe that is a pure function of repository content. The probe
+reads whatever actually serves the header for that kind — the shipped nginx and the
+preview server for a web app, the WebView policy and the preview server for a desktop
+shell, the byte-pinned platform header kernel for a service — because a control is met
+where the runtime sets it, not where a document says so — no
+network, no clock, no environment (NFR-16) — and the report is regenerated and compared
+byte-wise on every verify, the way `snapshot:diff` compares the structure. A probe that
+does not hold fails the gate; a committed claim that the tree no longer derives fails
+the gate; a catalogue naming a probe the template does not implement fails the gate.
+The report carries no timestamp, no absolute path and no tool version, and its rows are
+sorted, so two runs from the same tree produce identical bytes.
+
+Scanner findings do **not** live in this artefact. They belong to `sec:scan` and to a
+SARIF report, gated by threshold and never hashed.
+
+- **Why:** "It is secure" is worth nothing to a reader who cannot re-check it, and a
+  report generated once and committed is green forever regardless of what the code
+  does afterwards — which is worse than no report, because it reads as evidence. The
+  split between the claim and the findings is not tidiness: CVE feeds move under a
+  fixed commit, so a single artefact containing both would have to choose between
+  lying about determinism and omitting findings. The claim is the half that CAN be
+  reproducible, so it is held to that; the findings are the half that cannot, so they
+  are held to a threshold instead.
+- **Scope:** frontend, desktop, backend
+- **Enforced by:** `sec:conformance`, with `sec:conformance:write` as the producer
+- **Proven by:** `gates:selftest` → "conformance: a derived claim that matches the tree
+  passes", "conformance: no committed claim at all fails", "conformance: a claim that no
+  longer matches the tree fails", "conformance: a control whose probe stops holding
+  fails", "conformance: a catalogue naming a probe this template lacks fails",
+  "conformance: no catalogue at all fails"
+- **Decided in:** ADR 013 (plugin namespace)
+
+### BR-42 — A documented subject records the decision it was written against
+
+**MUST.** Every documented subject's lock records, beside the source hash, the ADRs the
+subject implements and a digest of each decision. The list is **derived** from the
+`// @adr NNN` anchors in the subject's own sources, never hand-written. A subject that
+anchors an ADR and has no lock fails; a subject whose recorded digest differs from the
+ADR's current one fails, naming the ADR and the page. The digest covers the ADR from its
+first `## ` heading down, so flipping `proposed → accepted` or backfilling a prompt-log
+link — evidence moving, not the decision — does not stale anything.
+
+- **Why:** Where documentation is a follow-up it does not happen, and BR-19 already says
+  so about screenshots. The same is true one level up: a decision changes, the code
+  follows, and the page explaining *why* stays behind describing an architecture nobody
+  chose. Deriving the list from anchors rather than a `Docs:` field in the ADR is the
+  point — a hand-written list is a second source of truth that drifts the moment an
+  anchor moves, which is exactly what BR-15 exists to prevent. And because the only way
+  to re-lock is `pnpm docs:shots`, re-photographing happens in the same act: "update the
+  images too" is the mechanism rather than a rule someone has to remember.
+- **Scope:** frontend, desktop, backend
+- **Enforced by:** `docs:verify`, with `docs:shots` (frontend, desktop) and
+  `docs:examples` (backend) as the producers that write the lock
+- **Proven by:** `gates:selftest` → "docs: a subject written against the current decision
+  passes", "docs: a subject written against an older decision fails", "docs: a subject
+  implementing a decision with no lock at all fails", "docs: flipping an ADR's status does
+  not stale the subject"
+- **Decided in:** ADR 014 (plugin namespace)
+
 ## §19 Reconstruction notes
 
 What the reconstruction could not establish from evidence, and what was done instead.
