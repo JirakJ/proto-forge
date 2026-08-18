@@ -20,11 +20,11 @@ run — when a number changes, the diff of this file shows it.
 | coverage: branches | 100% | 100% |
 | coverage: functions | 100% | 100% |
 | coverage: lines | 100% | 100% |
-| mutation score | 92.99% | break under 90 |
+| mutation score | 92.75% | break under 90 |
 | e2e tests | 83/83 passed | all green |
-| verify gates | 27 | fail-fast chain |
+| verify gates | 28 | fail-fast chain |
 
-Gate chain: config:check → gates:selftest → lint → typecheck → coverage:policy → ignores → test:unit → test:mutation → build → shell:verify → budget → i18n:verify → layer:scan → overlay:matrix → testid:scan → docs:verify → external:verify → stub:scan → adr:lint → prompt:lint → dup:scan → consistency → sec:scan → snapshot:diff → test:e2e → quality:report → status:verify
+Gate chain: config:check → gates:selftest → lint → typecheck → coverage:policy → ignores → test:unit → test:mutation → build → shell:verify → budget → i18n:verify → layer:scan → overlay:matrix → testid:scan → docs:verify → external:verify → stub:scan → adr:lint → prompt:lint → dup:scan → consistency → sec:scan → sec:conformance → snapshot:diff → test:e2e → quality:report → status:verify
 <!-- quality:end -->
 
 The floors in the table are mirrors, not sources: the coverage floors live in

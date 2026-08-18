@@ -11,7 +11,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "verify": "pnpm run config:check && pnpm run gates:selftest && pnpm run lint && pnpm run typecheck && pnpm run coverage:policy && pnpm run ignores && pnpm run test:unit && pnpm run test:mutation && pnpm run build && pnpm run shell:verify && pnpm run budget && pnpm run i18n:verify && pnpm run layer:scan && pnpm run overlay:matrix && pnpm run testid:scan && pnpm run docs:verify && pnpm run external:verify && pnpm run stub:scan && pnpm run adr:lint && pnpm run prompt:lint && pnpm run dup:scan && pnpm run consistency && pnpm run sec:scan && pnpm run snapshot:diff && pnpm run test:e2e && pnpm run quality:report && pnpm run status:verify",
+    "verify": "pnpm run config:check && pnpm run gates:selftest && pnpm run lint && pnpm run typecheck && pnpm run coverage:policy && pnpm run ignores && pnpm run test:unit && pnpm run test:mutation && pnpm run build && pnpm run shell:verify && pnpm run budget && pnpm run i18n:verify && pnpm run layer:scan && pnpm run overlay:matrix && pnpm run testid:scan && pnpm run docs:verify && pnpm run external:verify && pnpm run stub:scan && pnpm run adr:lint && pnpm run prompt:lint && pnpm run dup:scan && pnpm run consistency && pnpm run sec:scan && pnpm run sec:conformance && pnpm run snapshot:diff && pnpm run test:e2e && pnpm run quality:report && pnpm run status:verify",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test:unit": "vitest run --coverage",
@@ -52,8 +52,11 @@
     "doctor": "node scripts/doctor.mjs",
     "heal": "node scripts/heal.mjs",
     "shell:verify": "node scripts/shell-verify.mjs",
+    "osv:ignores": "node scripts/shell-verify.mjs --write-osv-ignores",
     "package:app": "tauri build",
-    "icons:gen": "node scripts/icon-gen.mjs"
+    "icons:gen": "node scripts/icon-gen.mjs",
+    "sec:conformance": "node scripts/sec-conformance.mjs",
+    "sec:conformance:write": "node scripts/sec-conformance.mjs --write"
   },
   "dependencies": {
     "dexie": "^4.4.4",

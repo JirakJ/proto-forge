@@ -965,6 +965,120 @@ expect("docs: a screenshot taken from older code fails", "docs-verify.mjs", docs
   "docs/components/Button/.shot.lock": { source: "0000000000000000000000000000000000000000000000000000000000000000" },
 }), { pass: false, matching: /older/ });
 
+// --- BR-42: the page was written against a decision that still stands ----------
+// The source hash cannot see an ADR edit — change the decision, leave the code, and
+// every hash still matches while the page describes something nobody decided any
+// more. These four pin both directions, including the one that must NOT fire:
+// flipping a status is evidence moving, not the decision moving.
+const ADR_BODY = "## Context\n\nOverlays need one stacking order.\n\n## Decision\n\nTop layer, ordered by open time.\n";
+const decisionBase = (over = {}) => ({
+  "packages/proto-ui/src/index.ts": 'export { Button } from "./Button";\n',
+  "packages/proto-ui/src/Button.tsx": "// @adr 008 - the overlay stacking order\nexport function Button() {\n  return null;\n}\n",
+  "docs/components/Button/README.md": `# Button\n\n${PROSE}\n\n<!-- no-screenshot: a headless primitive renders nothing of its own -->\n`,
+  "docs/adr/008-overlay-layering.md": `# ADR 008\n\n- Status: accepted\n${ADR_BODY}`,
+  ...over,
+});
+const digest = (s) => createHash("sha256").update(s).digest("hex");
+// The gate hashes the ADR from its first `## ` heading down, leading newline included.
+const CURRENT_008 = digest(`\n${ADR_BODY}`);
+
+expect("docs: a subject written against the current decision passes", "docs-verify.mjs", decisionBase({
+  "docs/components/Button/.shot.lock": { source: "unused-here", adrs: { "008": CURRENT_008 } },
+}), { pass: true });
+
+expect("docs: a subject written against an older decision fails", "docs-verify.mjs", decisionBase({
+  "docs/components/Button/.shot.lock": { source: "unused-here", adrs: { "008": digest("\n## Decision\n\nSomething else entirely.\n") } },
+}), { pass: false, matching: /older ADR 008/ });
+
+expect("docs: a subject implementing a decision with no lock at all fails", "docs-verify.mjs", decisionBase(), {
+  pass: false,
+  matching: /which version of that decision/,
+});
+
+expect("docs: flipping an ADR's status does not stale the subject", "docs-verify.mjs", decisionBase({
+  "docs/adr/008-overlay-layering.md": `# ADR 008\n\n- Status: proposed\n- Prompt-log: .prompts/0004-overlays.md\n${ADR_BODY}`,
+  "docs/components/Button/.shot.lock": { source: "unused-here", adrs: { "008": CURRENT_008 } },
+}), { pass: true });
+
+
+// --- sec:conformance (BR-39) --------------------------------------------------
+// The claim has to be DERIVED, not written: a conformance report nobody re-derives
+// stays green while becoming false. These pin the three ways that breaks — a probe
+// that stops holding, a committed claim that no longer matches the tree, and no
+// claim at all — plus the property the whole thing rests on: byte-reproducibility.
+const CONF_STANDARD = JSON.stringify({
+  requirements: [{ chapter_id: "V3", req_id: "V3.4.4", req_description: "nosniff", L: "2" }],
+});
+const CONF_CATALOGUE = {
+  standards: {
+    asvs: {
+      name: "OWASP ASVS",
+      version: "5.0.0",
+      vendored: "references/standards/asvs.flat.json",
+      sha256: "unused-by-the-template",
+      profile: { default: 2 },
+    },
+  },
+  controls: [
+    {
+      id: "SEC-003",
+      title: "Responses forbid MIME sniffing",
+      requires: [{ standard: "asvs", req: "V3.4.4" }],
+      appliesTo: { kinds: ["desktop"] },
+      control: "X-Content-Type-Options: nosniff",
+      status: "enforced",
+      probe: "headerNosniff",
+    },
+  ],
+};
+const NGINX_OK = `{\n  "app": { "security": { "csp": "default-src 'self'; frame-ancestors 'none'" } }\n}\n`;
+const VITE_OK = 'const headers = { "X-Content-Type-Options": "nosniff" };\n';
+const confBase = (over = {}) => ({
+  ".proto-forge/security/controls.json": CONF_CATALOGUE,
+  ".proto-forge/standards/asvs.flat.json": CONF_STANDARD,
+  "src-tauri/tauri.conf.json": NGINX_OK,
+  "vite.config.ts": VITE_OK,
+  ...over,
+});
+const writeClaim = (dir) => run("sec-conformance.mjs", dir, ["--write"]);
+
+expect("conformance: a derived claim that matches the tree passes", "sec-conformance.mjs", confBase(), {
+  pass: true,
+  prepare: writeClaim,
+});
+
+expect("conformance: no committed claim at all fails", "sec-conformance.mjs", confBase(), {
+  pass: false,
+  matching: /is missing/,
+});
+
+expect("conformance: a claim that no longer matches the tree fails", "sec-conformance.mjs", confBase(), {
+  pass: false,
+  matching: /have\s+diverged|diverged/,
+  prepare: (dir) => {
+    writeClaim(dir);
+    // The header goes away AFTER the claim was written: the committed claim still
+    // says the control is met, and the tree no longer backs that.
+    writeFileSync(join(dir, "vite.config.ts"), "// nothing\\n");
+  },
+});
+
+expect("conformance: a control whose probe stops holding fails", "sec-conformance.mjs", confBase({
+  "vite.config.ts": "// nothing\\n",
+}), { pass: false, matching: /does not hold/, prepare: (dir) => run("sec-conformance.mjs", dir, ["--write"]) });
+
+expect("conformance: a catalogue naming a probe this template lacks fails", "sec-conformance.mjs", confBase({
+  ".proto-forge/security/controls.json": {
+    ...CONF_CATALOGUE,
+    controls: [{ ...CONF_CATALOGUE.controls[0], probe: "quantumEntanglementCheck" }],
+  },
+}), { pass: false, matching: /does not implement/ });
+
+expect("conformance: no catalogue at all fails", "sec-conformance.mjs", { "vite.config.ts": VITE_OK }, {
+  pass: false,
+  matching: /no catalogue to measure against/,
+});
+
 // --- stub:scan ---------------------------------------------------------------
 expect("stub: clean production code passes", "stub-scan.mjs", {
   "src/features/f.ts": "export const f = () => 1;\n",
@@ -1492,6 +1606,47 @@ expect(
       '[advisories]\nignore = [\n  "RUSTSEC-2024-0999", # reason: fixture advisory awaiting re-review until: 2026-01-01\n]\n',
   }),
   { pass: false, matching: /expired/, env: noRustTools },
+);
+
+// The ledger has to reach the scanner that actually runs. cargo-audit reads
+// audit.toml; osv-scanner — CI's and most host guardrails' tool — reads
+// osv-scanner.toml and would otherwise report the very advisories the ledger
+// already triaged. The derived file is generated, so these three cases pin both
+// the drift failures and the exact rendering.
+const LEDGER_TOML = '[advisories]\nignore = [\n  "RUSTSEC-2024-0999", # reason: fixture advisory with a live date until: 2027-01-01\n]\n';
+const LEDGER_OSV = [
+  "# GENERATED from src-tauri/audit.toml by `pnpm osv:ignores` — do not edit.",
+  "# audit.toml is the single source of the triage ledger; shell:verify fails on drift.",
+  "",
+  "[[IgnoredVulns]]",
+  'id = "RUSTSEC-2024-0999"',
+  "ignoreUntil = 2027-01-01",
+  'reason = "fixture advisory with a live date"',
+  "",
+].join("\n");
+
+expect(
+  "shell: a triage no other scanner can see fails",
+  "shell-verify.mjs",
+  shellBase({ "src-tauri/audit.toml": LEDGER_TOML }),
+  { pass: false, matching: /invisible to osv-scanner/, env: noRustTools },
+);
+
+expect(
+  "shell: an osv ignore list that drifted from the ledger fails",
+  "shell-verify.mjs",
+  shellBase({
+    "src-tauri/audit.toml": LEDGER_TOML,
+    "src-tauri/osv-scanner.toml": LEDGER_OSV.replace("RUSTSEC-2024-0999", "RUSTSEC-2024-0998"),
+  }),
+  { pass: false, matching: /disagrees with/, env: noRustTools },
+);
+
+expect(
+  "shell: a ledger carried into both scanner dialects passes",
+  "shell-verify.mjs",
+  shellBase({ "src-tauri/audit.toml": LEDGER_TOML, "src-tauri/osv-scanner.toml": LEDGER_OSV }),
+  { pass: true, env: noRustTools },
 );
 
 // --- heal --------------------------------------------------------------------

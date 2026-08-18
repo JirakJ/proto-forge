@@ -1,5 +1,12 @@
 {
   "source": "a387c82b5652c0246387ca4e5368e941fa85fcb98fa7a9c83957f4115ed433dc",
+  "adrs": {
+    "006": "b54e2a64756e11ad3a73795f10e5d54875ee51c6d4031a4dcb209fe310027f8e",
+    "008": "10d45793abb946c160a3d89d17d8d5ad646638012b1b1ea0a7728753706e5cf9",
+    "010": "2690f1d87ee014b1cfd50fd4e3c9e4e250c35bcb2e5dcba2e276c467364183e7",
+    "022": "a9bba2ab574d91dde012898a946c7f74ec6a2593d28fb2c270798f705e00fd3e",
+    "030": "56064928ef5b750ef1ce027801f73b4151b15a73ef358276a62a35b71171c653"
+  },
   "captured": [
     "docs/api/notes-create/examples/notes-create-happy-1.json",
     "docs/api/notes-create/examples/notes-create-problem-1.json",

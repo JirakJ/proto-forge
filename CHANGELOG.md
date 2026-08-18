@@ -1,5 +1,87 @@
 # Changelog
 
+## 0.8.0 — 2026-08-17
+
+The security baseline stops being defined by itself. Three repairs land with it, one
+of which had `pnpm verify` red on `main` for two days.
+
+### The seed pin was right, and `main` was not (BRS §17.2)
+
+`e0be82a` left the `Tooltip` export in `packages/proto-ui/src/index.ts` twice. That
+broke two things at once: the vendored tree stopped matching `.proto-forge/seed.lock`,
+so `template:integrity` — and with it the whole plugin-level `verify` — was failing at
+`HEAD`, reproducible from a clean `git archive` checkout rather than only in a dirty
+worktree; and a duplicate re-export of one identifier does not typecheck.
+
+The fix is a removal, not a re-lock. Deleting the stray line reproduces the committed
+`72a8671…` exactly, which says the pin held and the tree drifted from it — so no ADR
+and no `pnpm seed:lock`, both of which §17.2 reserves for a real upgrade and never for
+making a red gate green. The pin did its job; what failed was that its verdict was not
+read before the commit landed.
+
+### Advisories are answered where the scanner can see the answer
+
+- **`api-kotlin` netty floor → 4.2.17.Final.** GHSA-8c42-7qj2-3j46: `netty-codec-http`
+  overwrites the CORS `Vary` header, so a shared cache in front of the service can serve
+  one origin's response to another. It affects 4.2.0–4.2.16, and the `securityPins` floor
+  sat at 4.2.16.Final — correct for the http2 DoS batch it was written against, silent
+  about the one that landed on top of it. `gradle.lockfile` re-resolved, and
+  `.proto-forge/sbom.cdx.json` regenerated: the SBOM is derived from the lock, so after
+  the bump it still advertised the vulnerable coordinate, and osv-scanner found it there
+  and nowhere else. An SBOM naming a version the build no longer resolves is worse than
+  none — it is the artefact a consumer scans *instead of* the lockfile.
+- **`desktop-tauri` triage now reaches the scanner that runs.** `src-tauri/audit.toml`
+  has carried the tauri-2 linux GTK advisories properly triaged since ADR 203 — reasoned,
+  dated, re-reviewed on expiry. The gap was reach, not rigour: cargo-audit reads
+  `audit.toml` and nothing else does, while osv-scanner reads `osv-scanner.toml` and
+  reported all seventeen as open. The same advisory read "suppressed, with a reason and
+  an end date" to one tool and "unanswered" to the next.
+
+  `src-tauri/osv-scanner.toml` is therefore **derived, never authored**: `audit.toml`
+  stays the single source (BR-15), `shell:verify` re-renders and compares the way
+  `snapshot:diff` does, and drift is a red gate. One ledger, one set of `until:` dates
+  expiring in both tools at once. `pnpm osv:ignores` regenerates it and refuses to write
+  when the ledger itself is invalid, so a broken ledger cannot be laundered into a
+  valid-looking ignore list. Three `gates:selftest` cases (NFR-25), the third pinning the
+  exact rendering.
+
+  osv-scanner over the repository: **seventeen findings → zero.**
+
+### Two designs, both `proposed`
+
+- **`docs/specs/2026-08-17-security-layer-design.md`** — OWASP ASVS 5.0 Level 2 as the
+  application bar with a ratchet to L3, SLSA v1.1 Build L3, NIST SSDF as the process map.
+  A vendored sha-pinned ASVS 5.0 as the normative source, a catalogue mapping requirement
+  → control → probe → selftest, and a conformance gate that re-derives and diffs.
+
+  Two things the spec is deliberate about. **Reproducibility has a physical ceiling**: a
+  report embedding scanner findings cannot be byte-stable, because CVE feeds move under a
+  fixed commit — so the output splits into `conformance.json` (the claim, derived only
+  from repository content, hash-gated) and `findings.sarif` (the observation,
+  threshold-gated, never hashed). And **requirement numbers are verified, not
+  remembered**: the first draft had Trusted Types as an ASVS requirement (they appear
+  nowhere in 5.0), SRI at L2 (it is L3) and cookie attributes in V7 (they are in V3).
+  Controls wanted beyond the standard are recorded with an empty `requires` and a
+  rationale, so our own strictness never reads as someone else's requirement.
+- **`docs/specs/2026-08-17-documentation-follows-reality-design.md`** — a decision drags
+  its documentation, and documentation never claims what stopped being true. The obvious
+  mechanism is wrong and the spec records why: "a commit touching an ADR must also touch
+  its docs pages" cannot work, because when only the ADR text changes `docs:shots`
+  produces a byte-identical image and `.shot.lock` does not move — there is nothing to
+  stage, so the gate would force a cosmetic edit. The direction inverts to a tree
+  invariant: the subject's lock gains the ADRs governing it, derived from the `@adr`
+  anchors already in the code.
+
+### Note on this release's evidence
+
+GitHub Actions has been unable to start a job on this account since 2026-08-15 —
+`The job was not started because recent account payments have failed or your spending
+limit needs to be increased` — so no CI run backs this tag. The gates were run locally
+instead: plugin `verify` green, and `verify-template` green for the three templates the
+changes touch (`web`, `api-kotlin`, `desktop-tauri`). Recorded here rather than left to
+be discovered, because ADR 004 makes the gates the interface and a tag CI never saw is
+a weaker claim than the usual one.
+
 ## 0.7.0 — 2026-08-14
 
 Ten templates, five backend stacks. The registry is the only list anyone maintains:
