@@ -1,5 +1,8 @@
 {
   "source": "dda7d6a9a13fa68142c390f01b34d76d4aa2f14ad57295c96e8ded3fb8e49eb1",
+  "adrs": {
+    "008": "896f2d265671496eedfc963c451e6b987dc8ce249e6322cb236ea132dba91f34"
+  },
   "shots": [
     {
       "file": "escapes-paint-containment.png",

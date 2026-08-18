@@ -4,6 +4,8 @@ import { read } from "./lib.mjs";
 import { gateOptions, gateResult } from "./config.mjs";
 import {
   CASES_FILE,
+  adrDigests,
+  anchoredAdrs,
   componentSources,
   docFor,
   documentableComponents,
@@ -78,11 +80,49 @@ function checkSubject(kind, name, sources) {
   }
 }
 
+// --- BR-42: the page was written against a decision that still stands -----------
+// The source hash above cannot see this. Change an ADR's decision and leave the
+// code alone and every hash still matches — the page now describes code that
+// implements a decision nobody holds. So the lock also records the ADRs the
+// subject anchors, and a decision that moved since the page was written is a
+// finding that NAMES the ADR rather than muttering about screenshots.
+//
+// Re-locking runs `pnpm docs:shots`, which re-photographs at the same time, so
+// "update the images too" is the mechanism rather than a second rule.
+function checkDecisions(kind, name, sources) {
+  if (!opts.requireFreshScreenshots) return;
+  const anchored = anchoredAdrs(sources);
+  if (anchored.length === 0) return; // nothing claims to implement a decision here
+
+  const lock = lockFor(kind, name);
+  if (!existsSync(lock)) {
+    errors.push(
+      `${lock} is missing — ${name} implements ADR ${anchored.join(", ")} and nothing records which version of ` +
+        `${anchored.length === 1 ? "that decision" : "those decisions"} its page was written against; run pnpm docs:shots`,
+    );
+    return;
+  }
+
+  const recorded = JSON.parse(read(lock)).adrs ?? {};
+  const current = adrDigests(anchored);
+  const moved = anchored.filter((n) => recorded[n] !== current[n]);
+  if (moved.length > 0) {
+    errors.push(
+      `${docFor(kind, name)} was written against an older ADR ${moved.join(", ")} — the decision changed and the ` +
+        `documentation did not. Re-read the page against ${moved.length === 1 ? "it" : "them"}, then re-run pnpm docs:shots.`,
+    );
+  }
+}
+
 for (const component of documentableComponents()) {
-  checkSubject("components", component, componentSources(component));
+  const sources = componentSources(component);
+  checkSubject("components", component, sources);
+  checkDecisions("components", component, sources);
 }
 for (const feature of features()) {
-  checkSubject("features", feature, featureSources(feature));
+  const sources = featureSources(feature);
+  checkSubject("features", feature, sources);
+  checkDecisions("features", feature, sources);
 }
 
 // Every harness case should end up in someone's documentation; a case that

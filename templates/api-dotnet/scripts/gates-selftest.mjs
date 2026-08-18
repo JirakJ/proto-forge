@@ -579,6 +579,84 @@ expect("coverage: a character-class glob cannot truncate the exclude scan", "cov
   "tests/App.Tests/App.Tests.csproj": TESTS_CSPROJ("100", GOOD_EXCLUDE + '\n    <!-- convenient -->\n    <CoverageExclusion Include="[App]App.[a-z]*" />'),
 }, { pass: false, matching: /"\[App\]App\.\[a-z\]\*" is not on the allow-list/ });
 
+// --- sec:conformance (BR-39) --------------------------------------------------
+// The claim has to be DERIVED, not written: a conformance report nobody re-derives
+// stays green while becoming false. These pin the three ways that breaks — a probe
+// that stops holding, a committed claim that no longer matches the tree, and no
+// claim at all — plus the property the whole thing rests on: byte-reproducibility.
+const CONF_STANDARD = JSON.stringify({
+  requirements: [{ chapter_id: "V3", req_id: "V3.4.4", req_description: "nosniff", L: "2" }],
+});
+const CONF_CATALOGUE = {
+  standards: {
+    asvs: {
+      name: "OWASP ASVS",
+      version: "5.0.0",
+      vendored: "references/standards/asvs.flat.json",
+      sha256: "unused-by-the-template",
+      profile: { default: 2 },
+    },
+  },
+  controls: [
+    {
+      id: "SEC-003",
+      title: "Responses forbid MIME sniffing",
+      requires: [{ standard: "asvs", req: "V3.4.4" }],
+      appliesTo: { kinds: ["backend"] },
+      control: "X-Content-Type-Options: nosniff",
+      status: "enforced",
+      probe: "headerNosniff",
+    },
+  ],
+};
+const NGINX_OK = "unused-by-this-kind\n";
+const VITE_OK = 'reply.header("x-content-type-options", "nosniff");\n';
+const confBase = (over = {}) => ({
+  ".proto-forge/security/controls.json": CONF_CATALOGUE,
+  ".proto-forge/standards/asvs.flat.json": CONF_STANDARD,
+  // this kind has no second runtime file
+  "src/App/Platform/SecurityHeadersMiddleware.cs": VITE_OK,
+  ...over,
+});
+const writeClaim = (dir) => run("sec-conformance.mjs", dir, ["--write"]);
+
+expect("conformance: a derived claim that matches the tree passes", "sec-conformance.mjs", confBase(), {
+  pass: true,
+  prepare: writeClaim,
+});
+
+expect("conformance: no committed claim at all fails", "sec-conformance.mjs", confBase(), {
+  pass: false,
+  matching: /is missing/,
+});
+
+expect("conformance: a claim that no longer matches the tree fails", "sec-conformance.mjs", confBase(), {
+  pass: false,
+  matching: /have\s+diverged|diverged/,
+  prepare: (dir) => {
+    writeClaim(dir);
+    // The header goes away AFTER the claim was written: the committed claim still
+    // says the control is met, and the tree no longer backs that.
+    writeFileSync(join(dir, "src/App/Platform/SecurityHeadersMiddleware.cs"), "// nothing\\n");
+  },
+});
+
+expect("conformance: a control whose probe stops holding fails", "sec-conformance.mjs", confBase({
+  "src/App/Platform/SecurityHeadersMiddleware.cs": "// nothing\\n",
+}), { pass: false, matching: /does not hold/, prepare: (dir) => run("sec-conformance.mjs", dir, ["--write"]) });
+
+expect("conformance: a catalogue naming a probe this template lacks fails", "sec-conformance.mjs", confBase({
+  ".proto-forge/security/controls.json": {
+    ...CONF_CATALOGUE,
+    controls: [{ ...CONF_CATALOGUE.controls[0], probe: "quantumEntanglementCheck" }],
+  },
+}), { pass: false, matching: /does not implement/ });
+
+expect("conformance: no catalogue at all fails", "sec-conformance.mjs", { "src/App/Platform/SecurityHeadersMiddleware.cs": VITE_OK }, {
+  pass: false,
+  matching: /no catalogue to measure against/,
+});
+
 // --- stub:scan ---------------------------------------------------------------
 expect("stub: clean production code passes", "stub-scan.mjs", {
   "src/App/Application/F.cs": csSource(""),
@@ -1187,6 +1265,49 @@ expect("docs: an endpoint with no example and no stated reason fails", "docs-ver
 expect("docs: a stated no-example reason stands in for a capture", "docs-verify.mjs", docsBase({
   "docs/api/note-list/README.md": `# note-list\n\n${DOCS_PROSE}\n\n<!-- no-example: a health probe has no meaningful exchange to capture -->\n`,
 }), { pass: true });
+
+// --- BR-42: the pages were written against decisions that still stand ---------
+// The handler hash cannot see an ADR edit — change the decision, leave the handlers,
+// and the captures still match while the pages document endpoints nobody decided on.
+// The third case pins the direction that must NOT fire: a status flip is evidence
+// moving, not the decision.
+const ADR_DECISION = "## Context\n\nThe list endpoint needs a stable order.\n\n## Decision\n\nNewest first.\n";
+const anchoredDocsBase = (over = {}) =>
+  docsBase({
+    "src/App/Application/Notes.cs": "// @adr 008 - newest-first ordering\nnamespace App.Application;\n\npublic static class Notes\n{\n    public static object? List()\n    {\n        return null;\n    }\n}\n",
+    "docs/adr/008-ordering.md": `# ADR 008\n\n- Status: accepted\n${ADR_DECISION}`,
+    ...over,
+  });
+
+expect("docs: a subject written against the current decision passes", "docs-verify.mjs", anchoredDocsBase(), {
+  pass: true,
+  prepare: captureExamples,
+});
+
+expect("docs: a subject written against an older decision fails", "docs-verify.mjs", anchoredDocsBase(), {
+  pass: false,
+  matching: /older ADR 008/,
+  prepare: (dir) => {
+    captureExamples(dir);
+    writeFileSync(join(dir, "docs", "adr", "008-ordering.md"), "# ADR 008\n\n- Status: accepted\n## Decision\n\nOldest first.\n");
+  },
+});
+
+expect("docs: a subject implementing a decision with no lock at all fails", "docs-verify.mjs", anchoredDocsBase(), {
+  pass: false,
+  matching: /which version of that decision/,
+});
+
+expect("docs: flipping an ADR's status does not stale the subject", "docs-verify.mjs", anchoredDocsBase(), {
+  pass: true,
+  prepare: (dir) => {
+    captureExamples(dir);
+    writeFileSync(
+      join(dir, "docs", "adr", "008-ordering.md"),
+      `# ADR 008\n\n- Status: proposed\n- Prompt-log: .prompts/0004-ordering.md\n${ADR_DECISION}`,
+    );
+  },
+});
 
 // --- deps:budget (NFR-13) ----------------------------------------------------
 const csprojDeps = (deps) => `<Project Sdk="Microsoft.NET.Sdk.Web">\n  <ItemGroup>\n${deps}\n  </ItemGroup>\n</Project>\n`;

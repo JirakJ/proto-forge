@@ -19,7 +19,7 @@
     "passed": 83
   },
   "gates": {
-    "count": 27,
+    "count": 28,
     "chain": [
       "config:check",
       "gates:selftest",
@@ -44,6 +44,7 @@
       "dup:scan",
       "consistency",
       "sec:scan",
+      "sec:conformance",
       "snapshot:diff",
       "test:e2e",
       "quality:report",

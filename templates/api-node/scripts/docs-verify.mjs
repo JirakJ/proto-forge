@@ -2,7 +2,16 @@ import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { read } from "./lib.mjs";
 import { gateResult } from "./config.mjs";
-import { operationIds, docFor, examplesDirFor, handlerSourceHash, readExamplesLock, EXAMPLES_LOCK } from "./docs-lib.mjs";
+import {
+  adrDigests,
+  anchoredAdrs,
+  operationIds,
+  docFor,
+  examplesDirFor,
+  handlerSourceHash,
+  readExamplesLock,
+  EXAMPLES_LOCK,
+} from "./docs-lib.mjs";
 
 // @adr 009 - an endpoint is not finished until its docs carry a current captured example (BR-26)
 //
@@ -75,6 +84,32 @@ if (lock !== null) {
       `${EXAMPLES_LOCK}: examples are stale — the handler sources changed since the capture ` +
         `(a handler edit invalidates its example until docs:examples reruns); run pnpm docs:examples`,
     );
+  }
+}
+
+// --- BR-42: the pages were written against decisions that still stand ---------
+// The handler hash above cannot see this. Change an ADR's decision and leave the
+// handlers alone and it still matches — the pages now document endpoints built on
+// a decision nobody holds. Re-locking runs docs:examples, which re-captures at the
+// same time, so refreshing the exchanges is the mechanism rather than a second rule.
+const anchored = anchoredAdrs();
+if (anchored.length > 0) {
+  if (lock === null) {
+    errors.push(
+      `${EXAMPLES_LOCK} is missing — the handlers implement ADR ${anchored.join(", ")} and nothing records ` +
+        `which version of ${anchored.length === 1 ? "that decision" : "those decisions"} the pages were written ` +
+        `against; run pnpm docs:examples`,
+    );
+  } else {
+    const current = adrDigests(anchored);
+    const moved = anchored.filter((n) => (lock.adrs ?? {})[n] !== current[n]);
+    if (moved.length > 0) {
+      errors.push(
+        `docs/api was written against an older ADR ${moved.join(", ")} — the decision changed and the ` +
+          `documentation did not. Re-read the pages against ${moved.length === 1 ? "it" : "them"}, then ` +
+          `re-run pnpm docs:examples.`,
+      );
+    }
   }
 }
 
