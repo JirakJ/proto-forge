@@ -29,10 +29,25 @@ concurrency:
 # (ADR 007) — a hand-maintained mirror of the registry is exactly the drift that
 # let three backend templates ship without their deploy toolchain, so the list,
 # the per-stack setup and the tool installs all read the registry or the tree.
+# WHERE THIS RUNS. `runs-on` reads the repository variable RUNNER_LABEL and falls
+# back to `ubuntu-latest`, so moving the whole suite onto a self-hosted machine is a
+# settings change rather than a commit: register the runner, then set RUNNER_LABEL to
+# a label it carries (`self-hosted`, or something narrower like `rpi`). Unset, nothing
+# changes. The fallback matters — a hardcoded `self-hosted` queues every job forever
+# the moment the runner is offline, and a queued job is indistinguishable from a slow
+# one until someone goes looking.
+#
+# Two things a self-hosted arm64 runner needs that a GitHub one does not: the tool
+# installs below pick their asset from `uname -m` (an x64 binary on arm64 installs
+# happily and then cannot execute), and the box needs passwordless sudo for those
+# `sudo tar`/`sudo curl` steps and for the apt packages the tauri leg installs.
+# Expect the mutation legs to dominate the wall clock on small hardware: the web
+# template's Stryker run alone is over an hour on a laptop.
+
 jobs:
   plugin:
     name: plugin gates
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -51,7 +66,7 @@ jobs:
 
   plan:
     name: template matrix
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
     outputs:
       templates: ${{ steps.registry.outputs.templates }}
     steps:
@@ -66,7 +81,7 @@ jobs:
   template:
     name: "template verify (${{ matrix.template.id }})"
     needs: plan
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
     strategy:
       fail-fast: false
       matrix:
@@ -85,8 +100,18 @@ jobs:
         # sec:scan hard-stops in CI when gitleaks is absent (NFR-08, BRS §4). A pinned
         # binary install is what makes that hard-stop meaningful rather than a permanent
         # failure — gitleaks-action is a scanner wrapper, not an installer.
+        #
+        # The asset is chosen from `uname -m`, not hardcoded: on a self-hosted arm64
+        # runner an x64 binary installs fine and then cannot execute, which surfaces
+        # as "the secret scan is mandatory" on every template leg — a security gate
+        # failing for a reason that has nothing to do with security.
         run: |
-          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.21.2/gitleaks_8.21.2_linux_x64.tar.gz \
+          case "$(uname -m)" in
+            aarch64|arm64) ARCH=arm64 ;;
+            x86_64|amd64)  ARCH=x64 ;;
+            *) echo "::error::unsupported runner architecture $(uname -m)"; exit 1 ;;
+          esac
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v8.21.2/gitleaks_8.21.2_linux_${ARCH}.tar.gz" \
             | sudo tar -xz -C /usr/local/bin gitleaks
       - name: install osv-scanner
         # Where a stack's audit is not `pnpm audit` (JVM and NuGet lockfiles are not),
@@ -95,9 +120,14 @@ jobs:
         env:
           TEMPLATE: ${{ matrix.template.id }}
         run: |
+          case "$(uname -m)" in
+            aarch64|arm64) ARCH=arm64 ;;
+            x86_64|amd64)  ARCH=amd64 ;;
+            *) echo "::error::unsupported runner architecture $(uname -m)"; exit 1 ;;
+          esac
           if grep -q "osv-scanner" "templates/${TEMPLATE}/scripts/sec-scan.mjs"; then
             sudo curl -sSfL -o /usr/local/bin/osv-scanner \
-              https://github.com/google/osv-scanner/releases/download/v2.0.2/osv-scanner_linux_amd64
+              "https://github.com/google/osv-scanner/releases/download/v2.0.2/osv-scanner_linux_${ARCH}"
             sudo chmod +x /usr/local/bin/osv-scanner
           else
             echo "this template's sec:scan does not use osv-scanner"
