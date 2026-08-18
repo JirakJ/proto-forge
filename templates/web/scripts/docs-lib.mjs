@@ -1,6 +1,9 @@
 import { existsSync, readdirSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { hashFiles, isCode, read, walk } from "./lib.mjs";
+
+const sha256 = (s) => createHash("sha256").update(s).digest("hex");
 
 // Shared vocabulary for the two documentation gates: what a component's source
 // is, where its lock lives, and how "is this screenshot still current?" is answered.
@@ -71,3 +74,46 @@ export function sourceHash(sources) {
 
 export const lockFor = (kind, name) => join("docs", kind, name, ".shot.lock");
 export const docFor = (kind, name) => join("docs", kind, name, "README.md");
+
+// --- the decision half of the lock (BR-42) --------------------------------------
+// A page can be a perfect description of code that implements a decision nobody
+// holds any more: change the ADR alone and the source hash above does not move,
+// because the source did not. So the lock also records the DECISIONS the subject
+// implements, discovered from the `// @adr NNN` anchors already in its sources —
+// never from a hand-written list, which would be a second source of truth and
+// would drift the moment an anchor moved.
+
+/** ADR numbers anchored in these sources, sorted, deduplicated. */
+export function anchoredAdrs(sources) {
+  const found = new Set();
+  for (const p of sources) {
+    for (const m of read(p).matchAll(/@adr\s+(\d{3})\b/g)) found.add(m[1]);
+  }
+  return [...found].sort();
+}
+
+/**
+ * `{ "030": <sha256 of the decision> }` for each anchored ADR.
+ *
+ * The hash covers the ADR from its first `## ` heading down, NOT the whole file.
+ * Frontmatter moves when the status flips proposed → accepted and when a
+ * prompt-log link is backfilled; both are changes to the EVIDENCE for a decision,
+ * not to the decision, and staling every page in the repository over them would
+ * train people to re-lock without reading. What is left is the decision itself.
+ */
+export function adrDigests(numbers) {
+  const digests = {};
+  for (const n of numbers) {
+    const dir = "docs/adr";
+    const file = existsSync(dir) ? readdirSync(dir).find((f) => f.startsWith(`${n}-`)) : undefined;
+    // A missing ADR is adr:lint's finding, not this gate's: recording it as absent
+    // keeps the two gates from reporting the same defect in different words.
+    digests[n] = file === undefined ? "absent" : sha256(body(read(join(dir, file))));
+  }
+  return digests;
+}
+
+const body = (markdown) => {
+  const i = markdown.indexOf("\n## ");
+  return i === -1 ? markdown : markdown.slice(i);
+};

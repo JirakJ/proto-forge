@@ -1751,6 +1751,62 @@ and carries **no** probe. A control citing no standard requirement states a `rat
   fails"
 - **Decided in:** ADR 013 (plugin namespace)
 
+## §26 Documentation fidelity
+
+Documentation in a generated application is not commentary on the code — it is part of
+what ships, and the gates treat it that way already: a component page must exist, must
+show the component, and must show **today's** code (BR-19); `docs/STATUS.md` is
+re-rendered from the last green verify rather than typed (BR-36); the environment table
+is derived from configuration; `docs/external/**` carries provenance. §26 closes the one
+direction none of those cover.
+
+**A page can be a faithful description of code that implements a decision nobody holds.**
+Edit an ADR and leave the code alone: every source hash still matches, every screenshot
+is still of current code, and the page now explains an application built on a decision
+that changed. `commit-lint` does not catch it either — it checks that a commit flips
+exactly one ADR to `accepted`, never that the documentation moved with it.
+
+The mechanism is a **tree invariant, not a commit rule**. "A commit touching an ADR must
+also touch its pages" cannot work: when only the ADR text changes, `docs:shots` produces
+a byte-identical image and the lock does not move, so there is nothing to stage and the
+gate would force a cosmetic edit — teaching people to add a space instead of writing
+documentation. Recording the decision *in the lock* has neither problem, and it also
+covers an ADR amended long after it was accepted, which a commit rule never would.
+
+Delivery is staged (`docs/specs/2026-08-17-documentation-follows-reality-design.md`):
+BR-42 binds `web` first, widens to the desktop templates and then to `api-*`, where
+`docs:examples` is the producer and the lock is `.doc.lock`. A second rule then gives the
+prose documents (`ARCHITECTURE.md`, `SECURITY.md`, `TROUBLESHOOTING.md`) the derived-block
+treatment `STATUS.md` already has. That rule is written when its enforcer is, never
+before: a register entry naming a gate nobody wrote is the gap this register exists to
+close.
+
+### BR-42 — A documented subject records the decision it was written against
+
+**MUST.** Every documented subject's lock records, beside the source hash, the ADRs the
+subject implements and a digest of each decision. The list is **derived** from the
+`// @adr NNN` anchors in the subject's own sources, never hand-written. A subject that
+anchors an ADR and has no lock fails; a subject whose recorded digest differs from the
+ADR's current one fails, naming the ADR and the page. The digest covers the ADR from its
+first `## ` heading down, so flipping `proposed → accepted` or backfilling a prompt-log
+link — evidence moving, not the decision — does not stale anything.
+
+- **Why:** Where documentation is a follow-up it does not happen, and BR-19 already says
+  so about screenshots. The same is true one level up: a decision changes, the code
+  follows, and the page explaining *why* stays behind describing an architecture nobody
+  chose. Deriving the list from anchors rather than a `Docs:` field in the ADR is the
+  point — a hand-written list is a second source of truth that drifts the moment an
+  anchor moves, which is exactly what BR-15 exists to prevent. And because the only way
+  to re-lock is `pnpm docs:shots`, re-photographing happens in the same act: "update the
+  images too" is the mechanism rather than a rule someone has to remember.
+- **Scope:** web
+- **Enforced by:** `docs:verify`, with `docs:shots` as the producer that writes the lock
+- **Proven by:** `gates:selftest` → "docs: a page written against the current decision
+  passes", "docs: a page written against an older decision fails", "docs: a subject
+  implementing a decision with no lock at all fails", "docs: flipping an ADR's status
+  does not stale the page"
+- **Decided in:** ADR 014 (plugin namespace)
+
 ## §19 Reconstruction notes
 
 What the reconstruction could not establish from evidence, and what was done instead.
