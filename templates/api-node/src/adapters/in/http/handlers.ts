@@ -1,5 +1,5 @@
 import type { NoteService } from "../../../application/note/noteService.js";
-import { NoteIdParamsSchema } from "./noteRoutes.js";
+import { NoteIdParamsSchema, NoteListQuerySchema } from "./noteRoutes.js";
 
 /** Request parts, already validated against the route's schemas by the app wiring. */
 export type OperationInput = {
@@ -20,7 +20,13 @@ export type OperationHandler = (input: OperationInput) => Promise<OperationResul
 // consume — cheap, and it keeps them honestly typed without a cast.
 export function makeHandlers(service: NoteService): ReadonlyMap<string, OperationHandler> {
   return new Map<string, OperationHandler>([
-    ["notes-list", async () => ({ status: 200, body: await service.listNotes() })],
+    [
+      "notes-list",
+      async ({ query }) => {
+        const { limit, offset } = NoteListQuerySchema.parse(query);
+        return { status: 200, body: await service.listNotes(limit, offset) };
+      },
+    ],
     [
       "notes-get",
       async ({ params }) => ({

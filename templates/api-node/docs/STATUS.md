@@ -16,14 +16,14 @@ shows it.
 <!-- quality:begin -->
 | measure | value | enforced floor |
 | --- | --- | --- |
-| unit test files | 10 | — |
-| unit tests | 66/66 passed | all green |
+| unit test files | 11 | — |
+| unit tests | 77/77 passed | all green |
 | coverage: statements | 100% | 100% |
 | coverage: branches | 100% | 100% |
 | coverage: functions | 100% | 100% |
 | coverage: lines | 100% | 100% |
 | mutation score | 100% | break under 90 |
-| conformance scenarios | 9/9 passed | all green |
+| conformance scenarios | 11/11 passed | all green |
 | contract operations | 4 | — |
 | problem types | 4 | — |
 | verify gates | 32 | fail-fast chain |

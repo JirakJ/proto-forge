@@ -1,0 +1,25 @@
+{
+  "note": "The second page (limit 1, offset 1): the envelope reports the page coordinates and the total.",
+  "request": {
+    "method": "GET",
+    "path": "/notes?limit=1&offset=1"
+  },
+  "response": {
+    "body": {
+      "items": [
+        {
+          "createdAt": "2025-01-01T12:00:00.000Z",
+          "id": "22222222-2222-4222-8222-222222222222",
+          "text": "Second seeded note, deleted by the delete happy-path scenario."
+        }
+      ],
+      "limit": 1,
+      "offset": 1,
+      "total": 2
+    },
+    "headers": {
+      "content-type": "application/json; charset=utf-8"
+    },
+    "status": 200
+  }
+}

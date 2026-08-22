@@ -1,4 +1,5 @@
 {
+  "note": "Empty text violates the Note schema's minimum length.",
   "request": {
     "body": {
       "text": ""

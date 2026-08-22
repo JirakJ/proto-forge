@@ -4,6 +4,7 @@ import { join, dirname, resolve } from "node:path";
 import { execSync, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { fail, ok } from "./lib.mjs";
+import { FAST_GATES } from "./config.mjs";
 
 // @adr 009 - the gates are the product, so the gates get tested
 // A gate nobody has seen fail is a gate nobody knows works. This builds a throwaway
@@ -121,6 +122,41 @@ expect(
     waivers: [{ gate: "log", reason: "noisy-logger pilot for the September demo", adr: 150, expires: "2026-12-31" }],
   }),
   { pass: false, matching: /stale waiver/ },
+);
+
+// BR-45: the fast lane is a pinned subset of verify — the runner invocation
+// passes, an inlined or narrowed chain fails, and a fast gate the full chain no
+// longer runs fails too.
+const fastChain = FAST_GATES.map((g) => `pnpm run ${g}`).join(" && ");
+const laneScripts = (over = {}) => ({
+  "package.json": {
+    scripts: {
+      verify: `${fastChain} && pnpm run test:mutation`,
+      "verify:fast": "node scripts/verify-fast.mjs",
+      ...over,
+    },
+  },
+});
+
+expect(
+  "config: a verify:fast chain matching the pinned fast set passes",
+  "config-cli.mjs",
+  withConfig({}, laneScripts()),
+  { pass: true },
+);
+
+expect(
+  "config: a verify:fast chain that drops a pinned fast gate fails",
+  "config-cli.mjs",
+  withConfig({}, laneScripts({ "verify:fast": fastChain.replace(" && pnpm run test:unit", "") })),
+  { pass: false, matching: /drifts from the pinned fast chain/ },
+);
+
+expect(
+  "config: a fast gate missing from the full verify chain fails",
+  "config-cli.mjs",
+  withConfig({}, laneScripts({ verify: fastChain.replace(" && pnpm run test:unit", "") })),
+  { pass: false, matching: /missing from the full verify chain/ },
 );
 
 // An expired waiver must not merely warn: the gate has to be enforcing again.
@@ -746,6 +782,19 @@ expect("prompt: well-formed, strictly increasing entries pass", "prompt-log-lint
   ".prompts/0002-brief.md": promptEntry.replace("id: 0001", "id: 0002"),
 }, { pass: true });
 
+// BR-13: the log is English — a foreign-language prompt is recorded as its
+// English rendering; product strings that must stay foreign are quoted as code.
+expect("prompt: a non-English prompt body fails", "prompt-log-lint.mjs", {
+  ".prompts/0001-scaffold.md": promptEntry.replace("\nx\n", "\nPosuň výstup na produkční úroveň.\n"),
+}, { pass: false, matching: /non-English prompt text/ });
+
+expect("prompt: backtick-quoted foreign strings pass", "prompt-log-lint.mjs", {
+  ".prompts/0001-scaffold.md": promptEntry.replace(
+    "\nx\n",
+    "\nRename the save action to the `Uložit` label the brief demands — «redacted:pii» signed it off.\n",
+  ),
+}, { pass: true });
+
 expect("prompt: an empty log fails", "prompt-log-lint.mjs", {
   "src/app/a.py": "a = 1\n",
 }, { pass: false, matching: /no prompt-log entries/ });
@@ -780,7 +829,9 @@ const stageAll = (dir) => {
   git("init", "-q");
   git("add", "-A");
 };
-const MSG_OK = "feat: accept the note domain decision\n\nADR: 010\nPrompt-Log: .prompts/0001-x.md\n";
+const MSG_OK =
+  "feat: accept the note domain decision\n\nADR: 010\nPrompt-Log: .prompts/0001-x.md\n" +
+  "Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>\n";
 
 expect("commit: a trailer matching the one staged acceptance passes", "commit-lint.mjs", {
   "msg.txt": MSG_OK,
@@ -803,6 +854,52 @@ expect("commit: a trailer naming a different ADR than the diff accepts fails", "
   "docs/adr/010-a-decision.md": adr("010", "accepted"),
   "docs/adr/011-a-rival.md": adr("011", "proposed"),
 }, { pass: false, matching: /trailer names ADR 011 but the staged diff accepts ADR 010/, args: ["msg.txt"], prepare: stageAll });
+
+// BR-46: the operator authors, the model co-authors — the trailer is required,
+// well-formed, and never the same identity as the git author.
+expect("commit: a missing model co-author trailer fails", "commit-lint.mjs", {
+  "msg.txt": "feat: accept the note domain decision\n\nADR: 010\nPrompt-Log: .prompts/0001-x.md\n",
+  "docs/adr/010-a-decision.md": adr("010", "accepted"),
+}, { pass: false, matching: /Co-Authored-By/, args: ["msg.txt"], prepare: stageAll });
+
+expect("commit: a malformed co-author trailer fails", "commit-lint.mjs", {
+  "msg.txt": "feat: accept the note domain decision\n\nADR: 010\nPrompt-Log: .prompts/0001-x.md\nCo-Authored-By: Claude Fable 5\n",
+  "docs/adr/010-a-decision.md": adr("010", "accepted"),
+}, { pass: false, matching: /malformed/, args: ["msg.txt"], prepare: stageAll });
+
+expect("commit: the model authoring its own commit fails", "commit-lint.mjs", {
+  "msg.txt": MSG_OK,
+  "docs/adr/010-a-decision.md": adr("010", "accepted"),
+}, {
+  pass: false,
+  matching: /the operator authors, the model co-authors/,
+  args: ["msg.txt"],
+  prepare: (dir) => {
+    stageAll(dir);
+    const git = (...args) => spawnSync("git", args, { cwd: dir, env: { ...process.env, HOME: dir } });
+    git("config", "user.name", "Claude Fable 5");
+    git("config", "user.email", "noreply@anthropic.com");
+  },
+});
+
+// BR-49: a fix carries its regression test in the same commit — the defect
+// that had no failing test is the defect that returns.
+const MSG_FIX =
+  "fix: repair the list ordering\n\nADR: 010\nPrompt-Log: .prompts/0001-x.md\n" +
+  "Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>\n";
+
+expect("commit: a fix without a regression test fails", "commit-lint.mjs", {
+  "msg.txt": MSG_FIX,
+  "docs/adr/010-a-decision.md": adr("010", "accepted"),
+  "src/features/order.ts": "export const order = 1;\n",
+}, { pass: false, matching: /regression test/, args: ["msg.txt"], prepare: stageAll });
+
+expect("commit: a fix with its regression test passes", "commit-lint.mjs", {
+  "msg.txt": MSG_FIX,
+  "docs/adr/010-a-decision.md": adr("010", "accepted"),
+  "src/features/order.ts": "export const order = 1;\n",
+  "src/features/order.test.ts": "it('keeps the order', () => {});\n",
+}, { pass: true, args: ["msg.txt"], prepare: stageAll });
 
 // --- consistency -------------------------------------------------------------
 const PROBLEMS_MIN = 'problems = {\n    "internal": ProblemDef(code="internal", status=500, title="Unexpected failure"),\n}\n';
@@ -1444,6 +1541,39 @@ expect("deploy: the gate passes with no network and no cluster configured", "dep
   pass: true,
   env: noTools,
 });
+
+// NFR-30: the pipeline's perf-smoke stage is part of the delivery surface — a
+// workflow that lost the step, or its budgets, dropped the only coarse
+// performance and image-size stop.
+const PERF_WORKFLOW_OK =
+  "name: package\njobs:\n  package:\n    steps:\n      - name: perf smoke\n" +
+  '        env:\n          PERF_LATENCY_BUDGET_MS: "1000"\n          PERF_IMAGE_SIZE_BUDGET_MB: "400"\n' +
+  "        run: echo smoke\n";
+
+expect(
+  "deploy: a package.yml with the perf-smoke stage passes",
+  "deploy-verify.mjs",
+  deployBase({ ".github/workflows/package.yml": PERF_WORKFLOW_OK }),
+  { pass: true, env: noTools },
+);
+
+expect(
+  "deploy: a package.yml without the perf-smoke stage fails",
+  "deploy-verify.mjs",
+  deployBase({
+    ".github/workflows/package.yml": "name: package\njobs:\n  package:\n    steps:\n      - name: push\n        run: echo push\n",
+  }),
+  { pass: false, matching: /perf smoke/, env: noTools },
+);
+
+expect(
+  "deploy: a perf-smoke stage without its budgets fails",
+  "deploy-verify.mjs",
+  deployBase({
+    ".github/workflows/package.yml": "name: package\njobs:\n  package:\n    steps:\n      - name: perf smoke\n        run: echo smoke\n",
+  }),
+  { pass: false, matching: /ceiling/, env: noTools },
+);
 
 expect(
   "deploy: a Dockerfile with a floating base tag fails",

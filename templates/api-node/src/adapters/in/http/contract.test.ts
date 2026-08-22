@@ -56,9 +56,18 @@ describe("buildOpenApiDocument over the real registry", () => {
       "application/problem+json": { schema: { $ref: "#/components/schemas/Problem" } },
     });
     const list = operation(doc, "/notes", "get");
-    expect(Object.keys(list.responses)).toEqual(["200", "500"]);
+    expect(Object.keys(list.responses)).toEqual(["200", "400", "500"]);
     const del = operation(doc, "/notes/{id}", "delete");
     expect(del.responses["204"]).toEqual({ description: "No content." });
+  });
+
+  it("declares the pagination parameters on the collection operation (NFR-29)", () => {
+    const list = operation(doc, "/notes", "get");
+    const query = (list.parameters as { name: string; in: string; required: boolean }[]).filter(
+      (parameter) => parameter.in === "query",
+    );
+    expect(query.map((parameter) => parameter.name).sort()).toEqual(["limit", "offset"]);
+    expect(query.every((parameter) => !parameter.required)).toBe(true);
   });
 
   it("ships the shared Problem schema and a version-stable info block", () => {

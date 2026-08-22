@@ -73,6 +73,7 @@
     "scripts/sync-jira.mjs",
     "scripts/sync-pull.mjs",
     "scripts/sync-status.mjs",
+    "scripts/verify-fast.mjs",
     "src/App/Adapters/In/Http/NoteHandlers.cs",
     "src/App/Adapters/In/Http/NoteRoutes.cs",
     "src/App/Adapters/In/Http/OpenApiEmitter.cs",

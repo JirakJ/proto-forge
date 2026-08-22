@@ -6,6 +6,7 @@ import Fastify, {
 import type { z } from "zod";
 import type { NoteService } from "../../../application/note/noteService.js";
 import { validationDetail } from "../../../application/validation.js";
+import { registerDocs, type DocsDeps } from "../../../platform/docs.js";
 import { registerHealth } from "../../../platform/health.js";
 import { securityHeaders } from "../../../platform/headers.js";
 import type { Logger } from "../../../platform/logger.js";
@@ -18,13 +19,16 @@ const SERVICE_VERSION = "0.1.0";
 export type AppDeps = {
   service: NoteService;
   logger: Logger;
+  /** The committed contract + captured examples the platform serves (BR-47). */
+  docs: DocsDeps;
   gitSha?: string;
 };
 
-export function buildApp({ service, logger, gitSha = "dev" }: AppDeps): FastifyInstance {
+export function buildApp({ service, logger, docs, gitSha = "dev" }: AppDeps): FastifyInstance {
   const app = Fastify({ logger: false });
   app.addHook("onRequest", securityHeaders);
   registerHealth(app, { version: SERVICE_VERSION, gitSha });
+  registerDocs(app, docs);
   wireRoutes(app, routes, makeHandlers(service));
   app.setNotFoundHandler(notFound);
   app.setErrorHandler(makeErrorHandler(logger));

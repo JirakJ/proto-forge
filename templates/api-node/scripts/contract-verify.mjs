@@ -82,4 +82,46 @@ if (!existsSync(LOCK)) {
   }
 }
 
-gateResult("contract", "contract:verify: committed spec matches the regeneration, lock intact", errors);
+// NFR-29: collections are paginated. A GET whose 200 is a top-level array is an
+// unbounded collection; a GET whose 200 embeds an array must declare `limit`
+// plus `offset` or `cursor` query parameters. Checked on the emitted document,
+// so the rule holds whatever the route registry looks like.
+function jsonSchemaOf(operation, status) {
+  return operation?.responses?.[status]?.content?.["application/json"]?.schema;
+}
+function embedsArray(schema) {
+  if (schema === undefined || schema === null) return false;
+  if (schema.type === "array") return true;
+  return Object.values(schema.properties ?? {}).some((property) => property?.type === "array");
+}
+const doc = JSON.parse(emitted);
+for (const [path, operations] of Object.entries(doc.paths ?? {})) {
+  const operation = operations.get;
+  if (operation === undefined) continue;
+  const ok200 = jsonSchemaOf(operation, "200");
+  const where = `${path} (${operation.operationId ?? "no operationId"})`;
+  if (ok200?.type === "array") {
+    errors.push(`${where}: the 200 response is a top-level array — an unbounded collection; answer with the pagination envelope (NFR-29)`);
+    continue;
+  }
+  if (embedsArray(ok200)) {
+    const params = (operation.parameters ?? []).filter((p) => p.in === "query").map((p) => p.name);
+    if (!params.includes("limit") || !["offset", "cursor"].some((name) => params.includes(name))) {
+      errors.push(`${where}: a collection response must declare "limit" plus "offset" or "cursor" query parameters, found [${params.join(", ")}] (NFR-29)`);
+    }
+  }
+}
+
+// BR-47: the service SERVES its contract — the platform explorer module exists
+// and the HTTP composition wires it. The behaviour (the routes answering with
+// the committed bytes) is the platform unit suite's proof; this half keeps the
+// wiring from being quietly dropped.
+const EXPLORER = "src/platform/docs.ts";
+const APP = "src/adapters/in/http/app.ts";
+if (!existsSync(EXPLORER)) {
+  errors.push(`${EXPLORER} is missing — the service does not serve its explorer (BR-47)`);
+} else if (existsSync(APP) && !/registerDocs\s*\(/.test(read(APP))) {
+  errors.push(`${APP} never calls registerDocs — the explorer exists but nothing serves it (BR-47)`);
+}
+
+gateResult("contract", "contract:verify: committed spec matches the regeneration, collections paginated, explorer wired, lock intact", errors);

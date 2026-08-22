@@ -79,6 +79,7 @@
     "scripts/sync-pull.mjs",
     "scripts/sync-status.mjs",
     "scripts/test-mutation.mjs",
+    "scripts/verify-fast.mjs",
     "src/app/__init__.py",
     "src/app/adapters/__init__.py",
     "src/app/adapters/inbound/__init__.py",

@@ -1,4 +1,5 @@
 {
+  "note": "Deletes the second seeded note; 204 carries no body.",
   "request": {
     "method": "DELETE",
     "path": "/notes/22222222-2222-4222-8222-222222222222"

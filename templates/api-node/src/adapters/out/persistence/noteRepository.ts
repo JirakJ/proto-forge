@@ -1,4 +1,4 @@
-import { asc, eq } from "drizzle-orm";
+import { asc, count, eq } from "drizzle-orm";
 import type { Note } from "../../../domain/note/model.js";
 import type { NoteRepository } from "../../../domain/note/repository.js";
 import { notes, type NoteRow } from "./db.js";
@@ -12,12 +12,22 @@ function toNote(row: NoteRow): Note {
 
 // The Drizzle implementation of the NoteRepository port. Listing carries an
 // explicit, total order (createdAt, then id) so responses — and the captured
-// docs examples derived from them — never depend on heap order.
+// docs examples derived from them — never depend on heap order, and it pages in
+// the engine (LIMIT/OFFSET, NFR-29) so the working set never grows with the table.
 export function makeNoteRepository(db: NotesDb): NoteRepository {
   return {
-    async list() {
-      const rows = await db.select().from(notes).orderBy(asc(notes.createdAt), asc(notes.id));
-      return rows.map(toNote);
+    async list(limit, offset) {
+      const rows = await db
+        .select()
+        .from(notes)
+        .orderBy(asc(notes.createdAt), asc(notes.id))
+        .limit(limit)
+        .offset(offset);
+      // count() yields exactly one row; summing avoids a defensive branch no
+      // test could ever reach (§3.1: unreachable code is a design problem).
+      const counted = await db.select({ total: count() }).from(notes);
+      const total = counted.reduce((sum, row) => sum + row.total, 0);
+      return { items: rows.map(toNote), total };
     },
 
     async get(id) {

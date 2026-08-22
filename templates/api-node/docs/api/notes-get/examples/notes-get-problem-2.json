@@ -1,4 +1,5 @@
 {
+  "note": "A path parameter that is not a uuid fails boundary validation.",
   "request": {
     "method": "GET",
     "path": "/notes/not-a-uuid"

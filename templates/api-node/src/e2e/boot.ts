@@ -5,6 +5,7 @@ import { makeNoteRepository } from "../adapters/out/persistence/noteRepository.j
 import { makeNoteService } from "../application/note/noteService.js";
 import { SEED_CLOCK, type HarnessCase } from "../harness/cases.js";
 import { seedNotes } from "../harness/seed.js";
+import { loadDocsFromDisk } from "../platform/docs.js";
 import { noopLogger } from "../platform/logger.js";
 
 // Conformance boot: the whole stack over the in-process engine (PGlite plus the
@@ -26,7 +27,7 @@ export async function bootConformanceApp(): Promise<ConformanceApp> {
   const repo = makeNoteRepository(handle.db);
   await seedNotes(repo);
   const service = makeNoteService({ repo, now: () => SEED_CLOCK, newId: fixedIdSequence() });
-  const app = buildApp({ service, logger: noopLogger });
+  const app = buildApp({ service, logger: noopLogger, docs: loadDocsFromDisk() });
   return {
     app,
     close: async () => {

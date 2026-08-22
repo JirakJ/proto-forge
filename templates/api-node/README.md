@@ -8,8 +8,10 @@ If you are an agent working in this repository, read **`AGENTS.md`** first — i
 
 ```bash
 pnpm install
-pnpm dev            # http://localhost:3000
-pnpm verify         # every gate, fail-fast
+pnpm dev            # http://localhost:3000 — /docs is the served contract explorer,
+                    # /openapi.json the committed contract byte-for-byte
+pnpm verify:fast    # the per-iteration bar (minutes): unit tests + offline scans
+pnpm verify         # every gate, fail-fast — phase boundaries, release, CI
 pnpm config:show    # which gates are in force, and where each setting came from
 DATABASE_URL=postgres://... pnpm db:migrate   # apply migrations to a real database
 ```
@@ -25,7 +27,8 @@ src/
                        problem lists), registry-driven Fastify wiring, contract emitter
   adapters/out/        drizzle/pg persistence implementing the ports
   platform/            the byte-pinned kernel: problem catalogue, pino logger,
-                       security headers, health — hashed into .proto-forge/seed.lock
+                       security headers, health, the served contract explorer
+                       (/docs, /openapi.json) — hashed into .proto-forge/seed.lock
   config/              zod-validated env (single source)
   harness/             scenario catalogue driving docs examples and the e2e run
   e2e/                 conformance runner + example capture (dev/CI tools)
@@ -39,12 +42,13 @@ docs/api/<opid>/       per-operation page + captured examples + .examples.lock
 scripts/               the gate scripts (and their self-test)
 ```
 
-## The four rules with teeth
+## The five rules with teeth
 
 1. **Every client-visible error is a registered problem type.** RFC 9457, stable codes, one catalogue; an invented error shape fails the build.
 2. **Every operation has a unique, deterministic operationId** in one route registry. A route wired anywhere else fails.
 3. **Migrations are append-only** and hash-pinned; the model must describe exactly what they produce.
-4. **The committed contract and docs examples are locked derivations of the code.** Drift fails; a breaking change needs a contract major bump plus an ADR.
+4. **The committed contract and docs examples are locked derivations of the code — and the running service serves both** (`/openapi.json`, `/docs`). Drift fails; a breaking change needs a contract major bump plus an ADR.
+5. **Collections are paginated.** A top-level-array 200 fails the contract gate; listings answer with the `items`/`total`/`limit`/`offset` envelope and the port has no unpaged listing.
 
 ## The example slice is a demo
 
