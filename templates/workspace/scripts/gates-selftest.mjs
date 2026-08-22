@@ -349,6 +349,19 @@ expect("prompt: well-formed, strictly increasing entries pass", "prompt-log-lint
   ".prompts/0002-brief.md": promptEntry.replace("id: 0001", "id: 0002"),
 }, { pass: true });
 
+// BR-13: the log is English — a foreign-language prompt is recorded as its
+// English rendering; product strings that must stay foreign are quoted as code.
+expect("prompt: a non-English prompt body fails", "prompt-log-lint.mjs", {
+  ".prompts/0001-scaffold.md": promptEntry.replace("\nx\n", "\nPosuň výstup na produkční úroveň.\n"),
+}, { pass: false, matching: /non-English prompt text/ });
+
+expect("prompt: backtick-quoted foreign strings pass", "prompt-log-lint.mjs", {
+  ".prompts/0001-scaffold.md": promptEntry.replace(
+    "\nx\n",
+    "\nRename the save action to the `Uložit` label the brief demands — «redacted:pii» signed it off.\n",
+  ),
+}, { pass: true });
+
 expect("prompt: an empty log fails", "prompt-log-lint.mjs", {
   "workspace.json": {},
 }, { pass: false, matching: /no prompt-log entries/ });
