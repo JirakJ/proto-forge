@@ -38,6 +38,35 @@ export const MANDATORY_GATES = [
   "status",
 ];
 
+// The FAST LANE (BR-45): the per-iteration, per-feature-commit bar — unit tests
+// with their coverage floors plus every offline structural scan, in the full
+// chain's relative order. It answers in minutes; the deep proofs (gate
+// selftests, mutation, build+budget, delivery surface, security scans, the
+// browser suite, the measured status) stay in `pnpm verify`, which runs at each
+// phase boundary, before release and in CI — never inside the feature loop.
+// `config:check` pins package.json's `verify:fast` to exactly this list, so the
+// lane can neither drift nor be quietly narrowed.
+export const FAST_GATES = [
+  "config:check",
+  "lint",
+  "typecheck",
+  "coverage:policy",
+  "ignores",
+  "test:unit",
+  "i18n:verify",
+  "layer:scan",
+  "overlay:matrix",
+  "testid:scan",
+  "docs:verify",
+  "contract:client",
+  "stub:scan",
+  "adr:lint",
+  "prompt:lint",
+  "dup:scan",
+  "consistency",
+  "snapshot:diff",
+];
+
 const MODES = ["error", "warn", "off"];
 
 // The delivery chain, in promotion order. `local` is a developer convenience and
@@ -140,6 +169,10 @@ export const DEFAULTS = {
     imageRegistry: "",
     sign: true,
     scan: { image: true, severityThreshold: "high" },
+    // NFR-30: the perf-smoke pipeline stage. Off for a static frontend — its
+    // performance ceiling is the bundle budget (ADR 007); the smoke drives a
+    // served API and lands with each backend stack's stage.
+    perfSmoke: false,
     helm: { chartPath: "deploy/chart", keepHistory: 5 },
   },
   integrations: {
