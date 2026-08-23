@@ -246,6 +246,32 @@ if (existsSync(CHART) && withTool("helm")) {
   }
 }
 
+// NFR-30: the delivery pipeline carries the perf-smoke stage with its coarse
+// ceilings stated as reviewable env values. The stage is config-gated
+// (deployment.perfSmoke), so the check binds the WORKFLOW: losing the step, or
+// stripping its budgets, silently removes the only pipeline stop that notices
+// an image that no longer boots, errors under load, or doubled in size.
+const PACKAGE_WORKFLOW = ".github/workflows/package.yml";
+if (existsSync(PACKAGE_WORKFLOW)) {
+  let steps = [];
+  try {
+    const wf = parse(read(PACKAGE_WORKFLOW));
+    steps = Object.values(wf?.jobs ?? {}).flatMap((job) => job?.steps ?? []);
+  } catch {
+    errors.push(`${PACKAGE_WORKFLOW}: not parseable as YAML`);
+  }
+  const perf = steps.find((s) => s?.name === "perf smoke");
+  if (perf === undefined) {
+    errors.push(`${PACKAGE_WORKFLOW}: the "perf smoke" stage is missing — the pipeline lost its coarse performance and image-size stop (NFR-30)`);
+  } else {
+    for (const key of ["PERF_LATENCY_BUDGET_MS", "PERF_IMAGE_SIZE_BUDGET_MB"]) {
+      if (perf.env?.[key] === undefined) {
+        errors.push(`${PACKAGE_WORKFLOW}: the "perf smoke" stage lost its ${key} ceiling — a smoke without a budget asserts nothing (NFR-30)`);
+      }
+    }
+  }
+}
+
 for (const tool of missingTools) {
   if (process.env.CI) {
     errors.push(`${tool} is not installed in CI — the deploy verification it performs is mandatory there`);

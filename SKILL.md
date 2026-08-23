@@ -41,9 +41,11 @@ branches by template kind.** For a backend part (`api-<stack>`), read the phases
 persistence adapter + append-only migrations + one adapter per external system
 (T19–T20, ADR 020-029); 4 endpoint/use-case build per flow with the backend DoD —
 registry-only paths, a deterministic `operationId` (BR-25), registered problem types
-(BR-23), contract regenerated + re-locked in the same commit (BR-22), unit +
-conformance tests, a captured docs example (BR-26), the `@adr` anchor — ADR 030-099,
-auth per T21; 5 error-catalogue + observability pass (`error:catalog`, `log:scan`)
+(BR-23), contract regenerated + re-locked in the same commit (BR-22), **every
+collection paginated with the envelope shape** (NFR-29), unit +
+conformance tests, a captured docs example (BR-26) **served with the contract by the
+platform's `/docs` explorer where the stack ships it** (BR-47), the `@adr` anchor —
+ADR 030-099, auth per T21; 5 error-catalogue + observability pass (`error:catalog`, `log:scan`)
 instead of i18n/a11y; 6 test build (coverage 100 on the gated set, mutation per
 NFR-14, conformance); 7 security harden (§16); 8 `docs:examples` + `docs:verify` +
 dup/consistency sweep; 9 release — plus publishing `contract/openapi.json` and
@@ -94,6 +96,7 @@ Seed data (if needed) lives **only** in `src/infra/**/seed.ts`, typed against th
 
 For each `flows[]` entry, in order, allocate one ADR from **030-099** and build the feature. **Per-feature Definition of Done** (assert ALL before flipping the ADR to `accepted`):
 
+- [ ] **Every rendered control performs its real action, end to end** (BR-44). No dead-end interactions: no "not available in the prototype" copy, no no-op handler, no `href="#"`. When the flow implies CRUD on a persisted entity, ALL of create/read/update/delete ship in this ADR — screens, actions, tests and docs; a capability cut from scope does not render a control, and the cut itself is an ADR, never UI copy. Out of budget ⇒ escalate, never stub.
 - [ ] Built solely from `@jj/proto-ui` components (no duplicated primitive, no hand-rolled overlay).
 - [ ] Every interactive and semantic element has a `data-testid` — interactive controls, headings, landmarks, list items, table cells, media, form parts, anything with a `role`. Namespaced by feature (`invoices-submit`, not `submit`), and **interpolated inside a `.map()`** (`` `invoice-${id}` ``).
 - [ ] Elements a discovery run inventoried (Phase 0 step 3) use their **reserved** `data-testid` allocations from `discovery.json` `testids[]` verbatim; new elements derive fresh names around the reservations (BR-31).
@@ -103,13 +106,15 @@ For each `flows[]` entry, in order, allocate one ADR from **030-099** and build 
 - [ ] ≥1 Playwright E2E covering the happy path **and** primary error path, against real behavior.
 - [ ] `axe` 0 serious/critical on the feature's pages; keyboard path verified in E2E.
 - [ ] Inputs zod-validated at the boundary; no unvalidated external data enters the domain.
-- [ ] `docs/features/<name>/README.md` written — API, testid map, i18n keys, a11y contract, VoiceOver smoke note — with a current screenshot or an explicit `<!-- no-screenshot: reason -->`.
+- [ ] `docs/features/<name>/README.md` written — API, testid map, i18n keys, a11y contract, VoiceOver smoke note — with a current screenshot. A feature that adds a route ALWAYS shows its current visual state; `<!-- no-screenshot: reason -->` is only for genuinely non-visual subjects (BR-19).
 - [ ] ADR anchored in code via `// @adr NNN - ...`; prompt-log entry referenced.
-- [ ] The feature's commit passed all scoped gates before its ADR flipped to `accepted`.
+- [ ] The feature's commit passed the fast lane (`pnpm verify:fast`, BR-45) before its ADR flipped to `accepted`.
 
 After the accepted-ADR commit, run `pnpm sync:auto`: with `autoPropagate: true` committed in the config it propagates the decision to JIRA/Confluence right away; otherwise it stages the payloads in `.proto-forge/outbox/` and prints why nothing was sent.
 
 If auth/roles are mentioned (T8): add `auth` port + real local impl + route guards + authz E2E. ADR from 040-049.
+
+**Settings are durable (BR-48).** A settings/preferences surface persists through the repository port like any entity — values survive a rebuild and a redeploy; never direct `localStorage`/`sessionStorage`. The settings schema keeps its identity across releases; changing or resetting it is an ADR with a migration, never a side effect of a new build.
 
 ### Phase 5 — i18n + a11y pass (gate)
 
@@ -152,6 +157,14 @@ SemVer tag; `CHANGELOG.md` from the ADR set + Conventional Commits; attach SBOM 
 3. **Exhaustion** ⇒ phase halts; run ends `blocked` in the snapshot (`gates[].result = "blocked"`), naming the failing gate + last prompt-log entry. No release tag.
 4. A gate guarding a per-ADR commit runs **before** the commit is finalized; the ADR flips to `accepted` only when its commit's gates are green.
 
+## Defect protocol (BR-49)
+
+The moment a defect becomes **known** — a red gate that resists the remediation protocol, a bug found in review or testing, an operator report:
+
+1. **Record it immediately.** With a GitHub remote: `gh issue create` — title, reproduction, the failing gate/test (in a workspace, file on the workspace repo). Without a tracker: a `proposed` ADR records it. A defect that lives only in the session is a defect the next session re-diagnoses from scratch.
+2. **Fix it as a `fix:` commit that carries its regression test in the same diff** — a test that fails before the fix and passes after. Reference the issue as `Fixes #N` in the body. `commit-lint` mechanically refuses a `fix:` commit that stages no test file.
+3. **Never mask it** — not behind copy, a disabled control (BR-44), a waiver, or a lowered floor.
+
 ## ADR system & git workflow
 
 - ADRs live in `docs/adr/NNN-kebab-title.md` (MADR template in `references/adr-template.md`). Lifecycle `proposed → accepted` (or `→ superseded by ADR-MMM`). Never delete; reversal = supersede.
@@ -168,7 +181,7 @@ SemVer tag; `CHANGELOG.md` from the ADR set + Conventional Commits; attach SBOM 
 
   The template's demo ADRs 010/022/030 are **deleted with the demo** in Phase 1, so real allocation starts fresh at the low end of each band (entity #1 → 010, first persistence adapter → 022, first feature → 030). The pre-written 020 and 100 **stay** — allocate around them (`adr:lint` errors when two files share a number). Auth (model + adapter) lives only in 040-049; the feature loop skips that band.
 - **In-code anchor:** exactly `// @adr 123 - implementation of <thing>`. Referenced ADR must exist and be `accepted`; every `accepted` ADR anchored ≥1×.
-- **One accepted ADR = one commit**, containing the ADR transition + its code + tests + docs. Message:
+- **One accepted ADR = one commit**, containing the ADR transition + its code + tests + docs. **Authorship (BR-46): the git author is the operator who ran the prompt — never the model; the model that prepared the commit signs as co-author.** Message:
   ```
   feat(scope): <imperative summary>
 
@@ -176,19 +189,23 @@ SemVer tag; `CHANGELOG.md` from the ADR set + Conventional Commits; attach SBOM 
 
   ADR: NNN
   Prompt-Log: .prompts/NNNN-slug.md
+  Co-Authored-By: <model name> <model-noreply-email>
   ```
-  `commit-lint` verifies exactly one `ADR:` trailer, one status transition to `accepted` in the diff, and a resolving `Prompt-Log:` trailer.
-- **Commit atomicity:** stage with ADR still `proposed` → regenerate + stage `.proto-forge/snapshot.json` (`pnpm snapshot`) so `snapshot:diff` compares against the snapshot committed in this same commit → run scoped gates → only if green, flip to `accepted` and finalize. Red ⇒ ADR stays `proposed`, no commit, gate-failure protocol takes over. An `accepted` ADR in history always corresponds to a commit whose gates passed.
+  `commit-lint` verifies exactly one `ADR:` trailer, one status transition to `accepted` in the diff, a resolving `Prompt-Log:` trailer, and ≥1 well-formed `Co-Authored-By:` trailer whose identity is not the git author's.
+- **Commit atomicity:** stage with ADR still `proposed` → regenerate + stage `.proto-forge/snapshot.json` (`pnpm snapshot`) so `snapshot:diff` compares against the snapshot committed in this same commit → run the **fast lane** (`pnpm verify:fast`) → only if green, flip to `accepted` and finalize. Red ⇒ ADR stays `proposed`, no commit, gate-failure protocol takes over. An `accepted` ADR in history always corresponds to a commit whose fast-lane gates passed — and the full `pnpm verify` holds the line at its three checkpoints: end of Phase 6, release, and CI on every push (BR-45).
 
-## Prompt log (append-only)
+## Prompt log (append-only, English)
 
-- One Markdown file per prompt in `.prompts/`, named `NNNN-slug.md` (zero-padded, monotonic), with frontmatter `id/timestamp/phase/adr/author` + `## Prompt` (verbatim) + `## Outcome` (1-3 lines).
+- One Markdown file per prompt in `.prompts/`, named `NNNN-slug.md` (zero-padded, monotonic), with frontmatter `id/timestamp/phase/adr/author` + `## Prompt` + `## Outcome` (1-3 lines).
+- **English only (BR-13):** entries are written in English. A prompt that arrived in another language is recorded as its faithful English rendering, written as if authored in English — never add a translation note, never keep the original text. Non-English product strings the brief demands stay as backtick-quoted literals. `prompt:lint` enforces this.
 - **Append-only:** existing files immutable (CI diff check + a local hook). Corrections = new entries referencing the prior `id`.
 - **Precedence:** prompt written **before** the resulting code/ADR is committed.
 - **Linkage:** every `accepted` ADR references ≥1 prompt-log entry; every ADR-producing entry names its ADR.
 - **Redaction:** before writing an entry, replace secret-shaped values (tokens/keys/connection strings/bearer creds) with `«redacted:<type>»`; PII with `«redacted:pii»` unless the brief marks it non-sensitive fixture data. `.prompts/**` is scanned by `secret-scan` like `src/**`.
 
 ## Gate commands (per template — the web chain shown; every template's chain lives in its own `package.json`, per `references/templates.json`)
+
+**Two lanes (BR-45).** `verify:fast` is the per-iteration bar — run it for every feature commit; it answers in minutes because the pinned gates (`FAST_GATES` in `scripts/config.mjs`) execute **in parallel** through `scripts/verify-fast.mjs` — wall clock is the slowest gate, not the sum, fail-fast on the first red. `verify` is the full bar, and its **checkpoints are exactly three**: the end of Phase 6 (the test build — where mutation and the browser suite belong), Phase 9 (release), and CI on every push. Phases 5, 7 and 8 close on the fast lane **plus their own named gates** — Phase 5 adds `test:e2e` (the axe + keyboard proof lives in the browser), Phase 7 adds `sec:scan` + `sec:conformance`, Phase 8 adds `docs:shots` before the lane's `docs:verify` — anything a lighter close could miss is held by the next full checkpoint and by CI. **Never run the full suite between two feature commits**, that is what made iterations take hours.
 
 `verify` runs all, fail-fast:
 `config:check` · `gates:selftest` · `lint` · `typecheck` · `coverage:policy` · `ignores` · `test:unit` · `test:mutation` · `build` · `budget` · `i18n:verify` · `layer:scan` · `overlay:matrix` · `testid:scan` · `docs:verify` · `external:verify` · `stub:scan` · `adr:lint` · `prompt:lint` · `dup:scan` · `consistency` · `sec:scan` · `snapshot:diff` · `test:e2e`.

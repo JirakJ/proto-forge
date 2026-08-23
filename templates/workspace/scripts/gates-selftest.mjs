@@ -1,8 +1,9 @@
 import { existsSync, mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname, resolve } from "node:path";
+import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
-import { fail, ok } from "./lib.mjs";
+import { fail, ok, hashTree } from "./lib.mjs";
 
 // @adr 001 - the gates are the product, so the gates get tested
 // A gate nobody has seen fail is a gate nobody knows works. This builds a throwaway
@@ -10,6 +11,24 @@ import { fail, ok } from "./lib.mjs";
 // Run it after touching any scan script: `pnpm gates:selftest`.
 
 const SCRIPTS = resolve(dirname(new URL(import.meta.url).pathname));
+
+// The suite's verdict is a pure function of scripts/** plus the node runtime:
+// fixtures are self-contained throwaway dirs, HOME is redirected, and no case
+// reads this repository's own tree (git plumbing used by the commit fixtures is
+// stable across versions and deliberately outside the fingerprint). So a
+// scripts tree byte-identical to the last GREEN run answers from its stamp — a
+// content-addressed cache, not a skip: any byte of drift, a different node, or
+// --force reruns everything. The stamp lives under node_modules/.cache, outside
+// every snapshot and every commit.
+const STAMP = "node_modules/.cache/proto-forge/selftest.stamp";
+const fingerprint = createHash("sha256")
+  .update(hashTree(SCRIPTS))
+  .update(process.version)
+  .digest("hex");
+if (!process.argv.includes("--force") && existsSync(STAMP) && readFileSync(STAMP, "utf8").trim() === fingerprint) {
+  ok(`gates:selftest: scripts tree unchanged since the last green run (${fingerprint.slice(0, 12)}…) — cached verdict; --force reruns`);
+  process.exit(0);
+}
 const REPO = resolve(SCRIPTS, "..");
 const results = [];
 // Marks an inline-block proof for the citations case registry (no spawned fixture).
@@ -349,6 +368,19 @@ expect("prompt: well-formed, strictly increasing entries pass", "prompt-log-lint
   ".prompts/0002-brief.md": promptEntry.replace("id: 0001", "id: 0002"),
 }, { pass: true });
 
+// BR-13: the log is English — a foreign-language prompt is recorded as its
+// English rendering; product strings that must stay foreign are quoted as code.
+expect("prompt: a non-English prompt body fails", "prompt-log-lint.mjs", {
+  ".prompts/0001-scaffold.md": promptEntry.replace("\nx\n", "\nPosuň výstup na produkční úroveň.\n"),
+}, { pass: false, matching: /non-English prompt text/ });
+
+expect("prompt: backtick-quoted foreign strings pass", "prompt-log-lint.mjs", {
+  ".prompts/0001-scaffold.md": promptEntry.replace(
+    "\nx\n",
+    "\nRename the save action to the `Uložit` label the brief demands — «redacted:pii» signed it off.\n",
+  ),
+}, { pass: true });
+
 expect("prompt: an empty log fails", "prompt-log-lint.mjs", {
   "workspace.json": {},
 }, { pass: false, matching: /no prompt-log entries/ });
@@ -621,4 +653,6 @@ expect(
 );
 
 if (results.length) fail(`gates:selftest FAILED (${results.length})`, results);
+mkdirSync(dirname(STAMP), { recursive: true });
+writeFileSync(STAMP, `${fingerprint}\n`);
 ok("gates:selftest: every gate, guardrail and manifest check rejects what it claims to reject");

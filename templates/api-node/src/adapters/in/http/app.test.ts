@@ -13,13 +13,18 @@ const FIXED_NOW = "2025-06-01T08:30:00.000Z";
 const FIXED_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const UNKNOWN_ID = "99999999-9999-4999-8999-999999999999";
 
+const FIXTURE_DOCS = {
+  spec: JSON.stringify({ openapi: "3.1.0", info: { title: "fixture", version: "0.0.1" }, paths: {} }),
+  examples: {},
+};
+
 function appWith(notes: readonly Note[] = [], overrides: Partial<AppDeps> = {}) {
   const service = makeNoteService({
     repo: makeMemoryNoteRepository(notes),
     now: () => FIXED_NOW,
     newId: () => FIXED_ID,
   });
-  return buildApp({ service, logger: noopLogger, ...overrides });
+  return buildApp({ service, logger: noopLogger, docs: FIXTURE_DOCS, ...overrides });
 }
 
 function recordingLogger(): Logger & { error: ReturnType<typeof vi.fn> } {
@@ -50,12 +55,23 @@ describe("platform routes and headers", () => {
 });
 
 describe("the four note operations", () => {
-  it("notes-list returns every note as JSON", async () => {
+  it("notes-list returns one page inside the pagination envelope (NFR-29)", async () => {
     const note = makeNote();
     const response = await appWith([note]).inject({ method: "GET", url: "/notes" });
     expect(response.statusCode).toBe(200);
     expect(response.headers["content-type"]).toContain("application/json");
-    expect(response.json()).toEqual([note]);
+    expect(response.json()).toEqual({ items: [note], total: 1, limit: 50, offset: 0 });
+  });
+
+  it("notes-list honours limit and offset and rejects a limit past the ceiling", async () => {
+    const older = makeNote({ createdAt: "2025-02-01T00:00:00.000Z" });
+    const newer = makeNote({ createdAt: "2025-02-02T00:00:00.000Z" });
+    const page = await appWith([older, newer]).inject({ method: "GET", url: "/notes?limit=1&offset=1" });
+    expect(page.json()).toEqual({ items: [newer], total: 2, limit: 1, offset: 1 });
+
+    const rejected = await appWith().inject({ method: "GET", url: "/notes?limit=999" });
+    expect(rejected.statusCode).toBe(400);
+    expect(rejected.json()).toMatchObject({ code: "validation-failed" });
   });
 
   it("notes-get returns the note under the id", async () => {

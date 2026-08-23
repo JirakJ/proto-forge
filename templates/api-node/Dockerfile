@@ -29,6 +29,11 @@ WORKDIR /app
 COPY --from=build /app/package.json ./package.json
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
+# The served explorer's artefacts (BR-47): the committed contract and the
+# captured docs examples ship with the runtime, so /docs and /openapi.json
+# answer with exactly what the repository pinned.
+COPY --from=build /app/contract ./contract
+COPY --from=build /app/docs/api ./docs/api
 # Deployed provenance: /version answers "which commit is running?" and
 # deploy/smoke.mjs asserts the answer. Declared after the copies so a new sha
 # re-uses every layer above.

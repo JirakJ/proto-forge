@@ -4,7 +4,11 @@ Read before changing anything. These are not style preferences — each one is e
 
 Run `pnpm config:show` to see which gates are in force and whether any is currently waived.
 
-## The four rules that catch people out
+**Two lanes.** `pnpm verify:fast` is the per-iteration bar — run it for every feature commit; it answers in minutes because the pinned gates run **in parallel** (`scripts/verify-fast.mjs`; `PROTO_FORGE_FAST_JOBS=1` for serial bisection). `pnpm verify` is the full bar — its checkpoints: end of Phase 6, release, CI on every push (Phases 5/7/8 close on the fast lane plus their own named gates). Never run the full suite between two feature commits; that is what makes iterations take hours. The fast chain is pinned (`FAST_GATES` in `scripts/config.mjs`) and `config:check` fails a drifted one.
+
+**Fixes prove themselves.** A known defect is recorded the moment it is known (`gh issue create` when the repo has a remote; a `proposed` ADR otherwise), and its `fix:` commit must stage the regression test in the same diff — `commit-lint` refuses one that touches no test file. Reference the issue as `Fixes #N` in the body.
+
+## The six rules that catch people out
 
 **1. Every user-visible string comes from the catalogue.** Not just JSX text — `title`, `label`, `message`, `emptyLabel`, `errorText` and friends too, as props and as object properties, in `src/**` *and* in `packages/proto-ui/**`. The library owns no copy of its own; the app passes `t()` values in.
 
@@ -28,11 +32,15 @@ Across files, namespace them: `notes-submit`, not `submit`. The primitives make 
 
 **3. Popups live in the browser's top layer, ordered by when they opened.** Compose `Dialog`, `Menu`, `ToastProvider` and `Tooltip` rather than building an overlay — never call `showPopover`/`showModal` yourself, never install your own `document` keydown listener, never read `tokens.layer.overlay`, never a numeric `z-index`. Anything positioned `fixed`/`absolute`/`sticky` outside the library declares a chrome layer (`base`/`raised`/`sticky`). `layer:scan` enforces all of it, and `component-dup-scan` rejects a hand-rolled surface.
 
-**4. A component is not finished until it is documented and photographed.** Every exported component and every feature has a page under `docs/`, and that page shows a current screenshot. Add a case to `src/harness/cases.ts` and its mount to `src/harness/mounts.tsx`, run `pnpm docs:shots`. Editing a component invalidates its screenshots until you re-run it. If there is genuinely nothing to photograph, say so explicitly:
+**4. A component is not finished until it is documented and photographed.** Every exported component and every feature has a page under `docs/`, and that page shows a current screenshot. Add a case to `src/harness/cases.ts` and its mount to `src/harness/mounts.tsx`, run `pnpm docs:shots`. Editing a component invalidates its screenshots until you re-run it. A feature that adds a route ALWAYS shows its current visual state; only a genuinely non-visual subject may say so explicitly:
 
 ```md
 <!-- no-screenshot: a context provider renders no markup of its own -->
 ```
+
+**5. A control that renders is a control that works.** No dead-end interactions: `stub:scan` fails "not available", "coming soon", "this prototype" and friends — in code string literals AND in every locale catalogue value — plus `onClick={() => {}}` no-ops and `href="#"`. If a capability is out of scope, do not render its control; the scope cut is an ADR, never UI copy. When a flow implies CRUD, all of create/read/update/delete ship together — screens, actions, tests, docs.
+
+**6. Settings survive a rebuild.** User state persists through the repository port on the real adapter, like any entity. Direct `localStorage`/`sessionStorage` fails `stub:scan` — ad-hoc storage is unversioned and the next build's key drift wipes it. Changing or resetting the settings schema is an ADR with a migration.
 
 ## What the hooks will stop
 
@@ -61,7 +69,8 @@ Without a live waiver the setting is ignored and the gate runs at `error` anyway
 
 | Command | What it does |
 | --- | --- |
-| `pnpm verify` | Everything, fail-fast. This is the bar. |
+| `pnpm verify:fast` | The per-iteration bar: unit tests + every offline structural scan, in minutes. Run for every feature commit. |
+| `pnpm verify` | Everything, fail-fast. The phase-boundary, release and CI bar. |
 | `pnpm config:show` | Gates in force, where each value came from, active waivers |
 | `pnpm i18n:verify` | Translation completeness |
 | `pnpm layer:scan` · `pnpm testid:scan` | Structural invariants (fast; also run on every edit) |

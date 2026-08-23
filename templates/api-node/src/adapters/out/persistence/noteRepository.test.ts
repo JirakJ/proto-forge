@@ -21,7 +21,7 @@ afterAll(async () => {
 
 describe("makeNoteRepository over PGlite", () => {
   it("starts empty: the migrations created the table, nothing seeded it", async () => {
-    expect(await repo.list()).toEqual([]);
+    expect(await repo.list(50, 0)).toEqual({ items: [], total: 0 });
   });
 
   it("round-trips create, get, list and delete", async () => {
@@ -31,12 +31,31 @@ describe("makeNoteRepository over PGlite", () => {
     await repo.create(second);
 
     expect(await repo.get(first.id)).toEqual(first);
-    expect(await repo.list()).toEqual([first, second]);
+    expect(await repo.list(50, 0)).toEqual({ items: [first, second], total: 2 });
 
     expect(await repo.delete(first.id)).toBe(true);
     expect(await repo.get(first.id)).toBeNull();
-    expect(await repo.list()).toEqual([second]);
+    expect(await repo.list(50, 0)).toEqual({ items: [second], total: 1 });
     expect(await repo.delete(second.id)).toBe(true);
+  });
+
+  it("pages in the engine: limit and offset slice, total reports the whole table", async () => {
+    const notes = [
+      makeNote({ createdAt: "2025-02-01T00:00:00.000Z" }),
+      makeNote({ createdAt: "2025-02-02T00:00:00.000Z" }),
+      makeNote({ createdAt: "2025-02-03T00:00:00.000Z" }),
+    ];
+    for (const note of notes) {
+      await repo.create(note);
+    }
+
+    const page = await repo.list(1, 1);
+    expect(page.total).toBe(3);
+    expect(page.items.map((note) => note.id)).toEqual([notes[1]?.id]);
+
+    for (const note of notes) {
+      await repo.delete(note.id);
+    }
   });
 
   it("orders the list by createdAt, then id, regardless of insertion order", async () => {
@@ -48,7 +67,7 @@ describe("makeNoteRepository over PGlite", () => {
     await repo.create(earlier);
 
     const [a, b] = [later.id, tieBreak.id].sort();
-    expect((await repo.list()).map((note) => note.id)).toEqual([earlier.id, a, b]);
+    expect((await repo.list(50, 0)).items.map((note) => note.id)).toEqual([earlier.id, a, b]);
 
     for (const note of [later, earlier, tieBreak]) {
       await repo.delete(note.id);

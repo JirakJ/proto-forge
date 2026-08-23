@@ -20,7 +20,7 @@ run — when a number changes, the diff of this file shows it.
 | coverage: branches | 100% | 100% |
 | coverage: functions | 100% | 100% |
 | coverage: lines | 100% | 100% |
-| mutation score | 92.99% | break under 90 |
+| mutation score | 92.75% | break under 90 |
 | e2e tests | 83/83 passed | all green |
 | verify gates | 30 | fail-fast chain |
 

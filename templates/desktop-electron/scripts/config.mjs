@@ -36,6 +36,35 @@ export const MANDATORY_GATES = [
   "status",
 ];
 
+// The FAST LANE (BR-45): the per-iteration, per-feature-commit bar — unit tests
+// with their coverage floors plus every offline structural scan, in the full
+// chain's relative order. It answers in minutes; the deep proofs (gate
+// selftests, mutation, build+budget, delivery surface, security scans, the
+// browser suite, the measured status) stay in `pnpm verify`, which runs at each
+// phase boundary, before release and in CI — never inside the feature loop.
+// `config:check` pins package.json's `verify:fast` to exactly this list, so the
+// lane can neither drift nor be quietly narrowed.
+export const FAST_GATES = [
+  "config:check",
+  "lint",
+  "typecheck",
+  "coverage:policy",
+  "ignores",
+  "test:unit",
+  "shell:verify",
+  "i18n:verify",
+  "layer:scan",
+  "overlay:matrix",
+  "testid:scan",
+  "docs:verify",
+  "stub:scan",
+  "adr:lint",
+  "prompt:lint",
+  "dup:scan",
+  "consistency",
+  "snapshot:diff",
+];
+
 const MODES = ["error", "warn", "off"];
 
 // A desktop application has no promotion chain: delivery is packaging (a CI

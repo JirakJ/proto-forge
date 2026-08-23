@@ -16,15 +16,38 @@ function serviceWith(notes: Parameters<typeof makeMemoryNoteRepository>[0] = [])
 }
 
 describe("listNotes", () => {
-  it("returns every note, oldest first", async () => {
+  it("returns one page, oldest first, inside the pagination envelope", async () => {
     const older = makeNote();
     const newer = makeNote();
     const service = serviceWith([newer, older]);
-    expect(await service.listNotes()).toEqual([older, newer]);
+    expect(await service.listNotes(50, 0)).toEqual({
+      items: [older, newer],
+      total: 2,
+      limit: 50,
+      offset: 0,
+    });
   });
 
-  it("returns an empty list from an empty store", async () => {
-    expect(await serviceWith().listNotes()).toEqual([]);
+  it("reports the full total even when the page holds a slice", async () => {
+    const first = makeNote();
+    const second = makeNote();
+    const third = makeNote();
+    const service = serviceWith([first, second, third]);
+    expect(await service.listNotes(1, 1)).toEqual({
+      items: [second],
+      total: 3,
+      limit: 1,
+      offset: 1,
+    });
+  });
+
+  it("returns an empty page from an empty store", async () => {
+    expect(await serviceWith().listNotes(50, 0)).toEqual({
+      items: [],
+      total: 0,
+      limit: 50,
+      offset: 0,
+    });
   });
 });
 
@@ -72,7 +95,7 @@ describe("deleteNote", () => {
     const note = makeNote();
     const service = serviceWith([note]);
     await service.deleteNote(note.id);
-    expect(await service.listNotes()).toEqual([]);
+    expect((await service.listNotes(50, 0)).items).toEqual([]);
   });
 
   it("throws the note-not-found problem when nothing was deleted", async () => {

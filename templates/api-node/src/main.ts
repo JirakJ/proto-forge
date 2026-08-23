@@ -3,6 +3,7 @@ import { makeDb } from "./adapters/out/persistence/driver.js";
 import { makeNoteRepository } from "./adapters/out/persistence/noteRepository.js";
 import { makeNoteService } from "./application/note/noteService.js";
 import { loadEnv } from "./config/env.js";
+import { loadDocsFromDisk } from "./platform/docs.js";
 import { createLogger } from "./platform/logger.js";
 
 // Composition root — covered by the e2e conformance run, not unit coverage.
@@ -17,7 +18,7 @@ const service = makeNoteService({
   now: () => new Date().toISOString(),
   newId: () => crypto.randomUUID(),
 });
-const app = buildApp({ service, logger, gitSha: env.GIT_SHA });
+const app = buildApp({ service, logger, docs: loadDocsFromDisk(), gitSha: env.GIT_SHA });
 
 await app.listen({ port: env.PORT, host: "0.0.0.0" });
 logger.info({ port: env.PORT }, "listening");

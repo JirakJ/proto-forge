@@ -1,8 +1,8 @@
 {
   "unit": {
-    "files": 10,
-    "tests": 66,
-    "passed": 66
+    "files": 11,
+    "tests": 77,
+    "passed": 77
   },
   "coverage": {
     "statements": 100,
@@ -15,8 +15,8 @@
     "break": 90
   },
   "e2e": {
-    "tests": 9,
-    "passed": 9
+    "tests": 11,
+    "passed": 11
   },
   "contract": {
     "operations": 4,

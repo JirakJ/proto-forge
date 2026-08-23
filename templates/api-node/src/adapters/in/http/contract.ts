@@ -62,7 +62,7 @@ function buildOperation(def: RouteDef): Record<string, unknown> {
   if (body !== undefined) {
     operation.requestBody = {
       required: true,
-      content: { "application/json": { schema: toSchema(body) } },
+      content: { "application/json": { schema: toSchema(body, "input") } },
     };
   }
   return operation;
@@ -120,7 +120,7 @@ function schemaParameters(
   if (schema === undefined) {
     return [];
   }
-  const json = toSchema(schema) as { properties: Record<string, unknown>; required?: string[] };
+  const json = toSchema(schema, "input") as { properties: Record<string, unknown>; required?: string[] };
   const required = json.required ?? [];
   return Object.entries(json.properties).map(([name, propertySchema]) => ({
     name,
@@ -130,8 +130,11 @@ function schemaParameters(
   }));
 }
 
-function toSchema(schema: z.ZodType): Record<string, unknown> {
-  const json = z.toJSONSchema(schema, { target: "draft-2020-12" }) as Record<string, unknown>;
+// Requests render from the INPUT view (a defaulted query parameter is optional
+// to the caller), responses from the OUTPUT view (the same default is always
+// present in what the service answers) — one schema, two honest projections.
+function toSchema(schema: z.ZodType, io: "input" | "output" = "output"): Record<string, unknown> {
+  const json = z.toJSONSchema(schema, { target: "draft-2020-12", io }) as Record<string, unknown>;
   return Object.fromEntries(Object.entries(json).filter(([key]) => key !== "$schema"));
 }
 

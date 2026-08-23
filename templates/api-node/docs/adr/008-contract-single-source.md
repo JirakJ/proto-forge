@@ -16,9 +16,13 @@ A hand-edited OpenAPI spec and the code it describes drift within days, and the 
 
 **A breaking policy.** `contract/released/openapi.json` is the last released contract, committed at release time. `contract:breaking` detects the conservative breaking set in pure JS — removed paths/methods/operationIds, removed response codes, newly required request fields, removed required response fields — and passes breaking findings ONLY across a contract major bump, which itself requires an ADR.
 
+**A served surface (BR-47).** The platform kernel serves the committed artefacts to whoever stands in front of a running instance: `GET /openapi.json` answers with `contract/openapi.json` byte-for-byte, and `GET /docs` serves the owned, dependency-free explorer (`src/platform/docs.ts` + `explorerAssets.ts`) rendering every operation with its schemas, problem responses, the captured examples and curl usage — under a scoped CSP, with no external asset anywhere. `buildApp` takes the artefacts as an injected `DocsDeps`; the composition root loads them with `loadDocsFromDisk()` and the Dockerfile ships `contract/` and `docs/api/` into the runtime image. Like `/healthz`, these are platform routes outside the contract: they are how a consumer reaches the API surface, not the surface itself. `contract:verify` fails a service whose explorer wiring is gone; the platform unit suite proves the serving.
+
+**Two projections of one schema.** The emitter renders requests from zod's *input* view (a defaulted query parameter is optional to the caller) and responses from the *output* view (the same default is always present in an answer) — which is what lets the pagination envelope (NFR-29) declare optional `limit`/`offset` inputs and guaranteed `limit`/`offset` outputs from a single schema pair.
+
 ## Consequences
 
-Contract drift is structurally impossible rather than procedurally discouraged. Clients, docs and tests key on operationIds that cannot collide. The cost is that quick ad hoc endpoints do not exist — every operation is a registry entry with a schema and an error list, which is what "contract-first" costs.
+Contract drift is structurally impossible rather than procedurally discouraged. Clients, docs and tests key on operationIds that cannot collide. An integrator with nothing but a URL gets the explorer and the machine-readable contract from the service itself, and both are exactly the committed bytes. The cost is that quick ad hoc endpoints do not exist — every operation is a registry entry with a schema and an error list, which is what "contract-first" costs.
 
 ## Alternatives considered
 

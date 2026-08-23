@@ -442,25 +442,33 @@ first-party path (`@/`, `@jj/`, relative).
   gated; the seed-data allowance is confined by convention to `src/infra/**/seed.ts`.
 - **Decided in:** ADR 022
 
-### BR-13 — The prompt log is append-only and well-formed
+### BR-13 — The prompt log is append-only, well-formed, and English
 
 **MUST.** One Markdown file per prompt in `.prompts/`, named `NNNN-slug.md`,
 zero-padded and strictly increasing, with frontmatter `id` / `timestamp` / `phase` and a
-`## Prompt` section holding the prompt verbatim. Existing entries are immutable; a
+`## Prompt` section. Entries are written **in English**: a prompt that arrived in
+another language is recorded as its faithful English rendering, written as if
+authored in English — no translation annotation, no original-language copy.
+Non-English *product strings* the brief demands (a Czech UI label) are quoted in
+backticks; frontmatter (author names) is exempt. Existing entries are immutable; a
 correction is a new entry referencing the prior id. The prompt is written **before** the
 code it produced is committed. Secret-shaped values and PII are redacted before writing.
 
 - **Why:** Provenance that can be edited after the fact is not provenance (NFR-10).
+  And a log that switches language per operator costs every later reader exactly as
+  a mixed-language codebase does (BR-07) — the log is part of what ships.
 - **Scope:** all
-- **Enforced by:** `prompt:lint` for structure, a git-history diff in CI for
+- **Enforced by:** `prompt:lint` for structure and language, a git-history diff in CI for
   append-only, and `templates/web/scripts/hooks/guard-write.mjs` locally
 - **Proven by:** `gates:selftest` → "prompt: well-formed, strictly increasing entries
   pass", "prompt: an empty log fails", "prompt: a filename that is not NNNN-slug.md
   fails", "prompt: an id that disagrees with the filename fails", "prompt: an entry with
-  no ## Prompt section fails", "prompt: ids that do not strictly increase fail", "hook:
-  rewriting an existing prompt-log entry is blocked", "hook: adding a NEW prompt-log
-  entry is allowed"
-- **Decided in:** ADR 002 (prototype namespace)
+  no ## Prompt section fails", "prompt: ids that do not strictly increase fail",
+  "prompt: a non-English prompt body fails", "prompt: backtick-quoted foreign strings
+  pass", "hook: rewriting an existing prompt-log entry is blocked", "hook: adding a NEW
+  prompt-log entry is allowed"
+- **Decided in:** ADR 002 (prototype namespace); the language decision in ADR 017
+  (plugin namespace)
 
 ### BR-14 — Brief identity is the facet hash
 
@@ -608,9 +616,13 @@ to the local documents it concerns.
 **MUST.** Every exported component and every feature has a page under `docs/`. The page
 describes the API, the testid map, the i18n keys and the accessibility contract, and it
 shows a screenshot — or states, in a `<!-- no-screenshot: reason -->` comment, why there
-cannot be one. Screenshots are captured from a catalogue entry point that is never part
-of a production build, and each folder's `.shot.lock` records the hash of the source the
-image was taken from, so **a screenshot of older code fails** rather than flattering.
+cannot be one. For a **feature that adds a route**, the escape does not apply: a routed
+page is visual by construction, so its documentation always shows the current visual
+state (held in review — the escape stays mechanically available for genuinely
+non-visual subjects such as providers). Screenshots are captured from a catalogue entry
+point that is never part of a production build, and each folder's `.shot.lock` records
+the hash of the source the image was taken from, so **a screenshot of older code
+fails** rather than flattering.
 
 - **Why:** Building the component, writing its page and capturing its states is one task,
   not three. Where documentation is a follow-up it does not happen, and where a
@@ -1048,6 +1060,214 @@ fails. CI renders the same table into the job summary and uploads quality.json.
   package.json fails", "status: a missing quality.json fails"
 - **Decided in:** ADR 009 (prototype namespace)
 
+### BR-44 — Every rendered control performs its action
+
+**MUST.** A control that renders is a control that works: its handler dispatches the
+real action, end to end. A control whose only behaviour is to explain that the
+feature is missing — "not available in this prototype", "coming soon", a handler
+that is a hard-coded no-op, an `href="#"` — is a placeholder wearing real i18n
+keys, and it is banned exactly as `TODO` is. If a capability is out of scope, its
+control does not render, and the scope cut is a recorded ADR, never UI copy.
+Dead-end copy is scanned in code string literals **and in every locale catalogue
+value** — the catalogue is where the polite refusal ships, and it was the one
+place no scan looked. The harness (`src/harness/**`) is exempt from the wiring
+half: its mounts pass no-op callbacks by design (§2).
+
+- **Why:** A generated run wired a screen's New button to a toast announcing the
+  action "is not available in the prototype" — translated, tested for rendering,
+  green on every gate. Once an ADR accepting a flow exists, every screen and every
+  action that flow implies must exist and work; a run out of budget escalates, it
+  does not ship a refusal dressed as UI.
+- **Scope:** frontend, desktop
+- **Enforced by:** `stub:scan` (the phrase list and the no-op wiring patterns);
+  the flow-completeness half — an accepted CRUD ADR ships create, read, update
+  and delete surfaces with their tests and docs — is the Phase-4 DoD in
+  `SKILL.md`, held in review
+- **Limit, stated:** a scan cannot know what a flow implies, so completeness is
+  DoD + review; the mechanically detectable surface (dead-end copy in code and
+  catalogues, no-op handlers, dead links) is gated.
+- **Proven by:** `gates:selftest` → "stub: a dead-end phrase in production code
+  fails", "stub: a dead-end phrase in a locale catalogue fails", "stub: a no-op
+  interaction handler fails", "stub: a wired control with real copy passes"
+- **Decided in:** ADR 016 (plugin namespace)
+
+### BR-45 — Verification is two lanes, and the fast lane is pinned and parallel
+
+**MUST.** Every app template ships `pnpm verify:fast` beside `pnpm verify`. The
+fast lane is the per-iteration, per-feature-commit bar — unit tests with their
+coverage floors plus every offline structural scan — and it answers in minutes:
+`verify:fast` invokes `scripts/verify-fast.mjs`, which runs the pinned gates **in
+parallel** (they are independent by construction — offline and read-only over the
+tree, except `test:unit`, whose output no other fast gate reads), so the lane's
+wall clock is its slowest gate, not the sum. `config:check` runs first and alone;
+the first red gate stops the pool, fail-fast. The full lane adds the deep proofs
+(gate selftests, mutation, build and budget, delivery surface, security scans,
+the browser/e2e suites, the measured status); its checkpoints are **the end of
+Phase 6, release, and CI on every push** — never inside the feature loop.
+Phases 5, 7 and 8 close on the fast lane plus their own named gates (Phase 5:
+`test:e2e`; Phase 7: `sec:scan` + `sec:conformance`; Phase 8: `docs:shots`);
+what a lighter close could miss is held by the next full checkpoint and by CI.
+The fast chain is pinned as `FAST_GATES` in `scripts/config.mjs`;
+`config:check` fails a `verify:fast` that drifts from the runner invocation,
+and a fast gate the full chain does not also run.
+
+- **Why:** When the full suite runs between two feature commits, one iteration
+  takes hours and the loop stops being a loop — so people stop running it, which
+  is worse than a slower bar. And a serial lane leaves most cores idle exactly
+  where latency matters most; the loop must move with no needless stalls. A fast
+  lane that is merely conventional would be quietly narrowed the first time it
+  was red; a pinned lane cannot.
+- **Scope:** frontend, backend, desktop
+- **Enforced by:** `config:check`
+- **Proven by:** `gates:selftest` → "config: a verify:fast chain matching the
+  pinned fast set passes", "config: a verify:fast chain that drops a pinned fast
+  gate fails", "config: a fast gate missing from the full verify chain fails"
+- **Decided in:** ADR 015 (plugin namespace)
+
+### BR-46 — The operator authors, the model co-authors
+
+**MUST.** Every commit's git author is the operator who ran the prompt; the model
+that prepared the commit is named in a `Co-Authored-By: <name> <email>` trailer.
+The gate requires at least one well-formed co-author trailer and — inside a git
+repository — fails a commit whose git author matches a co-author identity: the
+model may not author.
+
+- **Why:** Provenance again (NFR-10's argument at the commit layer): a history
+  where the model appears as the author says a person did work they did not do,
+  and a history with no model trailer hides that a model did work it did do.
+  Both halves of the attribution must survive `git log`.
+- **Scope:** frontend, backend, desktop
+- **Enforced by:** `commit-lint` via the `commit-msg` hook
+- **Limit, stated:** the gate proves the trailer's presence and shape and that
+  the author is not the co-author; *which* model prepared the commit is
+  provenance the prompt log carries, held in review.
+- **Proven by:** `gates:selftest` → "commit: a missing model co-author trailer
+  fails", "commit: a malformed co-author trailer fails", "commit: the model
+  authoring its own commit fails"
+- **Decided in:** ADR 017 (plugin namespace)
+
+### BR-47 — The contract is served, with its examples, by the running service
+
+**MUST.** The platform kernel serves `GET /openapi.json` — the committed contract,
+byte-for-byte — and `GET /docs`, an owned, dependency-free explorer that renders
+every operation with its schemas, its registered problem types, the captured
+BR-26 examples and copy-paste usage snippets. The explorer is self-contained (no
+external assets, CSP-clean) and reads the same committed artefacts the
+repository pins, so it cannot disagree with them.
+
+- **Why:** "The service satisfies OpenAPI" is only useful to a consumer who can
+  *reach* the contract: a spec that lives in the repo serves the team that wrote
+  it, not the team integrating against a running instance. And an explorer that
+  renders the captured examples shows real exchanges, never hand-typed fiction
+  (BR-26's argument, one hop further).
+- **Scope:** api-node
+- **Enforced by:** `contract:verify` (the explorer module exists and the app
+  wires it); the platform suite under `test:unit` proves the behaviour — `/docs`
+  and `/openapi.json` serve the committed bytes
+- **Proven by:** `gates:selftest` → "contract: a service that does not serve its
+  explorer fails"
+- **Staged:** the remaining stacks land per
+  `docs/specs/2026-08-22-production-output-bar-design.md`; this rule's scope
+  widens with each landing, never ahead of it.
+- **Decided in:** ADR 018 (plugin namespace)
+
+### BR-48 — Settings survive a rebuild
+
+**MUST.** User state — a settings tab above all — persists through the repository
+port on the real persistence adapter (T5/T6), exactly like any entity: its values
+survive a rebuild and a redeploy. Direct `localStorage` / `sessionStorage` access
+in production code is banned — ad-hoc web storage sits outside the port's schema
+versioning and migrations, and the next build's key drift wipes it silently.
+Changing or resetting the settings schema is an ADR with a migration, never an
+accident of a new build.
+
+- **Why:** "My settings reset after the update" is the defect that makes a user
+  stop trusting every other persisted thing the application claims. The port
+  already carries the machinery that prevents it (schema, versioned store,
+  migrations); the only way to lose is to go around it.
+- **Scope:** frontend, desktop
+- **Enforced by:** `stub:scan` (the storage-bypass scan)
+- **Limit, stated:** the scan proves nothing bypasses the port; that the settings
+  schema keeps its identity across releases — and that a deliberate reset ships
+  as an ADR'd migration — is the Phase-4 DoD and review.
+- **Proven by:** `gates:selftest` → "stub: direct web storage access in
+  production code fails"
+- **Decided in:** ADR 020 (plugin namespace)
+
+### BR-49 — A known defect becomes an issue, and its fix carries the regression test
+
+**MUST.** A defect discovered at any point — a red gate that resists the
+remediation protocol, a bug found in review, an operator report — is recorded
+**immediately**: as a GitHub issue (`gh issue create` with the repro and the
+failing gate or test) when the repository has a remote tracker; in a workspace,
+on the workspace repository; with no tracker, as a `proposed` ADR. The fix is a
+`fix:` commit that carries its **regression test in the same diff** — a test
+that fails before the fix and passes after — and references the issue
+(`Fixes #N`) in its body. `commit-lint` fails a `fix:` commit whose staged diff
+touches no test file.
+
+- **Why:** The defect that had no failing test is the defect that returns. And
+  a defect that lives only in someone's head is a defect the next session
+  re-discovers from scratch — recording it the moment it is known is what keeps
+  the loop moving instead of stalling on re-diagnosis.
+- **Scope:** frontend, backend, desktop
+- **Enforced by:** `commit-lint` via the `commit-msg` hook (the regression-test
+  half, mechanically: a `fix:` subject demands a staged test-file change)
+- **Limit, stated:** that the staged test actually reproduces the defect — and
+  that the issue was filed and referenced — is review; filing itself is an
+  outward write and stays with the operator's tooling and consent, never a
+  pipeline side effect (BR-20's doctrine).
+- **Proven by:** `gates:selftest` → "commit: a fix without a regression test
+  fails", "commit: a fix with its regression test passes"
+- **Decided in:** ADR 021 (plugin namespace)
+
+### NFR-29 — Collections are paginated
+
+**MUST.** A GET operation whose 200 response is a top-level array is an unbounded
+collection and fails. A GET whose 200 embeds an array must declare `limit` plus
+`offset` or `cursor` query parameters, and the demo slice ships the envelope
+shape (`items`, `total`, `limit`, `offset`) so generated services inherit the
+pattern rather than re-deciding it.
+
+- **Why:** Every unpaginated list works in the demo and falls over at the first
+  real dataset — the classic scalability defect that no unit test catches,
+  because the fixture is always small. The contract is the one place the rule is
+  mechanically checkable for every stack at once.
+- **Scope:** api-node
+- **Enforced by:** `contract:verify`
+- **Proven by:** `gates:selftest` → "contract: a paginated collection operation
+  passes", "contract: a top-level array collection fails", "contract: a
+  collection without pagination parameters fails"
+- **Staged:** widens per the BR-47 staging table, one stack at a time.
+- **Decided in:** ADR 019 (plugin namespace)
+
+### NFR-30 — Performance and resource use are pipeline stages with coarse ceilings
+
+**MUST.** The delivery pipeline carries a **perf-smoke** stage: it boots the
+freshly built image, drives a fixed load against the platform's DB-free
+endpoints, and enforces only coarse ceilings — zero errors, zero non-2xx, p95
+under the named latency budget, image size under the named ceiling — while
+publishing the measured numbers (latency percentiles, throughput, container
+memory under load, image size) to the job summary as the trend record. The stage
+is config-gated (`deployment.perfSmoke`) so the shared workflow stays
+byte-identical across templates while each stack turns it on with one reviewed
+config line; `deploy:verify` fails a workflow that lost the stage or its budgets.
+
+- **Why:** NFR-13 already records why micro-latency budgets on shared runners are
+  noise. What a pipeline *can* hold honestly: an image that no longer boots,
+  errors under sustained load, an order-of-magnitude latency regression, a
+  container that doubled its memory, an image that doubled its size. Those are
+  the resource-use regressions that reach production undetected when nothing
+  measures them, and a published trend is what makes "fully optimized resource
+  use" a reviewable claim instead of a hope.
+- **Scope:** frontend, backend
+- **Enforced by:** `deploy:verify`; the `package.yml` "perf smoke" stage itself
+  (a CI-mechanism proof, the NFR-10 precedent)
+- **Proven by:** `gates:selftest` → "deploy: a package.yml with the perf-smoke
+  stage passes", "deploy: a package.yml without the perf-smoke stage fails",
+  "deploy: a perf-smoke stage without its budgets fails"
+- **Decided in:** ADR 019 (plugin namespace)
+
 ### NFR-02 — No heavy runtime UI dependency
 
 **MUST.** The prototype ships no component-framework runtime beyond React. The owned
@@ -1388,7 +1608,11 @@ per component.
 thing, and asserts the gate's exit code and the wording of its complaint. A gate with no
 such case is not considered enforcing. Where a gate cannot be exercised in a fixture — it
 needs a network, a registry, an external binary — the limit is stated in §19 rather than
-covered by a case that only proves the binary is absent.
+covered by a case that only proves the binary is absent. The suite's verdict is a pure
+function of `scripts/**` and the node runtime, so a run whose scripts tree is
+byte-identical to the last green run answers from its content-addressed stamp (under
+`node_modules/.cache`, outside every snapshot; `--force` reruns) — any byte of drift
+re-executes every case, which is what keeps the cache a cache and not a skip.
 
 - **Why:** A gate nobody has seen fail is a gate nobody knows works. This is not
   hypothetical: nine of sixteen gates had no case at all while the documentation claimed

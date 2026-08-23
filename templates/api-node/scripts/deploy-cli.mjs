@@ -72,6 +72,11 @@ export function buildPlan(cfg = loadConfig()) {
     registryHost: image.split("/")[0],
     sign: deployment.sign === true,
     scan: deployment.scan?.image === true,
+    // NFR-30: whether this template's perf-smoke stage is live. Declared in the
+    // committed config so the shared workflow stays byte-identical — a stack
+    // whose smoke story has not landed ships `false`, and enabling it is one
+    // reviewed config line, never a workflow fork.
+    perf: deployment.perfSmoke === true,
     severity: SEVERITY[deployment.scan?.severityThreshold] ?? SEVERITY.high,
     chartPath: deployment.helm?.chartPath ?? "deploy/chart",
     keepHistory: deployment.helm?.keepHistory ?? 5,
@@ -88,6 +93,7 @@ export function githubOutputLines(plan) {
     `registry_host=${plan.registryHost}`,
     `sign=${plan.sign}`,
     `scan=${plan.scan}`,
+    `perf=${plan.perf}`,
     `severity=${plan.severity}`,
     `chart_path=${plan.chartPath}`,
     `keep_history=${plan.keepHistory}`,

@@ -4,7 +4,11 @@ Read before changing anything. These are not style preferences — each one is e
 
 Run `pnpm config:show` to see which gates are in force and whether any is currently waived.
 
-## The four rules that catch people out
+**Two lanes.** `pnpm verify:fast` is the per-iteration bar — run it for every feature commit; it answers in minutes because the pinned gates run **in parallel** (`scripts/verify-fast.mjs`; `PROTO_FORGE_FAST_JOBS=1` for serial bisection). `pnpm verify` is the full bar — its checkpoints: end of Phase 6, release, CI on every push (Phases 5/7/8 close on the fast lane plus their own named gates). Never run the full suite between two feature commits. The fast chain is pinned (`FAST_GATES` in `scripts/config.mjs`) and `config:check` fails a drifted one.
+
+**Fixes prove themselves.** A known defect is recorded the moment it is known (`gh issue create` when the repo has a remote; a `proposed` ADR otherwise), and its `fix:` commit must stage the regression test in the same diff — `commit-lint` refuses one that touches no test file. Reference the issue as `Fixes #N` in the body.
+
+## The five rules that catch people out
 
 **1. Every client-visible error is a registered problem type.** The catalogue in `src/platform/problems.ts` is the only error surface: `AppProblem` accepts only registered codes, every route declares the codes it can emit, and `docs/api/problems.md` documents each one. `pnpm error:catalog` fails an unregistered shape, a duplicate code, and a catalogue entry nothing can emit. Responses are RFC 9457 problem+json, English only — consumers key on `code`, a frontend translates FROM the catalogue.
 
@@ -12,7 +16,9 @@ Run `pnpm config:show` to see which gates are in force and whether any is curren
 
 **3. Migrations are history.** Never edit or delete a file in `db/migrations/` — a correction is a NEW migration, and `.proto-forge/migrations.lock` pins every file's hash to prove it (`pnpm migration:verify`; `--write` appends new entries and refuses to re-pin). `DROP`/`TRUNCATE` need an `-- @adr NNN` marker. The Drizzle model must describe exactly the tables the migrations produce.
 
-**4. The committed contract is a locked derivation of the code.** Never hand-edit `contract/openapi.json`: `pnpm contract:generate` regenerates it from the registry and re-pins `contract/contract.lock`; `pnpm contract:verify` byte-compares on every run. A breaking change against `contract/released/openapi.json` needs a contract major bump plus an ADR (`pnpm contract:breaking`). The same discipline covers docs: editing a handler invalidates its captured examples until `pnpm docs:examples` reruns.
+**4. The committed contract is a locked derivation of the code — and the running service serves it.** Never hand-edit `contract/openapi.json`: `pnpm contract:generate` regenerates it from the registry and re-pins `contract/contract.lock`; `pnpm contract:verify` byte-compares on every run. A breaking change against `contract/released/openapi.json` needs a contract major bump plus an ADR (`pnpm contract:breaking`). The same discipline covers docs: editing a handler invalidates its captured examples until `pnpm docs:examples` reruns. The platform serves `GET /openapi.json` (the committed bytes) and `GET /docs` — the owned explorer rendering the contract with the captured examples and curl usage; `contract:verify` fails a service whose explorer wiring is gone.
+
+**5. Collections are paginated.** A GET whose 200 is a top-level array fails `contract:verify`; a GET embedding an array must declare `limit` + `offset` (or `cursor`) query parameters. Answer with the envelope (`items`, `total`, `limit`, `offset`) the demo slice ships — the repository port has no unpaged listing at all, so do not add one.
 
 ## What the hooks will stop
 

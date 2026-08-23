@@ -1,0 +1,21 @@
+{
+  "note": "A limit past the 200 ceiling fails boundary validation.",
+  "request": {
+    "method": "GET",
+    "path": "/notes?limit=999"
+  },
+  "response": {
+    "body": {
+      "code": "validation-failed",
+      "detail": "query: limit: Too big: expected number to be <=200",
+      "instance": "/notes?limit=999",
+      "status": 400,
+      "title": "The request does not match the operation's schema",
+      "type": "/problems/validation-failed"
+    },
+    "headers": {
+      "content-type": "application/problem+json; charset=utf-8"
+    },
+    "status": 400
+  }
+}

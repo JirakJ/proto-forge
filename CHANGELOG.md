@@ -1,5 +1,66 @@
 # Changelog
 
+## Unreleased
+
+The production output bar (`docs/specs/2026-08-22-production-output-bar-design.md`,
+plugin ADRs 015–020): six operator-named gaps between "gated" and "shippable",
+closed with enforcers.
+
+- **Dead-end interactions are banned (BR-44, ADR 016).** A control that renders
+  must work: `stub:scan` in the web family now fails "not available / coming
+  soon / this prototype" copy in code string literals **and in every locale
+  catalogue value** (the one place no scan looked), plus hard-coded no-op
+  handlers and `href="#"`. CRUD completeness is the Phase-4 DoD; a scope cut is
+  an ADR, never UI copy.
+- **Two-lane verification, in parallel, with three full-bar checkpoints (BR-45,
+  ADR 015).** Every app template ships `pnpm verify:fast` — the per-iteration
+  bar — beside the full `pnpm verify`, whose checkpoints are the end of
+  Phase 6, release, and CI on every push (Phases 5/7/8 close on the fast lane
+  plus their own named gates — five full runs per pipeline become two). The
+  lane executes through `scripts/verify-fast.mjs`: `config:check` first, then
+  the pinned gates under a machine-sized worker pool (buffered output,
+  fail-fast kill on the first red), so the wall clock is the slowest gate
+  rather than the sum — measured at 5.1 s (api-node, 20 gates) and 7.6 s (web,
+  18 gates). The chain is pinned as `FAST_GATES` and `config:check` fails a
+  drifted, inlined or narrowed lane. Warm runs stop paying cold starts:
+  `gates:selftest` answers from a content-addressed stamp while `scripts/**`
+  is byte-identical to the last green run (`--force` reruns), and eslint/tsc
+  cache under `node_modules/.cache` — outside every snapshot and commit.
+- **A defect becomes an issue, a fix carries its regression test (BR-49,
+  ADR 021).** The defect protocol records a known defect immediately (GitHub
+  issue with the repro; a proposed ADR without a tracker), and `commit-lint`
+  mechanically refuses a `fix:` commit whose staged diff touches no test file —
+  the fix and the test that pins it closed land together, referencing the issue.
+- **Provenance is English and correctly attributed (BR-13 amended + BR-46,
+  ADR 017).** Prompt-log entries are recorded in English (faithful rendering,
+  no translation markers; foreign product strings in backticks) — `prompt:lint`
+  enforces it in all three variants. `commit-lint` requires a well-formed
+  `Co-Authored-By` model trailer and fails a commit whose git author *is* the
+  model: the operator authors, the model co-authors.
+- **The service serves its contract (BR-47, ADR 018).** api-node's platform now
+  answers `/openapi.json` with the committed contract byte-for-byte and `/docs`
+  with an owned, dependency-free, CSP-clean explorer rendering schemas, problem
+  types, the captured BR-26 examples (now carrying each scenario's note) and
+  curl usage. Injected via `DocsDeps`, shipped into the runtime image, proven by
+  the platform unit suite at the 100 % floor; `contract:verify` fails dropped
+  wiring. Remaining stacks staged in the spec.
+- **The scalability floor (NFR-29 + NFR-30, ADR 019).** `contract:verify`
+  rejects top-level-array collections and unpaginated embeds; the demo Note
+  slice pages in the engine behind a port that no longer offers unpaged listing,
+  and the emitter renders request schemas from zod's input view. The shared
+  `package.yml` gains a config-gated **perf-smoke stage** (fixed load, coarse
+  ceilings — zero errors, p95 < 1 s, image ≤ 400 MB — trend published to the job
+  summary), on for api-node, one reviewed config line per remaining stack;
+  `deploy:verify` fails a workflow that lost the stage or its budgets.
+- **Settings survive a rebuild (BR-48, ADR 020).** User state persists through
+  the repository port; direct `localStorage`/`sessionStorage` in production code
+  fails `stub:scan`, and a settings-schema change or reset is an ADR with a
+  migration, never a build side effect.
+
+Routed feature pages always show their current visual state (BR-19 tightened);
+SKILL.md's Phase-4 DoD, commit discipline ("scoped gates" now *means* the fast
+lane) and prompt-log rules restate all of the above for the pipeline.
+
 ## 0.8.0 — 2026-08-17
 
 The security baseline stops being defined by itself. Three repairs land with it, one

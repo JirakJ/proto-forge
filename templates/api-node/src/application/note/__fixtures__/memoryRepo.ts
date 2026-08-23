@@ -16,7 +16,8 @@ export function makeMemoryNoteRepository(initial: readonly Note[] = []): NoteRep
     );
 
   return {
-    list: () => Promise.resolve(ordered()),
+    list: (limit, offset) =>
+      Promise.resolve({ items: ordered().slice(offset, offset + limit), total: store.size }),
     get: (id) => Promise.resolve(store.get(id) ?? null),
     create: (input) => {
       const note: Note = { id: input.id, text: input.text, createdAt: input.createdAt };

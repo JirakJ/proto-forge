@@ -4,6 +4,6 @@
   ],
   "version": "0.1.0",
   "sha": null,
-  "sha256": "5f54483d33c688861205e176a9e9ff7f839a62e843893e0b6bc5334cf9e853d5",
+  "sha256": "81ca4f38ce8b9c14b548fc4edaa4d6a918821b10d2c9a923f4653c57b0a118e0",
   "note": "sha = upstream git commit of the skill release that vendored this seed; null until first published release. sha256 covers the gate corpus (scripts/**, including the shared contract validator) as one digest; snapshot:diff re-verifies it."
 }

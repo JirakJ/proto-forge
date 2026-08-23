@@ -15,6 +15,7 @@ const DOCS_API_DIR = join(fileURLToPath(import.meta.url), "..", "..", "..", "doc
 
 function exampleFor(harnessCase: HarnessCase, response: LightMyRequestResponse): unknown {
   return {
+    note: harnessCase.note,
     request: {
       method: harnessCase.request.method,
       path: harnessCase.request.path,

@@ -2,9 +2,12 @@ import { execSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { fail, ok } from "./lib.mjs";
 
-// BR-06: one accepted ADR = one commit. Two halves, both checked:
+// BR-06: one accepted ADR = one commit. BR-46: the operator authors, the model
+// co-authors. Two halves, both checked:
 //   message — Conventional Commits subject, exactly one `ADR: NNN` trailer, a
-//             resolving `Prompt-Log:` trailer
+//             resolving `Prompt-Log:` trailer, and at least one well-formed
+//             `Co-Authored-By: <model> <email>` trailer naming the model that
+//             prepared the commit
 //   diff    — the STAGED changes flip exactly the ADR the trailer names to
 //             `accepted`, and no other. A message can promise anything; the diff is
 //             what the commit actually does, and the two must agree.
@@ -20,6 +23,53 @@ if (!/^(feat|fix|chore|docs|test|refactor|perf|build|ci)(\(.+\))?: .+/.test(subj
 const adrTrailers = msg.match(/^ADR:\s*(\d+)/gm) ?? [];
 if (adrTrailers.length !== 1) errors.push(`expected exactly one "ADR: NNN" trailer, found ${adrTrailers.length}`);
 if (!/^Prompt-Log:\s*\S+/m.test(msg)) errors.push('missing "Prompt-Log:" trailer');
+
+// --- authorship (BR-46) --------------------------------------------------------
+// The git author is the operator who ran the prompt; the model that prepared the
+// commit signs as co-author. The gate proves the trailer's presence and shape,
+// and that the author is not hiding behind a co-author line — WHICH model
+// prepared the commit is provenance the prompt log carries, not something a
+// regex can know.
+const coAuthorLines = msg.match(/^Co-Authored-By:.*$/gim) ?? [];
+const coAuthors = coAuthorLines
+  .map((l) => /^Co-Authored-By:\s*(\S.*?)\s*<([^<>\s]+@[^<>\s]+)>\s*$/i.exec(l))
+  .filter((m) => m !== null);
+if (coAuthorLines.length === 0) {
+  errors.push('missing "Co-Authored-By:" trailer — the model that prepared the commit signs as co-author (BR-46)');
+} else if (coAuthors.length !== coAuthorLines.length) {
+  errors.push('a "Co-Authored-By:" trailer is malformed — the shape is "Co-Authored-By: Name <email>" (BR-46)');
+}
+try {
+  const ident = execSync("git var GIT_AUTHOR_IDENT", { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+  const authorEmail = /<([^<>]+)>/.exec(ident)?.[1]?.toLowerCase();
+  if (authorEmail !== undefined && coAuthors.some((m) => m[2].toLowerCase() === authorEmail)) {
+    errors.push(`the git author <${authorEmail}> also signs as co-author — the operator authors, the model co-authors; they are not the same identity (BR-46)`);
+  }
+} catch {
+  // Outside a git repository (a gate selftest fixture): the trailer half stands alone.
+}
+
+// --- fix discipline (BR-49) ----------------------------------------------------
+// A fix ships its regression test in the same commit: the defect that had no
+// failing test is the defect that returns. The staged file list is the proof;
+// outside a git repository the check cannot run (the selftest fixtures' state).
+if (/^fix[(:]/.test(subject)) {
+  let staged = null;
+  try {
+    staged = execSync("git diff --cached --name-only", { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+  } catch {
+    // Outside a git repository: nothing to inspect.
+  }
+  if (staged !== null) {
+    const files = staged.split("\n").filter(Boolean);
+    const isTest = (f) => /\.test\.|\.e2e\.|(^|\/)e2e\/|(^|\/)tests?\//.test(f);
+    if (files.length > 0 && !files.some(isTest)) {
+      errors.push(
+        "a fix: commit must carry its regression test — stage the test that fails before this fix and passes after it (BR-49)",
+      );
+    }
+  }
+}
 
 // --- the diff half -------------------------------------------------------------
 // Every `+- Status: accepted` line in the staged ADR diff is one transition. The count

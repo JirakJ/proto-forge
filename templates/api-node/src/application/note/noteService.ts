@@ -4,6 +4,14 @@ import type { NoteRepository } from "../../domain/note/repository.js";
 import { AppProblem } from "../../platform/problems.js";
 import { validationDetail } from "../validation.js";
 
+/** The pagination envelope a listing answers with (NFR-29). */
+export type NotePage = {
+  items: Note[];
+  total: number;
+  limit: number;
+  offset: number;
+};
+
 export type NoteServiceDeps = {
   repo: NoteRepository;
   /** Injected clock: an ISO datetime string. Production wires Date; tests a constant. */
@@ -17,7 +25,10 @@ export type NoteServiceDeps = {
 // itself is deterministic and the e2e capture is byte-stable.
 export function makeNoteService({ repo, now, newId }: NoteServiceDeps) {
   return {
-    listNotes: (): Promise<Note[]> => repo.list(),
+    async listNotes(limit: number, offset: number): Promise<NotePage> {
+      const page = await repo.list(limit, offset);
+      return { items: page.items, total: page.total, limit, offset };
+    },
 
     async getNote(id: string): Promise<Note> {
       const note = await repo.get(id);

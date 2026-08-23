@@ -116,6 +116,7 @@
     "scripts/sync-pull.mjs",
     "scripts/sync-status.mjs",
     "scripts/testid-scan.mjs",
+    "scripts/verify-fast.mjs",
     "src/app/App.test.tsx",
     "src/app/App.tsx",
     "src/app/ErrorBoundary.test.tsx",

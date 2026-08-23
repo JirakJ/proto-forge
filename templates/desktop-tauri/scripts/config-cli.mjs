@@ -1,4 +1,5 @@
-import { loadConfig, checkConfig, configSources, gateMode, gateOptions, MANDATORY_GATES, DEFAULTS } from "./config.mjs";
+import { existsSync, readFileSync } from "node:fs";
+import { loadConfig, checkConfig, configSources, gateMode, gateOptions, MANDATORY_GATES, DEFAULTS, FAST_GATES } from "./config.mjs";
 import { fail, note, ok } from "./lib.mjs";
 
 // @adr 009 - the operator-facing view of the gate configuration
@@ -52,6 +53,31 @@ if (command === "show") {
 if (command !== "check") fail(`unknown command "${command}" — use: show | check`);
 
 const { errors, warnings, conformance, waivers } = checkConfig(cfg);
+
+// BR-45: the fast lane is PINNED. package.json's verify:fast must invoke the
+// parallel runner (which executes exactly FAST_GATES), and every fast gate must
+// also run in the full chain — a lane that drifted, narrowed, or ran a gate
+// `verify` does not would let a feature commit pass a bar the phase gate then
+// contradicts. (A gate selftest fixture has no package.json; the pin is
+// asserted wherever one exists.)
+if (existsSync("package.json")) {
+  const scripts = JSON.parse(readFileSync("package.json", "utf8")).scripts ?? {};
+  const RUNNER = "node scripts/verify-fast.mjs";
+  if (scripts["verify:fast"] === undefined) {
+    errors.push('package.json has no "verify:fast" script — the fast lane is part of the template contract (BR-45)');
+  } else if (scripts["verify:fast"] !== RUNNER) {
+    errors.push(`package.json "verify:fast" drifts from the pinned fast chain — expected exactly: ${RUNNER}, the parallel runner over FAST_GATES (BR-45)`);
+  }
+  const full = scripts.verify ?? "";
+  for (const gate of FAST_GATES) {
+    if (!full.includes(`pnpm run ${gate}`)) {
+      errors.push(`fast gate "${gate}" is missing from the full verify chain — the fast lane may only subset verify, never exceed it (BR-45)`);
+    }
+  }
+} else {
+  note("config: no package.json here — the verify:fast pin (BR-45) has nothing to check");
+}
+
 for (const w of warnings) note(w);
 if (errors.length) fail("config:check FAILED", errors);
 

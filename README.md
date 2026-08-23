@@ -25,9 +25,14 @@ Every run produces a repo with these guarantees baked in:
 - **Owned component library** (`@jj/proto-ui`) — Button, Field, Select, Checkbox,
   Dialog, Menu, Table, Tabs, ToastProvider, Portal + design tokens, 100% tested.
   No unowned UI dependency you can't patch.
-- **Zero placeholders** — no `TODO`, no `throw new Error("not implemented")`, no
-  mocked first-party modules. Real Dexie/IndexedDB persistence, real typed API
-  clients, real seed data.
+- **Zero placeholders, zero dead ends** — no `TODO`, no `throw new Error("not
+  implemented")`, no mocked first-party modules — and no control whose only
+  behaviour is to explain the feature is missing: "not available in the
+  prototype" copy fails the build in code *and in every locale catalogue*, a
+  no-op handler fails, and an accepted CRUD flow ships every screen and action
+  it implies (BR-44). Real Dexie/IndexedDB persistence, real typed API clients,
+  real seed data — and settings that survive a rebuild, because user state
+  lives behind the repository port, never in ad-hoc web storage (BR-48).
 - **Full test pyramid** — Vitest unit/component tests with layered coverage
   floors, Playwright E2E covering happy *and* error paths, axe a11y checks.
 - **WCAG 2.2 AA** — keyboard paths verified in E2E, a11y strings are i18n keys.
@@ -42,9 +47,24 @@ Every run produces a repo with these guarantees baked in:
 - **Security baseline** — strict CSP, zod validation at every boundary, a single
   `SafeHtml` sanitized-HTML entry point, `gitleaks` + `pnpm audit` hard-stop gates.
 - **Decision trail** — one accepted [ADR](https://adr.github.io/) per commit, plus
-  an append-only prompt log; a CycloneDX SBOM and a structure snapshot per release.
-- **One gate command** — `pnpm verify` runs every gate; local and CI are identical.
-  `pnpm gates:selftest` proves each gate still rejects what it claims to.
+  an append-only, English-only prompt log; every commit is authored by the operator
+  who ran the prompt with the preparing model as co-author (BR-46); a CycloneDX
+  SBOM and a structure snapshot per release.
+- **A served, exampled backend contract** — a generated service answers
+  `/openapi.json` with the committed contract byte-for-byte and `/docs` with an
+  owned, dependency-free explorer showing captured request/response examples and
+  curl usage; collections are paginated by contract-gate (landed for `api-node`,
+  staging per the spec); the delivery pipeline carries a perf-smoke stage with
+  coarse latency/error/image-size ceilings and a published trend.
+- **Two gate lanes** — `pnpm verify:fast` is the per-iteration bar: unit tests +
+  every offline structural scan, executed **in parallel** so the wall clock is
+  the slowest gate, not the sum; the chain is pinned and `config:check` fails a
+  drifted one. `pnpm verify` runs every gate at phase boundaries, release and
+  CI. `pnpm gates:selftest` proves each gate still rejects what it claims to.
+- **Defects become issues with regression tests** — a known defect is recorded
+  the moment it is known (GitHub issue, or a proposed ADR without a tracker),
+  and `commit-lint` refuses a `fix:` commit that stages no test: the fix and
+  the test that pins it closed land together (BR-49).
 
 ---
 

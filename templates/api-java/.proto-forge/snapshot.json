@@ -73,6 +73,7 @@
     "scripts/sync-jira.mjs",
     "scripts/sync-pull.mjs",
     "scripts/sync-status.mjs",
+    "scripts/verify-fast.mjs",
     "src/main/java/app/Application.java",
     "src/main/java/app/MigrateMain.java",
     "src/main/java/app/Wiring.java",
