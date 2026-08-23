@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.9.0 — 2026-08-23
 
 The production output bar (`docs/specs/2026-08-22-production-output-bar-design.md`,
 plugin ADRs 015–020): six operator-named gaps between "gated" and "shippable",
