@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join, dirname, resolve } from "node:path";
 import { execSync, spawnSync } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
-import { fail, ok } from "./lib.mjs";
+import { fail, ok, hashTree } from "./lib.mjs";
 import { FAST_GATES } from "./config.mjs";
 
 // @adr 009 - the gates are the product, so the gates get tested
@@ -12,6 +12,24 @@ import { FAST_GATES } from "./config.mjs";
 // Run it after touching any scan script: `pnpm gates:selftest`.
 
 const SCRIPTS = resolve(dirname(new URL(import.meta.url).pathname));
+
+// The suite's verdict is a pure function of scripts/** plus the node runtime:
+// fixtures are self-contained throwaway dirs, HOME is redirected, and no case
+// reads this repository's own tree (git plumbing used by the commit fixtures is
+// stable across versions and deliberately outside the fingerprint). So a
+// scripts tree byte-identical to the last GREEN run answers from its stamp — a
+// content-addressed cache, not a skip: any byte of drift, a different node, or
+// --force reruns everything. The stamp lives under node_modules/.cache, outside
+// every snapshot and every commit.
+const STAMP = "node_modules/.cache/proto-forge/selftest.stamp";
+const fingerprint = createHash("sha256")
+  .update(hashTree(SCRIPTS))
+  .update(process.version)
+  .digest("hex");
+if (!process.argv.includes("--force") && existsSync(STAMP) && readFileSync(STAMP, "utf8").trim() === fingerprint) {
+  ok(`gates:selftest: scripts tree unchanged since the last green run (${fingerprint.slice(0, 12)}…) — cached verdict; --force reruns`);
+  process.exit(0);
+}
 const results = [];
 // Marks an inline-block proof for the citations case registry (no spawned fixture).
 const inlineCase = (name) => name;
@@ -2210,4 +2228,6 @@ expect(
 );
 
 if (results.length) fail(`gates:selftest FAILED (${results.length})`, results);
+mkdirSync(dirname(STAMP), { recursive: true });
+writeFileSync(STAMP, `${fingerprint}\n`);
 ok("gates:selftest: every gate, guardrail and converter rejects what it claims to reject");

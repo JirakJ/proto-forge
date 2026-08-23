@@ -76,6 +76,16 @@ and a fail-fast kill — safe because every fast gate is offline and read-only
 except `test:unit`, whose output nothing else in the lane reads. Wall clock
 becomes the slowest gate, not the sum (finding 8's first half).
 
+Round 3 (2026-08-23) removed the remaining slow blockers: the **full bar's
+checkpoints shrink to three** — end of Phase 6, release, CI on every push;
+Phases 5/7/8 close on the fast lane plus their own named gates. And warm runs
+stop paying cold starts: `gates:selftest` answers from a content-addressed
+stamp while `scripts/**` is byte-identical to the last green run (`--force`
+reruns; the stamp lives under `node_modules/.cache`, outside snapshots),
+eslint runs `--cache`, tsc `--incremental`. Stryker incremental was already
+on; its `concurrency: 1` stays — the recorded vitest-runner race outranks
+wall clock.
+
 ### D8 — Defect protocol (BR-49, plugin ADR 021)
 
 A known defect is recorded the moment it is known: a GitHub issue (`gh issue

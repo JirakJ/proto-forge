@@ -1102,11 +1102,14 @@ tree, except `test:unit`, whose output no other fast gate reads), so the lane's
 wall clock is its slowest gate, not the sum. `config:check` runs first and alone;
 the first red gate stops the pool, fail-fast. The full lane adds the deep proofs
 (gate selftests, mutation, build and budget, delivery surface, security scans,
-the browser/e2e suites, the measured status) and runs at each phase boundary,
-before release and in CI — never inside the feature loop. The fast chain is
-pinned as `FAST_GATES` in `scripts/config.mjs`; `config:check` fails a
-`verify:fast` that drifts from the runner invocation, and a fast gate the full
-chain does not also run.
+the browser/e2e suites, the measured status); its checkpoints are **the end of
+Phase 6, release, and CI on every push** — never inside the feature loop.
+Phases 5, 7 and 8 close on the fast lane plus their own named gates (Phase 5:
+`test:e2e`; Phase 7: `sec:scan` + `sec:conformance`; Phase 8: `docs:shots`);
+what a lighter close could miss is held by the next full checkpoint and by CI.
+The fast chain is pinned as `FAST_GATES` in `scripts/config.mjs`;
+`config:check` fails a `verify:fast` that drifts from the runner invocation,
+and a fast gate the full chain does not also run.
 
 - **Why:** When the full suite runs between two feature commits, one iteration
   takes hours and the loop stops being a loop — so people stop running it, which
@@ -1605,7 +1608,11 @@ per component.
 thing, and asserts the gate's exit code and the wording of its complaint. A gate with no
 such case is not considered enforcing. Where a gate cannot be exercised in a fixture — it
 needs a network, a registry, an external binary — the limit is stated in §19 rather than
-covered by a case that only proves the binary is absent.
+covered by a case that only proves the binary is absent. The suite's verdict is a pure
+function of `scripts/**` and the node runtime, so a run whose scripts tree is
+byte-identical to the last green run answers from its content-addressed stamp (under
+`node_modules/.cache`, outside every snapshot; `--force` reruns) — any byte of drift
+re-executes every case, which is what keeps the cache a cache and not a skip.
 
 - **Why:** A gate nobody has seen fail is a gate nobody knows works. This is not
   hypothetical: nine of sixteen gates had no case at all while the documentation claimed

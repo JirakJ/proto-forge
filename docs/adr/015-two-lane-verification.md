@@ -54,15 +54,34 @@ local hook), `test:e2e` (the browser/conformance pass), `quality:report`/
 `status:verify` (derived from full-run artefacts). Every one of them still runs
 at every phase gate and in CI.
 
+**The full bar has exactly three checkpoints** (amended 2026-08-23, on the
+operator's finding that phase-end full runs were still the slow blocker): the
+end of Phase 6 — the test build, where mutation and the browser suite belong —
+release, and CI on every push. Phases 5, 7 and 8 close on the fast lane plus
+their own named gates (5: `test:e2e` for the axe/keyboard proof; 7: `sec:scan`
++ `sec:conformance`; 8: `docs:shots`). Five full runs per pipeline become two;
+what a lighter close could miss is held by the next checkpoint and by CI.
+
+**Warm iterations stop paying cold-start costs** (same amendment).
+`gates:selftest` answers from a content-addressed stamp when the scripts tree
+is byte-identical to the last green run (its verdict is a pure function of
+`scripts/**` and the node runtime; any drift or `--force` re-executes every
+case — a cache, not a skip). `eslint` runs with `--cache`, `tsc` with
+`--incremental`, both caching under `node_modules/.cache`, outside every
+snapshot and commit. Stryker's incremental mode was already on; its
+`concurrency: 1` stays — the vitest-runner race it works around is measured
+and recorded in the config, and correctness outranks wall clock there.
+
 ## Consequences
 
 An accepted ADR in history corresponds to a commit whose **fast-lane** gates
-passed; the phase it belongs to does not close until the **full** chain is
-green. The window between those two is bounded by a phase, which is the same
-window CI already tolerated between local work and the pipeline's verdict.
-`verify:fast` sits in every app template's `notAGate` (it is an aggregate, not
-a gate); the pin itself is enforced by `config:check` and proven by three
-selftest cases per template.
+passed; the full chain holds the line at its three checkpoints. The window
+between a fast-lane-green commit and the next full checkpoint is bounded by
+Phase 6, release, or the next push's CI run — the same window CI already
+tolerated between local work and the pipeline's verdict. `verify:fast` sits in
+every app template's `notAGate` (it is an aggregate, not a gate); the pin
+itself is enforced by `config:check` and proven by three selftest cases per
+template.
 
 ## Alternatives considered
 

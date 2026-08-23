@@ -4,7 +4,7 @@ Read before changing anything. These are not style preferences — each one is e
 
 Run `pnpm config:show` to see which gates are in force and whether any is currently waived.
 
-**Two lanes.** `pnpm verify:fast` is the per-iteration bar — run it for every feature commit; it answers in minutes because the pinned gates run **in parallel** (`scripts/verify-fast.mjs`; `PROTO_FORGE_FAST_JOBS=1` for serial bisection). `pnpm verify` is the full bar — phase boundaries, release, CI. Never run the full suite between two feature commits. The fast chain is pinned (`FAST_GATES` in `scripts/config.mjs`) and `config:check` fails a drifted one.
+**Two lanes.** `pnpm verify:fast` is the per-iteration bar — run it for every feature commit; it answers in minutes because the pinned gates run **in parallel** (`scripts/verify-fast.mjs`; `PROTO_FORGE_FAST_JOBS=1` for serial bisection). `pnpm verify` is the full bar — its checkpoints: end of Phase 6, release, CI on every push (Phases 5/7/8 close on the fast lane plus their own named gates). Never run the full suite between two feature commits. The fast chain is pinned (`FAST_GATES` in `scripts/config.mjs`) and `config:check` fails a drifted one.
 
 **Fixes prove themselves.** A known defect is recorded the moment it is known (`gh issue create` when the repo has a remote; a `proposed` ADR otherwise), and its `fix:` commit must stage the regression test in the same diff — `commit-lint` refuses one that touches no test file. Reference the issue as `Fixes #N` in the body.
 

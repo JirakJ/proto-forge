@@ -12,14 +12,20 @@ closed with enforcers.
   catalogue value** (the one place no scan looked), plus hard-coded no-op
   handlers and `href="#"`. CRUD completeness is the Phase-4 DoD; a scope cut is
   an ADR, never UI copy.
-- **Two-lane verification, in parallel (BR-45, ADR 015).** Every app template
-  ships `pnpm verify:fast` — the per-iteration bar — beside the full
-  `pnpm verify`, which now runs at phase boundaries, release and CI, never
-  inside the feature loop. The lane executes through `scripts/verify-fast.mjs`:
-  `config:check` first, then the pinned gates under a machine-sized worker pool
-  (buffered output, fail-fast kill on the first red), so the wall clock is the
-  slowest gate rather than the sum. The chain is pinned as `FAST_GATES` and
-  `config:check` fails a drifted, inlined or narrowed lane.
+- **Two-lane verification, in parallel, with three full-bar checkpoints (BR-45,
+  ADR 015).** Every app template ships `pnpm verify:fast` — the per-iteration
+  bar — beside the full `pnpm verify`, whose checkpoints are the end of
+  Phase 6, release, and CI on every push (Phases 5/7/8 close on the fast lane
+  plus their own named gates — five full runs per pipeline become two). The
+  lane executes through `scripts/verify-fast.mjs`: `config:check` first, then
+  the pinned gates under a machine-sized worker pool (buffered output,
+  fail-fast kill on the first red), so the wall clock is the slowest gate
+  rather than the sum — measured at 5.1 s (api-node, 20 gates) and 7.6 s (web,
+  18 gates). The chain is pinned as `FAST_GATES` and `config:check` fails a
+  drifted, inlined or narrowed lane. Warm runs stop paying cold starts:
+  `gates:selftest` answers from a content-addressed stamp while `scripts/**`
+  is byte-identical to the last green run (`--force` reruns), and eslint/tsc
+  cache under `node_modules/.cache` — outside every snapshot and commit.
 - **A defect becomes an issue, a fix carries its regression test (BR-49,
   ADR 021).** The defect protocol records a known defect immediately (GitHub
   issue with the repro; a proposed ADR without a tracker), and `commit-lint`
