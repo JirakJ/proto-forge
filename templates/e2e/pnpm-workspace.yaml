@@ -1,0 +1,8 @@
+# This template is a single package, not a workspace. The file exists only because
+# pnpm 10+ reads dependency overrides from here rather than from package.json.
+#
+# js-yaml GHSA-5p4m-2wfm-xmqj (HIGH, prototype pollution via the schema loader) and
+# GHSA-2883-xcg3-v3hh (HIGH, maxTotalMergeKeys does not limit CPU use for empty merge
+# sources) — dev-only, reaches us through eslint config parsing.
+overrides:
+  js-yaml: ^4.3.2

@@ -28,9 +28,26 @@ overrides:
   brace-expansion@5: ^5.0.9
   postcss: ^8.5.23
   undici: ^7.29.0
-  js-yaml: ^4.3.1
+  # @xmldom/xmldom <0.8.15 carries eight advisories, six of them HIGH — DOM-clobbering
+  # and namespace-confusion parsing bugs (GHSA-27p8-2357-5qqv, GHSA-8344-3jmq-59r6,
+  # GHSA-93r5-fhx6-vmg9, GHSA-965w-775f-mr7g, GHSA-c7q8-3ch8-vqpv, GHSA-x4fp-j954-r2f4,
+  # plus GHSA-6gmq-8vp8-gcm6 and GHSA-6h8r-xr42-gp59). Dev-only, via the electron-builder
+  # toolchain. 0.8.15 is a patch release inside the range every dependent accepts.
+  '@xmldom/xmldom': ^0.8.15
+  # fast-uri <3.1.6 / <4.1.3 carries four HIGH advisories: host confusion via
+  # percent-encoded scheme normalization (GHSA-jqff-g426-hqxp) and via skipped IDN
+  # canonicalization on scheme-relative references (GHSA-5jgf-p345-68v8), plus SSRF
+  # via malformed IPv6 normalization (GHSA-f65p-4m7j-42xc) and repeated hostname
+  # percent-decoding (GHSA-fph4-wmhf-6fwf). Dev-only, pulled through ajv@8.
+  fast-uri@3: ^3.1.6
+  # 4.3.2 also closes GHSA-2883-xcg3-v3hh (HIGH, maxTotalMergeKeys does not limit
+  # CPU use for empty merge sources).
+  js-yaml: ^4.3.2
   nanoid: ^3.3.17
   # qs GHSA-q8mj-m7cp-5q26 (MODERATE, arrayLimit bypass under allowDots) — dev-only,
   # via @stryker-mutator/core → typed-rest-client. Drop when typed-rest-client moves
   # its range past 6.15.1.
-  qs: ">=6.15.2"
+  # 6.16.0 additionally closes GHSA-4mjr-xmp4-gh2g (MODERATE, DoS via an
+  # attacker-controlled isBuffer) and GHSA-x5fp-wj9c-mxmx (MODERATE, array-limit
+  # bypass via bracket-key comma parsing).
+  qs: ">=6.16.0"
