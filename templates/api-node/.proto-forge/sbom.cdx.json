@@ -299,8 +299,8 @@
     {
       "type": "library",
       "name": "fast-uri",
-      "version": "3.1.5",
-      "purl": "pkg:npm/fast-uri@3.1.5",
+      "version": "3.1.7",
+      "purl": "pkg:npm/fast-uri@3.1.7",
       "licenses": [
         {
           "license": {
@@ -312,8 +312,8 @@
     {
       "type": "library",
       "name": "fast-uri",
-      "version": "4.1.2",
-      "purl": "pkg:npm/fast-uri@4.1.2",
+      "version": "4.1.4",
+      "purl": "pkg:npm/fast-uri@4.1.4",
       "licenses": [
         {
           "license": {
@@ -325,8 +325,8 @@
     {
       "type": "library",
       "name": "fastify",
-      "version": "5.11.3",
-      "purl": "pkg:npm/fastify@5.11.3",
+      "version": "5.12.3",
+      "purl": "pkg:npm/fastify@5.12.3",
       "licenses": [
         {
           "license": {

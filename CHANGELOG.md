@@ -8,6 +8,10 @@
   CI, security, integrations, release, troubleshooting, glossary, and an
   evidence-backed known-limitations register. `docs/adr/README.md` now names the
   `templates/<id>/` trees instead of the pre-registry singular `template/`.
+- Refreshed scanner-visible dependency pins: Tomcat 10.1.58, Vitest and
+  `@vitest/coverage-v8` 4.1.11, and HTTPX2/HTTPCore2 2.13.0. Regenerated the
+  affected CycloneDX SBOMs so they describe the committed lockfiles rather than
+  superseded dependency versions.
 
 ## 0.9.0 — 2026-08-23
 
