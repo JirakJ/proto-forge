@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Added a complete English operator and contributor documentation set under
+  `docs/`: architecture, pipeline, skill reference, getting started, usage,
+  template reference, generated-repository anatomy, development, verification,
+  CI, security, integrations, release, troubleshooting, glossary, and an
+  evidence-backed known-limitations register. `docs/adr/README.md` now names the
+  `templates/<id>/` trees instead of the pre-registry singular `template/`.
+
 ## 0.9.0 — 2026-08-23
 
 The production output bar (`docs/specs/2026-08-22-production-output-bar-design.md`,

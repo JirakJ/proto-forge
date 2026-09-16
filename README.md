@@ -1,12 +1,13 @@
 # proto-forge
 
 Turn a one-paragraph product brief into a **first shippable product slice** — a
-production-grade React 19 + TypeScript + Vite prototype that compiles, passes its
-own tests, and clears security, accessibility, translation, layering and
-documentation gates. Not a throwaway.
+web application, backend service, desktop application, or composed workspace that
+compiles, passes its own tests, and clears the gates defined by its template. Not a
+throwaway.
 
-proto-forge is a [Claude Code](https://claude.com/claude-code) **skill**. You give
-Claude a short brief; the skill drives a deterministic, gated pipeline that
+proto-forge is a [Claude Code](https://claude.com/claude-code) plugin with four
+skills. You give Claude a short brief; the main skill drives a deterministic,
+gated pipeline that
 scaffolds the app, models the domain, builds features from an owned component
 library, hardens security, and tags a release — with an ADR ledger and an
 append-only prompt log recording every decision.
@@ -18,14 +19,39 @@ append-only prompt log recording every decision.
 
 ---
 
+## Documentation
+
+- [Documentation index](docs/README.md)
+- [Getting started](docs/GETTING_STARTED.md)
+- [Usage guide](docs/USAGE.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Pipeline](docs/PIPELINE.md)
+- [Skill reference](docs/SKILLS.md)
+- [Template reference](docs/TEMPLATE_REFERENCE.md)
+- [Generated repository](docs/GENERATED_REPOSITORY.md)
+- [Development and contribution](docs/DEVELOPMENT.md)
+- [Verification model](docs/VERIFICATION.md)
+- [Continuous integration](docs/CI.md)
+- [Security model](docs/SECURITY.md)
+- [Integrations](docs/INTEGRATIONS.md)
+- [Release guide](docs/RELEASE.md)
+- [Troubleshooting](docs/TROUBLESHOOTING.md)
+- [Known limitations](docs/KNOWN_LIMITATIONS.md)
+- [Glossary](docs/GLOSSARY.md)
+
+---
+
 ## What you get
 
-Every run produces a repo with these guarantees baked in:
+Every run produces one or more repositories with template-specific guarantees. The
+web/desktop-only and backend-only capabilities are labelled below; composition
+templates have smaller orchestration contracts documented in the
+[template reference](docs/TEMPLATE_REFERENCE.md).
 
-- **Owned component library** (`@jj/proto-ui`) — Button, Field, Select, Checkbox,
+- **Web/desktop — owned component library** (`@jj/proto-ui`) — Button, Field, Select, Checkbox,
   Dialog, Menu, Table, Tabs, ToastProvider, Portal + design tokens, 100% tested.
   No unowned UI dependency you can't patch.
-- **Zero placeholders, zero dead ends** — no `TODO`, no `throw new Error("not
+- **Application templates — zero placeholders, zero dead ends** — no `TODO`, no `throw new Error("not
   implemented")`, no mocked first-party modules — and no control whose only
   behaviour is to explain the feature is missing: "not available in the
   prototype" copy fails the build in code *and in every locale catalogue*, a
@@ -33,35 +59,39 @@ Every run produces a repo with these guarantees baked in:
   it implies (BR-44). Real Dexie/IndexedDB persistence, real typed API clients,
   real seed data — and settings that survive a rebuild, because user state
   lives behind the repository port, never in ad-hoc web storage (BR-48).
-- **Full test pyramid** — Vitest unit/component tests with layered coverage
+- **Web/desktop — full test pyramid** — Vitest unit/component tests with layered coverage
   floors, Playwright E2E covering happy *and* error paths, axe a11y checks.
-- **WCAG 2.2 AA** — keyboard paths verified in E2E, a11y strings are i18n keys.
-- **Actually translated i18n** — not "i18n-ready". Every locale must reach full key
+- **Web/desktop — WCAG 2.2 AA target** — keyboard paths are verified in E2E and
+  accessibility strings are i18n keys; manual conformance testing remains required.
+- **Web/desktop — actually translated i18n** — not "i18n-ready". Every locale must reach full key
   parity with non-empty values, matching interpolations and the plural forms the
   language really needs; a value copy-pasted from English **fails the build**.
-- **Popups that are genuinely on top** — one stacking scale in the design tokens,
+- **Web/desktop — popups that are genuinely on top** — one stacking scale in the design tokens,
   every overlay portalled to a body-level root, proven against real browser paint
   order rather than by reading back a `z-index`.
-- **A documented, photographed component catalogue** — every component and feature
+- **Web/desktop — a documented, photographed component catalogue** — every component and feature
   has a page with a screenshot, and a lock file makes a stale screenshot fail.
-- **Security baseline** — strict CSP, zod validation at every boundary, a single
-  `SafeHtml` sanitized-HTML entry point, `gitleaks` + `pnpm audit` hard-stop gates.
-- **Decision trail** — one accepted [ADR](https://adr.github.io/) per commit, plus
+- **Application templates — a security baseline** — controls vary by stack; web and
+  desktop include strict CSP, Zod boundary validation, and a single `SafeHtml`
+  sanitized-HTML entry point. Every application template carries secret scanning
+  and a stack-appropriate dependency-vulnerability gate.
+- **Application templates — a decision trail** — one accepted [ADR](https://adr.github.io/) per commit, plus
   an append-only, English-only prompt log; every commit is authored by the operator
   who ran the prompt with the preparing model as co-author (BR-46); a CycloneDX
   SBOM and a structure snapshot per release.
-- **A served, exampled backend contract** — a generated service answers
+- **api-node — a served, exampled backend contract** — the generated service answers
   `/openapi.json` with the committed contract byte-for-byte and `/docs` with an
   owned, dependency-free explorer showing captured request/response examples and
   curl usage; collections are paginated by contract-gate (landed for `api-node`,
   staging per the spec); the delivery pipeline carries a perf-smoke stage with
   coarse latency/error/image-size ceilings and a published trend.
-- **Two gate lanes** — `pnpm verify:fast` is the per-iteration bar: unit tests +
+- **Application templates — two gate lanes** — `pnpm verify:fast` is the per-iteration bar: unit tests +
   every offline structural scan, executed **in parallel** so the wall clock is
   the slowest gate, not the sum; the chain is pinned and `config:check` fails a
-  drifted one. `pnpm verify` runs every gate at phase boundaries, release and
-  CI. `pnpm gates:selftest` proves each gate still rejects what it claims to.
-- **Defects become issues with regression tests** — a known defect is recorded
+  drifted one. `pnpm verify` runs every gate at the test-build checkpoint,
+  release and CI; other phases add their named gate to the fast lane.
+  `pnpm gates:selftest` proves each gate still rejects what it claims to.
+- **Application templates — defects become issues with regression tests** — a known defect is recorded
   the moment it is known (GitHub issue, or a proposed ADR without a tracker),
   and `commit-lint` refuses a `fix:` commit that stages no test: the fix and
   the test that pins it closed land together (BR-49).
@@ -72,19 +102,19 @@ Every run produces a repo with these guarantees baked in:
 
 Two ways — pick one.
 
-### A. Plugin store (recommended)
+### A. Repository marketplace (recommended)
 
-proto-forge is published in the [agentic-os](https://github.com/JirakJ/agentic-os)
-plugin marketplace. From inside Claude Code:
+This repository carries its own Claude Code marketplace. From inside Claude Code:
 
 ```
-/plugin marketplace add JirakJ/agentic-os
-/plugin install proto-forge@agentic-os
+/plugin marketplace add JirakJ/proto-forge
+/plugin install proto-forge@proto-forge
 ```
 
 `marketplace add` registers the marketplace (once); `install` pulls the
-sha-pinned plugin and enables it. Update later with `/plugin marketplace update
-agentic-os` then re-install. Manage everything under `/plugin`.
+plugin and enables it. Update later with `/plugin marketplace update proto-forge`
+then re-install. A downstream marketplace may mirror a tagged release, but its
+version should be verified separately.
 
 ### B. Skill directory (manual)
 
@@ -103,8 +133,10 @@ Restart Claude Code (or start a new session). The skill self-registers from its
 > Use **A or B**, not both — installing the plugin *and* the standalone skill
 > registers `proto-forge` twice.
 
-**Requirements for generated prototypes:** Node ≥ 20, [pnpm](https://pnpm.io) ≥ 9.
-The skill itself needs only Claude Code.
+**Requirements for repository development and generated prototypes:** Node 22.x and
+[pnpm](https://pnpm.io) 10.11.0, plus the native toolchain selected by the template.
+The skill itself needs only Claude Code. See
+[`docs/GETTING_STARTED.md`](./docs/GETTING_STARTED.md) for stack-specific tools.
 
 ---
 
@@ -201,7 +233,7 @@ Full mechanics — decision table, ADR bands, gate-failure protocol — are in
 
 ---
 
-## What the generated project looks like
+## What a generated web project looks like
 
 ```
 packages/proto-ui/     owned component library, 100% tested, byte-pinned by sha256
@@ -235,10 +267,13 @@ pnpm config:show    # which gates are in force, and where each setting came from
 pnpm docs:shots     # re-capture the component screenshots
 ```
 
-`verify` runs, in order: `config:check` · `gates:selftest` · `lint` · `typecheck` ·
-`test:unit` · `build` · `budget` · `i18n:verify` · `layer:scan` · `testid:scan` ·
-`docs:verify` · `stub:scan` · `adr:lint` · `prompt:lint` · `dup:scan` ·
-`consistency` · `sec:scan` · `snapshot:diff` · `test:e2e`.
+The web template's current `verify` chain is defined in its `package.json`; it
+includes configuration/environment checks, gate self-tests, lint/type/build,
+coverage and mutation, deployment and bundle budgets, i18n, overlay and test-id
+checks, documentation and external-record checks, contract-client verification,
+stub/ADR/prompt/duplication/consistency checks, security scan and conformance,
+snapshot comparison, browser E2E, and generated quality/status verification.
+Other templates define their own stack-appropriate chains.
 
 The shipped `templates/web/` includes a self-verifying demo feature (a Notes app). On
 a real run the skill **deletes** the demo and builds your brief's features under
@@ -296,12 +331,14 @@ SKILL.md                     the main skill + full pipeline spec
 skill.json                   skill manifest (name, version)
 skills/discovery/            the second skill: SPIN/DAPA gap analysis + its mini-template
 skills/survey/               the third skill: existing-system inventory + its mini-template
+skills/elicit/               the fourth skill: stakeholder evidence instruments
 references/
   templates.json             the template registry every plugin gate loops over
   decision-table.md          T1-T24 when→then rules + ADR ranges
   facets.schema.ts           canonical brief schema (Phase 0 target)
   requirements.md            the normative register (BR/NFR rules, BRS sections)
   adr-template.md            MADR ADR skeleton
+  security-controls.json     security control catalogue and gap register
 templates/
   web/                       React 19 + TS + Vite app (a full working app)
   api-node/                  Fastify service (PGlite-verified Postgres persistence)
@@ -314,6 +351,7 @@ templates/
   workspace/                 the <project>/ container for composed FE+BE projects
   e2e/                       the cross-app Playwright layer (flows + contract checks)
 docs/adr/                    the plugin's own decision records
+docs/                        architecture, operations, security and contributor guides
 plugin/                      the installable (.claude-plugin/plugin.json)
 ```
 

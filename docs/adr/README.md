@@ -3,11 +3,12 @@
 Two ADR namespaces exist in this repository, and they have different subjects.
 
 **`docs/adr/` (here)** records how the *seed* changed: decisions about the plugin
-itself, its packaging, its gates, and the reasoning behind a version of
-`template/`. This is a history.
+itself, its packaging, its gates, and the reasoning behind a version of the
+template trees under `templates/` (the registry in `references/templates.json`
+lists them). This is a history.
 
-**`template/docs/adr/`** describes the seed a freshly generated prototype starts
-from. It is not a history — it is the design document the prototype inherits, so a
+**`templates/<id>/docs/adr/`** describes the seed a freshly generated repository
+starts from. It is not a history — it is the design document the prototype inherits, so a
 decision that changed is rewritten there rather than superseded. Shipping a
 `superseded by` trail into every new prototype would hand each one a decision
 history it never made. When a seed ADR is rewritten, an ADR here records why.

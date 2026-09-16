@@ -10,6 +10,7 @@
   },
   "packageManager": "pnpm@10.11.0",
   "scripts": {
+    "test": "pnpm run selftest && pnpm run verify",
     "verify": "pnpm run citations && pnpm run skill:lint && pnpm run manifest:lint && pnpm run security:catalogue && pnpm run template:integrity && pnpm run deploy:sync && pnpm run discovery:lint && pnpm run survey:lint && pnpm run elicit:lint",
     "deploy:sync": "node scripts/deploy-sync.mjs",
     "citations": "node scripts/citations.mjs",
