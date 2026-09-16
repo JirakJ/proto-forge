@@ -1,6 +1,9 @@
 # Changelog
 
-## Unreleased
+## 0.9.1 — 2026-09-16
+
+The documentation release, plus the repairs that put the CI template matrix back
+to green (it had been red on `api-node`, `api-java` and `api-kotlin` since 0.9.0).
 
 - Added a complete English operator and contributor documentation set under
   `docs/`: architecture, pipeline, skill reference, getting started, usage,
@@ -8,10 +11,27 @@
   CI, security, integrations, release, troubleshooting, glossary, and an
   evidence-backed known-limitations register. `docs/adr/README.md` now names the
   `templates/<id>/` trees instead of the pre-registry singular `template/`.
-- Refreshed scanner-visible dependency pins: Tomcat 10.1.58, Vitest and
-  `@vitest/coverage-v8` 4.1.11, and HTTPX2/HTTPCore2 2.13.0. Regenerated the
-  affected CycloneDX SBOMs so they describe the committed lockfiles rather than
-  superseded dependency versions.
+- Refreshed scanner-visible dependency pins: Tomcat 10.1.59 (`api-java`; the
+  advisories name 10.1.58 as the fix, which was never published to Maven Central,
+  so the lock resolves the next release), Vitest and `@vitest/coverage-v8` 4.1.11
+  (GHSA-82fw-gwwq-j7x9; a major upgrade from 3.2.7), and HTTPX2/HTTPCore2 2.13.0.
+  Regenerated the affected CycloneDX SBOMs so they describe the committed
+  lockfiles rather than superseded dependency versions.
+- Vitest 4 fallout, fixed at the source rather than by pinning back: the
+  `api-node` request-logger mock is typed as `Mock<Logger["error"]>` (Vitest 4
+  no longer accepts `ReturnType<typeof vi.fn>` in an intersection), and the
+  web-family `App.test.tsx` now awaits the seeded notes so the demo hook's state
+  update cannot land after jsdom is torn down (Vitest 4 reports that as an
+  unhandled rejection; Vitest 3 dropped it silently).
+- `api-node`: `contract/openapi.json` and `contract.lock` regenerated. zod's
+  `date-time` pattern now requires seconds, and the committed spec still carried
+  the older optional-seconds pattern, so `contract:verify` had reported drift on
+  every CI run since 0.9.0.
+- `api-kotlin`: the shipped `.proto-forge/config.json` commits
+  `gates.mutation.enabled: true`. ADR 003 makes the tier opt-in by a committed
+  line, but `quality:report` requires the PIT report unconditionally, so the
+  template could not verify itself with the tier off. The shipped state now
+  matches its own `quality.json` (mutation 100 %, break 85).
 
 ## 0.9.0 — 2026-08-23
 

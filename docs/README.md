@@ -2,7 +2,7 @@
 
 proto-forge is a Claude Code plugin that turns a product brief into one or more
 self-verifying application repositories. This documentation describes the plugin
-repository at version 0.9.0. Documentation inside `templates/` describes the
+repository at version 0.9.1. Documentation inside `templates/` describes the
 repositories produced from individual templates.
 
 ## Start here
@@ -56,7 +56,7 @@ gate as the current behavior, then correct the prose in the same change.
 
 ## Known limitations
 
-See [Known limitations](KNOWN_LIMITATIONS.md) for the evidence-backed v0.9.0 gap
+See [Known limitations](KNOWN_LIMITATIONS.md) for the evidence-backed v0.9.1 gap
 register. The most material current boundary is security conformance: the catalogue
 contains 21 controls, of which 6 are enforced and 15 are explicitly planned.
 

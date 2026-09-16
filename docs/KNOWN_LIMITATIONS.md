@@ -1,6 +1,6 @@
 # Known limitations and findings
 
-This register describes version 0.9.0. It is a review aid, not a substitute for
+This register describes version 0.9.1. It is a review aid, not a substitute for
 GitHub issues or the security control catalogue.
 
 ## High priority
@@ -115,7 +115,8 @@ repositories carry it too.
 
 `.claude-flow/`, `.claude/proven-config.json`, and `.claude/.proven-config-version`
 appear as untracked files in every working tree that uses the operator's
-orchestration tooling, and `.claude/session-anchor.md` is tracked although it is a
+orchestration tooling (also inside a template directory whenever a shell session
+runs commands from there), and `.claude/session-anchor.md` is tracked although it is a
 per-session note. The root `.gitignore` covers only `.DS_Store`, logs,
 `node_modules/`, and `.scratch/`.
 

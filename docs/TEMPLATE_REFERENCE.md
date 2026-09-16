@@ -70,7 +70,7 @@ Use the selected template's files after generation:
 
 Cross-template parity is intentional for core architecture, security, delivery, and
 quality machinery, but not every later feature has landed in every backend. In
-v0.9.0, the served contract explorer and pagination rule are scoped to `api-node`;
+v0.9.1, the served contract explorer and pagination rule are scoped to `api-node`;
 the requirements register explicitly stages the remaining stacks. Do not infer a
 capability from another template's documentation. See
 [Known limitations](KNOWN_LIMITATIONS.md).

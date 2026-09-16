@@ -17,7 +17,7 @@ The catalogue has two honest states:
 - `enforced`: the control names a probe that generated repositories execute;
 - `planned`: the gap names a delivery stage and has no pretend probe.
 
-At v0.9.0, 6 of 21 controls are enforced and 15 are planned. The catalogue maps 17
+At v0.9.1, 6 of 21 controls are enforced and 15 are planned. The catalogue maps 17
 of 253 ASVS Level 1/2 requirements to controls. This is a coverage statement, not an
 ASVS conformance claim.
 
