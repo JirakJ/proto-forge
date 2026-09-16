@@ -39,7 +39,7 @@ extra["commons-lang3.version"] = "3.18.0"
 extra["log4j2.version"] = "2.25.5"
 // CRITICAL GHSA-9xv2-5v5q-p794, GHSA-gcx9-497g-6cp6 and
 // GHSA-h3x4-894j-xpx5: Tomcat authentication and request-processing flaws.
-extra["tomcat.version"] = "10.1.58"
+extra["tomcat.version"] = "10.1.59"
 
 java {
     toolchain {

@@ -203,22 +203,22 @@
       "type": "library",
       "group": "org.apache.tomcat.embed",
       "name": "tomcat-embed-core",
-      "version": "10.1.58",
-      "purl": "pkg:maven/org.apache.tomcat.embed/tomcat-embed-core@10.1.58"
+      "version": "10.1.59",
+      "purl": "pkg:maven/org.apache.tomcat.embed/tomcat-embed-core@10.1.59"
     },
     {
       "type": "library",
       "group": "org.apache.tomcat.embed",
       "name": "tomcat-embed-el",
-      "version": "10.1.58",
-      "purl": "pkg:maven/org.apache.tomcat.embed/tomcat-embed-el@10.1.58"
+      "version": "10.1.59",
+      "purl": "pkg:maven/org.apache.tomcat.embed/tomcat-embed-el@10.1.59"
     },
     {
       "type": "library",
       "group": "org.apache.tomcat.embed",
       "name": "tomcat-embed-websocket",
-      "version": "10.1.58",
-      "purl": "pkg:maven/org.apache.tomcat.embed/tomcat-embed-websocket@10.1.58"
+      "version": "10.1.59",
+      "purl": "pkg:maven/org.apache.tomcat.embed/tomcat-embed-websocket@10.1.59"
     },
     {
       "type": "library",

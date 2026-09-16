@@ -10,12 +10,17 @@ beforeEach(async () => {
 });
 
 describe("App shell", () => {
-  it("renders landmarks, the skip link, and the home nav", () => {
+  it("renders landmarks, the skip link, and the home nav", async () => {
     render(<App />);
     expect(screen.getByTestId("skip-link")).toHaveAttribute("href", "#main");
     expect(screen.getByRole("heading", { name: "proto-forge prototype" })).toBeInTheDocument();
     expect(screen.getByTestId("nav-home")).toHaveAttribute("href", "/");
     expect(screen.getByRole("main")).toBeInTheDocument();
+    // The home route mounts the demo feature, whose hook seeds the store and
+    // sets state asynchronously. Wait for that to land so the update cannot
+    // fire after the environment is torn down (an unhandled rejection under
+    // Vitest 4 rather than a silent no-op).
+    await screen.findAllByTestId(/^note-item-/);
   });
 
   it("routes an unknown URL to the not-found page with the shell intact", () => {
