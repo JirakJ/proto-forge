@@ -22,7 +22,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "httpx2==2.10.0",
+    "httpx2==2.13.0",
     "import-linter==2.13",
     "mutmut==3.7.0",
     "mypy==2.3.0",

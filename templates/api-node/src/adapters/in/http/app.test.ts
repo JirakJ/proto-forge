@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi, type Mock } from "vitest";
 import { z } from "zod";
 import type { Note } from "../../../domain/note/model.js";
 import { makeNote } from "../../../domain/note/__fixtures__/noteFactory.js";
@@ -27,8 +27,8 @@ function appWith(notes: readonly Note[] = [], overrides: Partial<AppDeps> = {}) 
   return buildApp({ service, logger: noopLogger, docs: FIXTURE_DOCS, ...overrides });
 }
 
-function recordingLogger(): Logger & { error: ReturnType<typeof vi.fn> } {
-  return { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
+function recordingLogger(): Logger & { error: Mock<Logger["error"]> } {
+  return { info: vi.fn(), warn: vi.fn(), error: vi.fn<Logger["error"]>() };
 }
 
 describe("platform routes and headers", () => {

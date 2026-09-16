@@ -15,6 +15,6 @@ The service is treated as internet-facing from commit one. Controls are enforced
 ## Supply chain (BRS §4.2)
 
 - Lockfiles committed and verified frozen in CI: `uv.lock` (`uv sync --frozen`) for the app, `pnpm-lock.yaml` (`--frozen-lockfile`) for the gate corpus (NFR-08/NFR-11).
-- **Dependency budget** (NFR-13): `deps:budget` holds the runtime surface to a named allowlist (alembic, fastapi, psycopg, pydantic, sqlalchemy, structlog, uvicorn) under a ceiling of 10; `pip-audit` over the uv-exported locked production set fails the build on known advisories, never auto-suppressed.
+- **Dependency budget** (NFR-13): `deps:budget` holds the runtime surface to a named allowlist (alembic, fastapi, psycopg, pydantic, sqlalchemy, structlog, uvicorn) under a ceiling of 10; `pip-audit` over the uv-exported locked production set fails the build on known advisories, never auto-suppressed. The E2E-only HTTP client is pinned to HTTPX2 2.13.0 or later because 2.10.0 is affected by PYSEC-2026-3846 and PYSEC-2026-3848.
 - **SBOM**: every `sec:scan` emits a deterministic CycloneDX 1.5 JSON (`pnpm sbom` → `.proto-forge/sbom.cdx.json`, purl-sorted, no timestamp) from the locked production closure in `uv.lock`; CI uploads it as an artifact.
 - **Seed integrity (BRS §17.2)**: `.proto-forge/seed.lock` pins the platform kernel (`src/app/platform/**`) and the gate corpus (`scripts/**`) by one sha256; `snapshot:diff` re-verifies it every run. Upgrades are explicit (`pnpm seed:lock` + ADR), and a local hook blocks kernel edits before they land.

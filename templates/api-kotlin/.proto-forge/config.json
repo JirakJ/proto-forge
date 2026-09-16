@@ -1,10 +1,18 @@
 {
   "$schema": "./config.schema.json",
   "policy": "strict",
-  "gates": {},
+  "gates": {
+    "mutation": {
+      "enabled": true
+    }
+  },
   "integrations": {
-    "jira": { "enabled": false },
-    "confluence": { "enabled": false }
+    "jira": {
+      "enabled": false
+    },
+    "confluence": {
+      "enabled": false
+    }
   },
   "guardrails": {},
   "waivers": []
