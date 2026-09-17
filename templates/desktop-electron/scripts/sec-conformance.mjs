@@ -71,6 +71,19 @@ const PROBES = {
   headerNosniff: () => headerEverywhere("X-Content-Type-Options", "nosniff"),
   headerReferrerPolicy: () => headerEverywhere("Referrer-Policy", "strict-origin-when-cross-origin"),
   cspFrameAncestors: () => cspDirective("frame-ancestors 'none'"),
+  // SSDF RV.1.3 — a disclosure section that names a channel and a response window.
+  // The section exists, it names a channel (a URL, an address, or GitHub's private
+  // "Report a vulnerability" form), and it states a window in days; the wording is
+  // the operator's, the shape is the control's.
+  disclosurePolicyStated() {
+    const page = readIf("docs/SECURITY.md");
+    if (page === "") return false;
+    const section = /(?:^|\n)## Reporting a vulnerability\n([\s\S]*?)(?=\n## |\s*$)/.exec(page)?.[1];
+    if (section === undefined) return false;
+    const channel = /https?:\/\/\S+|[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+|report a vulnerability/i.test(section);
+    const window = /\b\d+\s+(?:business\s+)?days?\b/.test(section);
+    return channel && window;
+  },
   sbomIsCurrent() {
     if (!existsSync(".proto-forge/sbom.cdx.json")) return false;
     const sbom = JSON.parse(read(".proto-forge/sbom.cdx.json"));

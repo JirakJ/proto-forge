@@ -438,8 +438,8 @@
         ]
       },
       "control": "a disclosure section in docs/SECURITY.md naming a channel and a response window",
-      "status": "planned",
-      "stage": "E6"
+      "status": "enforced",
+      "probe": "disclosurePolicyStated"
     },
     {
       "id": "SEC-042",

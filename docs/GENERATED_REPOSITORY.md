@@ -58,6 +58,18 @@ tier (BR-50).
 `adr:lint` verifies anchors, statuses, and prompt-log links. It does not verify
 bands; band allocation is a pipeline rule checked in review.
 
+## Subagents
+
+`.claude/agents/` holds one definition per delegable activity of the routing
+table (`scaffold-cleanup`, `codebase-search`, `domain-model`, `adapter-build`,
+`feature-build`, `translation`, `a11y-pass`, `test-build`, `security-harden`,
+`documentation`, `gate-remediation`, `code-review`, `release`), each with its
+`model` pinned to the tier the registry routes that activity to and a system
+prompt that binds it to `AGENTS.md`. The set is a byte-identical copy of the
+plugin's `references/agents/`; `models:lint` proves the pins and the copies
+(BR-51). The two frontier-routed activities, brief intake and decision records,
+have no definition — the orchestrating session performs them.
+
 ## Guardrails
 
 `.claude/settings.json` wires five hooks:

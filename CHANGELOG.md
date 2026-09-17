@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.12.0 — 2026-09-17
+
+Routing that holds before the fact, and a disclosure policy in every generated
+repository (plugin ADRs 024 and 025).
+
+- Pinned subagents (BR-51): `references/agents/` holds one definition per
+  delegable routing-table activity — thirteen — with `name` = the activity,
+  `model` pinned to the routed tier (`sonnet` for standard, `haiku` for
+  economy), a tool allowlist fit for the activity and a system prompt bound to
+  the template's `AGENTS.md`; the two frontier-routed activities deliberately
+  have none. Every template ships the set byte for byte under `.claude/agents/`;
+  `models:lint` proves the pins, the names, the absence of frontier definitions
+  and the copies (six new selftest cases). T25 and the skill now dispatch with
+  `subagent_type: <activity>` and no `model` parameter.
+- `SEC-041` is enforced (SSDF RV.1.3): every app template's `docs/SECURITY.md`
+  gains a "Reporting a vulnerability" section (GitHub private vulnerability
+  reporting as the channel, with acknowledgement, triage, fix and disclosure
+  deadlines), the `disclosurePolicyStated` probe re-derives it in every app
+  template's `sec:conformance`, three selftest cases per template prove it, and
+  the conformance claims are re-derived. The catalogue reports 7 enforced / 14
+  planned controls.
+- The `api-*` seed locks are recut for the changed gate script; snapshots
+  regenerated.
+
 ## 0.11.0 — 2026-09-17
 
 The register pass (plugin ADR 023): the findings `docs/KNOWN_LIMITATIONS.md`

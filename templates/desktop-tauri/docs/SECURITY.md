@@ -47,3 +47,20 @@ On `style-src 'unsafe-inline'`, honestly: React writes `style=""` **attributes**
 - **The tauri 2 linux GTK stack ships known RUSTSEC notices.** `Cargo.lock` carries the gtk3-rs binding crates (atk/gdk/gdkx11/gdkwayland/gtk/gtk3-macros 0.18, RUSTSEC-2024-0411…0420) which upstream has archived, glib 0.18's `VariantStrIter` unsoundness (RUSTSEC-2024-0429 / GHSA-wrw7-89jp-8q8g, MODERATE — the shell never constructs a Variant), and the unmaintained build-time transitives `proc-macro-error` + `unic-*`. None can be pinned away inside tauri 2.x (gtk 0.18 is the newest the stack accepts) and none is reachable service surface in a zero-command shell. The triage lives in `src-tauri/audit.toml` under the `.trivyignore` discipline — every entry reasoned and dated, `shell:verify` fails undated or expired entries — so the list re-reviews itself instead of fossilising.
 - **The triage is stated in every scanner's dialect, from one source.** `audit.toml` is read by cargo-audit and by nothing else; osv-scanner — what CI and most host-level guardrails actually run — reads `osv-scanner.toml`, and without it reports the very advisories the ledger already triaged. A finding that reads "suppressed, reasoned, expiring" to one tool and "open" to the next is not triaged, it is merely quiet in one place. So `src-tauri/osv-scanner.toml` is **derived** from `audit.toml` (`pnpm osv:ignores`), never authored: one ledger (BR-15), one set of `until:` dates expiring in both tools at once, and `shell:verify` re-renders and compares on every run, so drift is a red gate rather than a discrepancy nobody notices.
 - **gitleaks runs over the working tree** (`--no-git`), so build outputs (`src-tauri/target/`, `dist/`) and `node_modules/` are on the `.gitleaks.toml` allowlist: Rust `.rmeta` artifacts are high-entropy by construction and none of these paths is ever committed. The committed tree — including `.prompts/` — stays fully scanned.
+
+## Reporting a vulnerability
+
+Report privately through this repository's GitHub vulnerability reporting —
+**Security → Report a vulnerability** on the repository page — and do not open a
+public issue or attach a proof of concept to a pull request. If this repository is
+not hosted on GitHub, replace this channel with the private one that applies;
+`sec:conformance` fails when the section names no channel and no response window
+(control `SEC-041`, SSDF RV.1.3).
+
+| Step | Deadline |
+| --- | --- |
+| Acknowledgement of the report | 3 business days |
+| Triage with a severity | 10 business days |
+| Fix or documented mitigation for a confirmed high or critical finding | 30 days from triage |
+| Fix for a confirmed medium or low finding | the next release |
+| Coordinated disclosure | after the fix ships, or 90 days from the report, whichever is first |

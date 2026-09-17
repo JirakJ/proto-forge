@@ -8,9 +8,9 @@
   "profile": 2,
   "kind": "backend",
   "summary": {
-    "pass": 4,
+    "pass": 5,
     "fail": 0,
-    "gap": 11,
+    "gap": 10,
     "notApplicable": 0
   },
   "controls": [
@@ -191,8 +191,8 @@
       "id": "SEC-041",
       "title": "There is a way to report a vulnerability, and it names a deadline",
       "requires": [],
-      "verdict": "gap",
-      "evidence": "planned for E6"
+      "verdict": "pass",
+      "evidence": "disclosurePolicyStated"
     },
     {
       "id": "SEC-042",

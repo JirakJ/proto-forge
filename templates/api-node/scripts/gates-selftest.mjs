@@ -727,6 +727,37 @@ expect("conformance: no catalogue at all fails", "sec-conformance.mjs", { "src/p
   matching: /no catalogue to measure against/,
 });
 
+// SEC-041 (SSDF RV.1.3): the disclosure policy is a probed control — a section
+// that names a channel and a response window holds, a page without one does not.
+const DISCLOSURE_CONTROL = {
+  id: "SEC-041",
+  title: "There is a way to report a vulnerability, and it names a deadline",
+  requires: [],
+  appliesTo: { kinds: ["frontend", "backend", "desktop"] },
+  control: "a disclosure section in docs/SECURITY.md naming a channel and a response window",
+  status: "enforced",
+  probe: "disclosurePolicyStated",
+};
+const withDisclosure = (over = {}) => confBase({
+  ".proto-forge/security/controls.json": { ...CONF_CATALOGUE, controls: [...CONF_CATALOGUE.controls, DISCLOSURE_CONTROL] },
+  "docs/SECURITY.md":
+    "# Security\n\n## Reporting a vulnerability\n\nReport privately at https://example.test/security. Acknowledgement within 3 business days.\n",
+  ...over,
+});
+
+expect("conformance: a disclosure section naming a channel and a window passes", "sec-conformance.mjs", withDisclosure(), {
+  pass: true,
+  prepare: writeClaim,
+});
+
+expect("conformance: a security page with no disclosure section fails", "sec-conformance.mjs", withDisclosure({
+  "docs/SECURITY.md": "# Security\n\n## Headers\n\nnosniff.\n",
+}), { pass: false, matching: /SEC-041 .* does not hold/, prepare: writeClaim });
+
+expect("conformance: a disclosure section with no response window fails", "sec-conformance.mjs", withDisclosure({
+  "docs/SECURITY.md": "# Security\n\n## Reporting a vulnerability\n\nReport privately at https://example.test/security.\n",
+}), { pass: false, matching: /SEC-041 .* does not hold/, prepare: writeClaim });
+
 // --- stub:scan ---------------------------------------------------------------
 expect("stub: clean production code passes", "stub-scan.mjs", {
   "src/application/f.ts": "export const f = () => 1;\n",
