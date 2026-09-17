@@ -18,3 +18,20 @@ The service is treated as internet-facing from commit one. Controls are enforced
 - **osv-flagged transitive pins** (each annotated with its advisory id): `SSH.NET` ≥ 2026.0.0 in `tests/App.Tests/App.Tests.csproj` (HIGH GHSA-q939-rpr3-3284, reached through Testcontainers). A direct pin of the patched release keeps the audit clean without suppressing the restore warning; drop it once the carrying package catches up.
 - **Audit**: `sec:scan` runs osv-scanner over the locked NuGet graph (`src/App/packages.lock.json`) — the same pinned resolution CI restores — and `pnpm sbom` derives a deterministic CycloneDX 1.5 SBOM from that same lockfile (`.proto-forge/sbom.cdx.json`, `pkg:nuget/…` purls, purl-sorted, no timestamp, content hashes carried through) as the attested artefact. The lockfile is the audit input rather than the SBOM because every scanner build understands a lockfile while SBOM ingestion is version-dependent, and a gate that only works on the scanner version you happen to have is not a gate. Findings are a hard stop, never auto-suppressed. gitleaks and osv-scanner are external binaries: enforced when present, warned locally when absent, mandatory in CI (the §19 gitleaks precedent).
 - **Seed integrity (BRS §17.2)**: `.proto-forge/seed.lock` pins the platform kernel (`src/App/Platform/**`) and the gate corpus (`scripts/**`) by one sha256; `snapshot:diff` re-verifies it every run. Upgrades are explicit (`pnpm seed:lock` + ADR), and a local hook blocks kernel edits before they land.
+
+## Reporting a vulnerability
+
+Report privately through this repository's GitHub vulnerability reporting —
+**Security → Report a vulnerability** on the repository page — and do not open a
+public issue or attach a proof of concept to a pull request. If this repository is
+not hosted on GitHub, replace this channel with the private one that applies;
+`sec:conformance` fails when the section names no channel and no response window
+(control `SEC-041`, SSDF RV.1.3).
+
+| Step | Deadline |
+| --- | --- |
+| Acknowledgement of the report | 3 business days |
+| Triage with a severity | 10 business days |
+| Fix or documented mitigation for a confirmed high or critical finding | 30 days from triage |
+| Fix for a confirmed medium or low finding | the next release |
+| Coordinated disclosure | after the fix ships, or 90 days from the report, whichever is first |

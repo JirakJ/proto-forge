@@ -19,3 +19,20 @@ The service is treated as internet-facing from commit one. Controls are enforced
 - **Forced transitive minimums**: `build.gradle.kts` holds two pin maps — `securityPins` by group, for lines whose artifacts move as a set, and `coordinatePins` by exact coordinate, for lines that do not (jackson-annotations tracks a slower line than core/databind, so a group-wide pin would ask Maven Central for a release that does not exist). Each pin is the first patched release every dependent already accepts and carries the advisory that put it there, so the reason a version is raised is readable next to the version. They apply to **every** configuration on purpose: `sec:scan` audits `gradle.lockfile` whole, tool and test classpaths included, so a pin covering only `implementation` would leave a finding standing with nothing to answer it. A pin is dropped when the dependency bringing it catches up — currently `io.netty` 4.2.17.Final (the http2 DoS batch, plus MODERATE GHSA-8c42-7qj2-3j46, where netty-codec-http overwrites the CORS `Vary` header and a shared cache can then serve one origin's response to another), `ch.qos.logback` 1.5.34, `io.opentelemetry` 1.62.0, `org.bouncycastle` 1.84, and by coordinate commons-compress, commons-lang3 and jackson-core/databind.
 - **Seed integrity (BRS §17.2)**: `.proto-forge/seed.lock` pins the platform kernel (`src/main/kotlin/app/platform/**`) and the gate corpus (`scripts/**`) by one sha256; `snapshot:diff` re-verifies it every run. Upgrades are explicit (`pnpm seed:lock` + ADR), and a local hook blocks kernel edits before they land.
 - **Image and pipeline** (ADR 201/202): both `FROM`s are digest-pinned, the runtime stage runs as a named non-root user on a JRE-only base, and the delivery pipeline signs what it pushes (cosign, keyless) and verifies the signature before every deploy.
+
+## Reporting a vulnerability
+
+Report privately through this repository's GitHub vulnerability reporting —
+**Security → Report a vulnerability** on the repository page — and do not open a
+public issue or attach a proof of concept to a pull request. If this repository is
+not hosted on GitHub, replace this channel with the private one that applies;
+`sec:conformance` fails when the section names no channel and no response window
+(control `SEC-041`, SSDF RV.1.3).
+
+| Step | Deadline |
+| --- | --- |
+| Acknowledgement of the report | 3 business days |
+| Triage with a severity | 10 business days |
+| Fix or documented mitigation for a confirmed high or critical finding | 30 days from triage |
+| Fix for a confirmed medium or low finding | the next release |
+| Coordinated disclosure | after the fix ships, or 90 days from the report, whichever is first |

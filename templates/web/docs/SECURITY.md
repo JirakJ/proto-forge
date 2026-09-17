@@ -45,3 +45,20 @@ On `style-src 'unsafe-inline'`, honestly: React writes `style=""` **attributes**
 - **Signing** (ships with the delivery pipelines): images are pushed by digest and signed with cosign **keyless** — the signature binds to the CI workflow identity, so there is no long-lived private key to leak — and CD verifies that identity before every deploy. `deployment.sign: false` removes the proof that what runs is what CI built; leave it on.
 - **SBOM**: the image build attaches a CycloneDX SBOM to the pushed artifact, complementing the source-level SBOM `sec:scan` emits.
 - **Offline verify**: none of the above runs inside `pnpm verify` — `deploy:verify` proves the committed deploy surface (digest pins, securityContext contract, rendered-manifest validation against schemas vendored in `deploy/schemas/`) without opening a socket; the cluster-touching steps are named CI stages in the delivery workflows and nothing else (ADR 202).
+
+## Reporting a vulnerability
+
+Report privately through this repository's GitHub vulnerability reporting —
+**Security → Report a vulnerability** on the repository page — and do not open a
+public issue or attach a proof of concept to a pull request. If this repository is
+not hosted on GitHub, replace this channel with the private one that applies;
+`sec:conformance` fails when the section names no channel and no response window
+(control `SEC-041`, SSDF RV.1.3).
+
+| Step | Deadline |
+| --- | --- |
+| Acknowledgement of the report | 3 business days |
+| Triage with a severity | 10 business days |
+| Fix or documented mitigation for a confirmed high or critical finding | 30 days from triage |
+| Fix for a confirmed medium or low finding | the next release |
+| Coordinated disclosure | after the fix ships, or 90 days from the report, whichever is first |

@@ -1,6 +1,6 @@
 {
   "name": "proto-forge",
-  "version": "0.11.0",
+  "version": "0.12.0",
   "private": true,
   "type": "module",
   "description": "The proto-forge skills and their app templates. This package holds the plugin-level gates only; every generated app has its own package.json under its template's dir in references/templates.json.",

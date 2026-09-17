@@ -46,3 +46,20 @@ On `style-src 'unsafe-inline'`, honestly: React writes `style=""` **attributes**
 
 - **The shell binary is a bundled Chromium.** Electron's own release cadence is the patch channel for renderer CVEs: the exact-pinned `electron` version is the reviewed dial, and bumping it promptly IS the security process — there is no system-WebView auto-patching underneath. The pin makes the review visible; staleness makes it red at review time, not silently at runtime.
 - **gitleaks runs over the working tree** (`--no-git`), so build outputs (`dist/`, `dist-electron/`, `release/`) and `node_modules/` are on the `.gitleaks.toml` allowlist: packaged installers and the installed tree are high-entropy by construction and none of these paths is ever committed. The committed tree — including `.prompts/` — stays fully scanned.
+
+## Reporting a vulnerability
+
+Report privately through this repository's GitHub vulnerability reporting —
+**Security → Report a vulnerability** on the repository page — and do not open a
+public issue or attach a proof of concept to a pull request. If this repository is
+not hosted on GitHub, replace this channel with the private one that applies;
+`sec:conformance` fails when the section names no channel and no response window
+(control `SEC-041`, SSDF RV.1.3).
+
+| Step | Deadline |
+| --- | --- |
+| Acknowledgement of the report | 3 business days |
+| Triage with a severity | 10 business days |
+| Fix or documented mitigation for a confirmed high or critical finding | 30 days from triage |
+| Fix for a confirmed medium or low finding | the next release |
+| Coordinated disclosure | after the fix ships, or 90 days from the report, whichever is first |

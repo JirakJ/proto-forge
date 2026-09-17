@@ -18,3 +18,20 @@ The service is treated as internet-facing from commit one. Controls are enforced
 - **osv-flagged transitive pins** (`build.gradle.kts`, each annotated with its advisory id): Tomcat ≥ 10.1.59 (10.1.58 was never published; CRITICAL GHSA-9xv2-5v5q-p794, GHSA-gcx9-497g-6cp6 and GHSA-h3x4-894j-xpx5), postgresql ≥ 42.7.12 (HIGH GHSA-j92g-9f8w-j867), jackson-databind ≥ 2.22.1 (moderate deep-nesting batch), commons-compress ≥ 1.26.0 and commons-lang3 ≥ 3.18.0 (moderate; test/tool classpaths — the lockfile is scanned whole), log4j-api ≥ 2.25.5 (MODERATE GHSA-qv9r-c865-cp47, arriving only through Boot's log4j-to-slf4j bridge — pinned anyway, because an advisory a scanner can see is one a reviewer has to answer for). BOM-managed artifacts move via version-property overrides, the rest via constraints; drop a pin once the managing BOM catches up.
 - **Audit**: `sec:scan` builds a deterministic CycloneDX 1.5 SBOM from `gradle.lockfile`'s runtimeClasspath (`pnpm sbom` → `.proto-forge/sbom.cdx.json`, purl-sorted, no timestamp) and runs osv-scanner over it — findings are a hard stop, never auto-suppressed. gitleaks and osv-scanner are external binaries: enforced when present, warned locally when absent, mandatory in CI (the §19 gitleaks precedent).
 - **Seed integrity (BRS §17.2)**: `.proto-forge/seed.lock` pins the platform kernel (`src/main/java/app/platform/**`) and the gate corpus (`scripts/**`) by one sha256; `snapshot:diff` re-verifies it every run. Upgrades are explicit (`pnpm seed:lock` + ADR), and a local hook blocks kernel edits before they land.
+
+## Reporting a vulnerability
+
+Report privately through this repository's GitHub vulnerability reporting —
+**Security → Report a vulnerability** on the repository page — and do not open a
+public issue or attach a proof of concept to a pull request. If this repository is
+not hosted on GitHub, replace this channel with the private one that applies;
+`sec:conformance` fails when the section names no channel and no response window
+(control `SEC-041`, SSDF RV.1.3).
+
+| Step | Deadline |
+| --- | --- |
+| Acknowledgement of the report | 3 business days |
+| Triage with a severity | 10 business days |
+| Fix or documented mitigation for a confirmed high or critical finding | 30 days from triage |
+| Fix for a confirmed medium or low finding | the next release |
+| Coordinated disclosure | after the fix ships, or 90 days from the report, whichever is first |

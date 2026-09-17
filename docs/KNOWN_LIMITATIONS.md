@@ -1,18 +1,18 @@
 # Known limitations and findings
 
-This register describes version 0.11.0. It is a review aid, not a substitute for
+This register describes version 0.12.0. It is a review aid, not a substitute for
 GitHub issues or the security control catalogue.
 
 ## High priority
 
 ### Security coverage is partial by design
 
-`security:catalogue` currently reports 21 controls: 6 enforced and 15 planned. It
+`security:catalogue` currently reports 21 controls: 7 enforced and 14 planned. It
 maps 17 of 253 OWASP ASVS 5.0.0 Level 1/2 requirements to controls. Planned areas
 include HSTS, trusted CORS configuration, cookie scope, cross-origin request
 protection, sensitive browser storage, remediation policy, abuse resistance, mass-
 assignment defense, Trusted Types, Permissions Policy, cross-origin isolation,
-threat modeling, vulnerability reporting, and artifact provenance.
+threat modeling, and artifact provenance.
 
 Impact: generated conformance output must not be presented as full ASVS Level 2
 conformance. Read `references/security-controls.json` and the generated report before
@@ -59,18 +59,26 @@ agent interpretation, weakening the stated structural determinism. Add per-kind 
 
 ## Low priority
 
-### The vulnerability-reporting policy exists at the root only
+### The disclosure probe checks shape, not reachability
 
-Control `SEC-041` asks every generated repository to name a private reporting
-channel and a response deadline. The root `SECURITY.md` now does (GitHub private
-vulnerability reporting; acknowledgement, triage, fix and disclosure deadlines),
-but the templates' `docs/SECURITY.md` still describe the baseline controls
-without a reporting section, so the control stays `planned`.
+`SEC-041` is enforced by `disclosurePolicyStated`, which proves that
+`docs/SECURITY.md` has a "Reporting a vulnerability" section naming a channel (a
+URL, an address, or GitHub's private "Report a vulnerability" form) and a
+response window in days. The shipped section names the
+repository's GitHub private vulnerability reporting; a generated repository hosted
+elsewhere must replace the channel, and the probe cannot tell a live channel from
+a dead one.
 
-Impact: a generated application inherits no disclosure channel of its own. Add a
-reporting section to every template's `docs/SECURITY.md` (with the channel and
-deadlines as operator-filled fields the stub scan rejects when left empty), then
-flip `SEC-041` to `enforced` with a `sec:conformance` probe behind it.
+Impact: the control proves a policy is stated, not that a report would arrive.
+Review checks the channel at release; a pipeline probe never reaches the network
+(NFR-16).
+
+## Resolved in 0.12.0
+
+- Every template ships pinned subagent definitions under `.claude/agents/` (BR-51,
+  ADR 024): the routing decision is made by the harness, not remembered.
+- The vulnerability-reporting policy reaches every generated repository and
+  `SEC-041` is enforced (ADR 025); the root `SECURITY.md` was 0.11.0's half.
 
 ## Resolved in 0.11.0
 

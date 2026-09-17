@@ -1290,6 +1290,36 @@ spawns.
   missing model registry fails"
 - **Decided in:** ADR 022 (plugin namespace)
 
+### BR-51 — Delegation runs through subagents pinned to their routed tier
+
+**MUST.** Every delegable activity — a routing-table row (BR-50) whose tier is
+below the top tier — has a subagent definition, `.claude/agents/<activity>.md`,
+whose `name` is the activity and whose `model` resolves in the registry to a
+model on exactly the routed tier. A frontier-routed activity has no definition:
+the orchestrator performs it. The master set lives in `references/agents/`;
+every template ships a byte-identical copy, and a template ships nothing beyond
+the routed set. A dispatch names the activity as its `subagent_type`; passing
+a `model` override on the dispatch is the routing-override case of BR-50 and is
+recorded as such in the delegated prompt-log entry.
+
+- **Why:** BR-50 makes the routing checkable after the fact, in the prompt log;
+  this makes it hold *before* the fact, in the harness. A model that reads a
+  table and then types the alias it remembers is one slip from a frontier
+  subagent; a definition the harness reads has no memory to slip.
+- **Scope:** all
+- **Enforced by:** `models:lint` (the master and every copy), `prompt:lint`
+  (the entry each dispatch writes, BR-50)
+- **Limit, stated:** a per-invocation `model` parameter on the Agent tool wins
+  over the definition (Claude Code's resolution order), so a deliberate override
+  is possible — and `prompt:lint` still holds it to the frontier rule.
+- **Proven by:** `pnpm selftest` → "models-lint: an agent pinned off its routed
+  tier fails", "models-lint: an agent pinned to an unregistered model fails",
+  "models-lint: an agent for a frontier-routed activity fails", "models-lint: an
+  agent whose name is not its activity fails", "models-lint: a delegable
+  activity with no agent fails", "models-lint: a template agent copy that
+  drifted fails"
+- **Decided in:** ADR 024 (plugin namespace)
+
 ### NFR-29 — Collections are paginated
 
 **MUST.** A GET operation whose 200 response is a top-level array is an unbounded
@@ -2164,8 +2194,12 @@ SARIF report, gated by threshold and never hashed.
   passes", "conformance: no committed claim at all fails", "conformance: a claim that no
   longer matches the tree fails", "conformance: a control whose probe stops holding
   fails", "conformance: a catalogue naming a probe this template lacks fails",
-  "conformance: no catalogue at all fails"
-- **Decided in:** ADR 013 (plugin namespace)
+  "conformance: no catalogue at all fails", "conformance: a disclosure section
+  naming a channel and a window passes", "conformance: a security page with no
+  disclosure section fails", "conformance: a disclosure section with no response
+  window fails"
+- **Decided in:** ADR 013 (plugin namespace); the disclosure probe in ADR 025
+  (plugin namespace)
 
 ### BR-42 — A documented subject records the decision it was written against
 
