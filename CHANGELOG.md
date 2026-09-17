@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.11.0 — 2026-09-17
+
+The register pass (plugin ADR 023): the findings `docs/KNOWN_LIMITATIONS.md`
+recorded at 0.9.1 that were mechanical to close, closed with enforcers where
+the finding was a drift.
+
+- New plugin gate `skill:gates` (§17.3): `SKILL.md`'s mandatory-gate sentence
+  and its `verify` chain are compared, in order, against the web seed's
+  `MANDATORY_GATES` and `package.json`; the prose is regenerated (17 mandatory
+  gates, the 30-command chain) and says it is checked. Seven selftest cases.
+- `desktop-tauri`: the Rust compiler is pinned in `src-tauri/rust-toolchain.toml`;
+  CI reads the channel from the file instead of repeating it, and `shell:verify`
+  fails a missing file or a channel that is not `X.Y.Z` (BR-37 amended, two
+  selftest cases). Snapshot regenerated.
+- CI: the deploy-toolchain step selects kubeconform and hadolint assets from
+  `uname -m`, so an ARM64 self-hosted runner gets through the whole matrix; the
+  plugin job reads a root `.nvmrc` rather than the web template's.
+- Decision table: T1 derives the target before copying and names T14/T24 as its
+  first branch; T18 names the Kotlin and C# domain mechanisms.
+- Root `SECURITY.md`: GitHub private vulnerability reporting as the channel,
+  with acknowledgement, triage, fix and disclosure deadlines (`SEC-041` stays
+  `planned` until every template carries a reporting section too).
+- Root hygiene: `.claude-flow/`, the proven-config files and the per-session
+  anchor are ignored (the anchor leaves history); the marketplace and plugin
+  manifest descriptions gain their missing comma.
+
 ## 0.10.0 — 2026-09-17
 
 Model routing and derived attribution (`docs/specs/2026-09-17-model-routing-and-attribution-design.md`,

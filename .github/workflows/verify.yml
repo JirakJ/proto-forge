@@ -55,7 +55,9 @@ jobs:
           version: 10.11.0
       - uses: actions/setup-node@v4
         with:
-          node-version-file: templates/web/.nvmrc
+          # The root pin, not a template's: a template Node bump must not silently
+          # change the runtime the plugin gates run on.
+          node-version-file: .nvmrc
       - name: selftest the gates
         run: node scripts/selftest-all.mjs
       - name: verify
@@ -153,9 +155,13 @@ jobs:
         # tauri's linux build needs webkit2gtk. Keyed on the tree — a template with
         # no src-tauri asks for none of this.
         if: hashFiles(format('templates/{0}/src-tauri/Cargo.toml', matrix.template.id)) != ''
+        # The compiler version is the template's `src-tauri/rust-toolchain.toml`
+        # (NFR-11): read here, never repeated here.
         run: |
-          rustup toolchain install 1.97.1 --profile minimal --no-self-update
-          rustup default 1.97.1
+          CHANNEL="$(sed -n 's/^channel *= *"\(.*\)"/\1/p' "templates/${{ matrix.template.id }}/src-tauri/rust-toolchain.toml")"
+          test -n "$CHANNEL" || { echo "::error::src-tauri/rust-toolchain.toml names no channel"; exit 1; }
+          rustup toolchain install "$CHANNEL" --profile minimal --no-self-update
+          rustup default "$CHANNEL"
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
       - name: install the deploy toolchain
@@ -163,11 +169,17 @@ jobs:
         # template that SHIPS the gate needs them — the condition reads the tree, not a
         # list someone remembers to extend. docker and helm ship on ubuntu-latest.
         if: hashFiles(format('templates/{0}/scripts/deploy-verify.mjs', matrix.template.id)) != ''
+        # Same rule as the scanner installs above: the asset follows `uname -m`.
         run: |
-          curl -sSfL https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz \
+          case "$(uname -m)" in
+            aarch64|arm64) KUBECONFORM_ARCH=arm64; HADOLINT_ARCH=arm64 ;;
+            x86_64|amd64)  KUBECONFORM_ARCH=amd64; HADOLINT_ARCH=x86_64 ;;
+            *) echo "::error::unsupported runner architecture $(uname -m)"; exit 1 ;;
+          esac
+          curl -sSfL "https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-${KUBECONFORM_ARCH}.tar.gz" \
             | sudo tar -xz -C /usr/local/bin kubeconform
           sudo curl -sSfL -o /usr/local/bin/hadolint \
-            https://github.com/hadolint/hadolint/releases/download/v2.12.0/hadolint-Linux-x86_64
+            "https://github.com/hadolint/hadolint/releases/download/v2.12.0/hadolint-Linux-${HADOLINT_ARCH}"
           sudo chmod +x /usr/local/bin/hadolint
       - name: install
         # Warms the pnpm store and the browser cache the scratch copy will reuse;

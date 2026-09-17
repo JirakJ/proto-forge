@@ -20,7 +20,8 @@ their negative cases. Root `verify` then runs:
 
 1. `citations` — requirement, decision-row, question, ADR, and gate references resolve.
 2. `skill:lint` — four skills, manifests, versions, frontmatter, and repository-local
-   pointers agree.
+   pointers agree; `skill:gates` — the skill's mandatory-gate list and verify chain
+   are the web seed's, in order.
 3. `manifest:lint` — plugin manifests and template registry are well formed.
 4. `models:lint` — the model registry is well formed, its routing table matches its
    documentation, and every template's copy is byte-identical to the master.

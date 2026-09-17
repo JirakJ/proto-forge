@@ -1816,8 +1816,18 @@ const shellBase = (over = {}) => ({
   "src-tauri/Cargo.toml": SHELL_CARGO,
   "src-tauri/Cargo.lock":
     "# fixture lock — the real lockfile is proven by `cargo check --locked` in the tool half\nversion = 4\n",
+  "src-tauri/rust-toolchain.toml": '[toolchain]\nchannel = "1.97.1"\nprofile = "minimal"\n',
   ...over,
 });
+
+// NFR-11 reaches the compiler: the channel is a file in the tree, exact.
+expect("shell: a missing rust-toolchain.toml fails", "shell-verify.mjs", shellBase({
+  "src-tauri/rust-toolchain.toml": undefined,
+}), { pass: false, matching: /rust-toolchain\.toml does not exist/ });
+
+expect("shell: a floating rust channel fails", "shell-verify.mjs", shellBase({
+  "src-tauri/rust-toolchain.toml": '[toolchain]\nchannel = "stable"\n',
+}), { pass: false, matching: /not an exact X\.Y\.Z/ });
 
 expect("shell: the shipped shell configuration passes", "shell-verify.mjs", shellBase(), {
   pass: true,
