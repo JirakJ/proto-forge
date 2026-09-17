@@ -17,6 +17,8 @@ template's `package.json` and summarized in [Template reference](TEMPLATE_REFERE
 | `facets.schema.ts` | Template | A copy of the canonical facet schema so the repository can explain its own input. |
 | `architecture.json` | Phase 1 (backend) | `{style, inputs}` of the derived architecture profile; `arch:verify` re-derives it. |
 | `seed.lock` | `pnpm seed:lock` | SHA-256 of the immutable seed (the owned component library, or the platform kernel plus gate corpus). A mismatch is either tampering or an unrecorded upgrade. |
+| `models.json` | never (byte-identical copy of the plugin's `references/models.json`) | The model registry: tiers, list prices, co-author identities and the routing table that `prompt:lint`, `commit-lint` and the `prepare-commit-msg` hook read. A protected path. |
+| `session.json` | the `SessionStart` / `PostModelSwitch` hooks | The model the harness reported for this checkout; gitignored. The fallback source for the co-author trailer and the answer to "which model am I" before an entry is written. |
 | `snapshot.json` | `pnpm snapshot` | The structure snapshot regenerated at the end of Phase 1 and before every accepted-ADR commit; `snapshot:diff` compares against it. |
 | `quality.json` | `pnpm quality:report` | Measured facts from the last verification run; `docs/STATUS.md` must mirror it byte-for-byte. |
 | `sbom.cdx.json` | `pnpm sbom` | Deterministic CycloneDX inventory derived from the lockfile. |
@@ -33,6 +35,10 @@ An append-only English prompt log. Entry `0001-scaffold.md` is shipped with the
 template; `0002-brief.md` is the verbatim brief; `0003-discovery.md` records a
 discovery bridge when one was ingested. Every later entry precedes the code or ADR
 it produced. A local hook and `prompt:lint` reject edits to existing entries.
+Every entry names the model that executed it; an entry written for a dispatched
+subagent names the orchestrating entry and the routed activity, and `prompt:lint`
+fails a dispatched model off its routed tier or at a frontier orchestrator's own
+tier (BR-50).
 
 ## Decision records
 
@@ -54,10 +60,13 @@ bands; band allocation is a pipeline rule checked in review.
 
 ## Guardrails
 
-`.claude/settings.json` wires four hooks:
+`.claude/settings.json` wires five hooks:
 
+- `record-model` runs on `SessionStart` and `PostModelSwitch` and writes the model
+  the harness reported to `.proto-forge/session.json`, the source an entry's
+  `model:` field and the derived co-author trailer fall back on;
 - `guard-write` refuses edits to the byte-pinned seed, the locks, existing prompt
-  entries, and any change that lowers a coverage threshold, a budget ceiling, or a
+  entries, the model registry copy, and any change that lowers a coverage threshold, a budget ceiling, or a
   gate mode;
 - `guard-bash` refuses `--no-verify`, force pushes without a lease, `pnpm seed:lock`
   from an agent session (a seed upgrade is an ADR-recorded operator action), and

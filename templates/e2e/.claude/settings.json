@@ -1,13 +1,43 @@
 {
   "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node scripts/hooks/record-model.mjs"
+          }
+        ]
+      }
+    ],
+    "PostModelSwitch": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node scripts/hooks/record-model.mjs"
+          }
+        ]
+      }
+    ],
     "PreToolUse": [
       {
         "matcher": "Write|Edit",
-        "hooks": [{ "type": "command", "command": "node scripts/hooks/guard-write.mjs" }]
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node scripts/hooks/guard-write.mjs"
+          }
+        ]
       },
       {
         "matcher": "Bash",
-        "hooks": [{ "type": "command", "command": "node scripts/hooks/guard-bash.mjs" }]
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node scripts/hooks/guard-bash.mjs"
+          }
+        ]
       }
     ]
   }

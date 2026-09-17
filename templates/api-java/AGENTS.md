@@ -14,10 +14,17 @@ Run `pnpm config:show` to see which gates are in force and whether any is curren
 
 **4. The committed contract is a locked derivation of the code.** Never hand-edit `contract/openapi.json`: `pnpm contract:generate` regenerates it from the springdoc test slice (`./gradlew contractEmit`, MockMvc, no socket) through the shared normalizer and re-pins `contract/contract.lock`; `pnpm contract:verify` byte-compares on every run. A breaking change against `contract/released/openapi.json` needs a contract major bump plus an ADR (`pnpm contract:breaking`). The same discipline covers docs: editing a handler invalidates its captured examples until `pnpm docs:examples` reruns.
 
+## Who did the work
+
+Every commit's git author is the operator; the model that prepared it signs as co-author, and the trailer is **derived, not typed**. The `prepare-commit-msg` hook reads the `model:` field of the prompt-log entry your `Prompt-Log:` trailer names, looks it up in `.proto-forge/models.json` and appends `Co-Authored-By: <registered name> <email>`; `commit-lint` then refuses a trailer naming any other model. So: every `.prompts/` entry carries `model: <registered id or alias>` — read yours from `.proto-forge/session.json` (written by the `SessionStart` / `PostModelSwitch` hooks) or `PROTO_FORGE_MODEL`, never guess it.
+
+When you dispatch a subagent, the entry you write for it *before* the dispatch also carries `delegated-by: <your entry id>` and `activity: <a key from the registry's routing table>`, and the subagent runs on the tier the table routes that activity to. A frontier-tier orchestrator (Claude Fable, Claude Opus, GPT-6 Astra, their peers) delegates only to a strictly cheaper tier — no override. A deliberate deviation from the routed tier records `routing-override: <reason>`. `prompt:lint` enforces all of it; the registry copy is a protected path, edited only in the plugin.
+
 ## What the hooks will stop
 
 - editing anything under `src/main/java/app/platform/` — the kernel is byte-pinned (with `scripts/`) by sha256
 - rewriting an existing `.prompts/` entry — the log is append-only; corrections are new entries
+- editing `.proto-forge/models.json` — the model registry is the plugin's single source (NFR-31)
 - hand-editing `.proto-forge/seed.lock` or `snapshot.json` — they are generated
 - lowering a JaCoCo minimum, the PIT floor (`mutationThreshold`), the PIT scope (`targetClasses`), or a gate mode
 - `--no-verify`, `git push --force` without a lease, `pnpm seed:lock`, `gradlew -x test`, casual `--write-locks`

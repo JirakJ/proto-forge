@@ -4,6 +4,7 @@ timestamp: 2026-07-05T00:00:00Z
 phase: 1
 adr: 001
 author: proto-forge
+model: claude-fable-5-1
 ---
 
 ## Prompt

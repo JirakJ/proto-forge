@@ -1,5 +1,38 @@
 # Changelog
 
+## 0.10.0 — 2026-09-17
+
+Model routing and derived attribution (`docs/specs/2026-09-17-model-routing-and-attribution-design.md`,
+plugin ADR 022): the model that prepared a commit is named by a hook, not by
+hand, and every subagent runs on the tier the registry routes its activity to.
+
+- Added `references/models.json`, the model registry (NFR-31): every model the
+  pipeline may run on — the current Anthropic and OpenAI generations — with its
+  tier (`frontier` / `standard` / `economy`), list price and read date, aliases,
+  and the `Co-Authored-By` identity it signs with, plus the routing table that
+  maps a delegated activity to a tier. `references/model-routing.md` states the
+  reason for every row. Every template ships a byte-identical copy at
+  `.proto-forge/models.json`, a protected path; the new plugin gate
+  `models:lint` proves the registry's shape, the prose/table agreement and the
+  byte-identity of every copy (twelve selftest cases).
+- BR-46 amended: the co-author trailer is derived, then verified. Every app
+  template gains a `prepare-commit-msg` hook (`scripts/commit-coauthor.mjs`)
+  that resolves the model from the cited prompt-log entry's `model:` field,
+  `PROTO_FORGE_MODEL`, or `.proto-forge/session.json` — the record the new
+  `SessionStart` / `PostModelSwitch` hooks (`scripts/hooks/record-model.mjs`)
+  write — and appends the registered identity; `commit-lint` fails a trailer
+  that names a model other than the one the cited entry records.
+- BR-50, new: every prompt-log entry carries `model:`; a delegated entry
+  carries `delegated-by:` and `activity:`. `prompt:lint` enforces the frontier
+  rule (a frontier-tier orchestrator delegates to a strictly cheaper tier, no
+  override) and the routing rule (the dispatched model sits on the activity's
+  routed tier unless `routing-override: <reason>` is recorded). Decision-table
+  row T25 and a "Model routing" section in `SKILL.md` state the operating half.
+- Ten prompt cases, three hook cases and six commit cases per template suite;
+  the shipped scaffold entries record their model; the `api-*`, `e2e` and
+  `workspace` seed locks are recut for the changed gate corpus (ADR 022);
+  snapshots regenerated.
+
 ## 0.9.1 — 2026-09-16
 
 The documentation release, plus the repairs that put the CI template matrix back

@@ -89,7 +89,10 @@ cross-cutting quality, tests, security, documentation, and release. A phase cann
 advance while its closing gate is red.
 
 Every accepted ADR is committed with the implementation, tests, documentation, and
-snapshot that prove it. The operator is the Git author; the model is a co-author.
+snapshot that prove it. The operator is the Git author; the model is a co-author,
+and the trailer is derived by a commit hook from the prompt-log entry the commit
+cites. Subagents run on the tier the model registry routes their activity to, and
+a frontier-tier session delegates only to cheaper tiers.
 Prompt-log entries are English, append-only, written before the work, and redacted.
 
 Per feature, use the fast lane. Use full verification at the end of the test-build

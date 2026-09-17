@@ -22,11 +22,13 @@ their negative cases. Root `verify` then runs:
 2. `skill:lint` — four skills, manifests, versions, frontmatter, and repository-local
    pointers agree.
 3. `manifest:lint` — plugin manifests and template registry are well formed.
-4. `security:catalogue` — the pinned standard, control mappings, statuses,
+4. `models:lint` — the model registry is well formed, its routing table matches its
+   documentation, and every template's copy is byte-identical to the master.
+5. `security:catalogue` — the pinned standard, control mappings, statuses,
    applicability, and vendored copies agree.
-5. `template:integrity` — each template's own seed and structure pins match.
-6. `deploy:sync` — declared shared delivery files are byte-identical.
-7. `discovery:lint`, `survey:lint`, and `elicit:lint` — shipped skill examples satisfy
+6. `template:integrity` — each template's own seed and structure pins match.
+7. `deploy:sync` — declared shared delivery files are byte-identical.
+8. `discovery:lint`, `survey:lint`, and `elicit:lint` — shipped skill examples satisfy
    their output contracts.
 
 These checks do not install all template dependencies or run template application

@@ -359,6 +359,30 @@ hook(
 );
 
 hook(
+  "hook: editing the model registry copy is blocked",
+  "guard-write.mjs",
+  { tool_name: "Edit", tool_input: { file_path: ".proto-forge/models.json", new_string: "x" } },
+  { ".proto-forge/models.json": "{}", ".proto-forge/config.json": {} },
+  { blocked: true, matching: /protected pattern/ },
+);
+
+hook(
+  "hook: a session start reporting a model records it",
+  "record-model.mjs",
+  { hook_event_name: "SessionStart", model: "frontier-x" },
+  { ".proto-forge/config.json": {} },
+  { blocked: false, matching: /recorded frontier-x/ },
+);
+
+hook(
+  "hook: a model switch replaces the session record",
+  "record-model.mjs",
+  { hook_event_name: "PostModelSwitch", from_model: "frontier-x", to_model: "standard-x" },
+  { ".proto-forge/config.json": {}, ".proto-forge/session.json": '{"model":"frontier-x"}' },
+  { blocked: false, matching: /recorded standard-x/ },
+);
+
+hook(
   "hook: adding a NEW prompt-log entry is allowed",
   "guard-write.mjs",
   { tool_name: "Write", tool_input: { file_path: ".prompts/0003-fix.md", content: "# fix" } },
@@ -750,7 +774,20 @@ expect("stub: a disable for an ungated rule is not this gate's business", "stub-
 // --- adr:lint ----------------------------------------------------------------
 const adr = (num, status, extra = "") =>
   `# ADR ${num}: A decision\n\n- Status: ${status}\n- Date: 2026-08-12\n${extra}\n## Context\n\nx\n`;
-const promptEntry = "---\nid: 0001\ntimestamp: 2026-08-12T00:00:00Z\nphase: 1\n---\n\n## Prompt\n\nx\n";
+// The smallest registry the model gates accept (BR-50 / NFR-31): one model per
+// tier, an alias, and the co-author identity each signs with. Self-contained so
+// the suite never reads this repository's own .proto-forge/models.json.
+const MODELS = {
+  tiers: { frontier: { rank: 3 }, standard: { rank: 2 }, economy: { rank: 1 } },
+  models: [
+    { id: "frontier-x", provider: "t", displayName: "Frontier X", aliases: ["fx"], tier: "frontier", pricing: { input: 10, output: 50, asOf: "2026-09-17" }, coAuthor: { name: "Frontier X", email: "frontier@example.test" } },
+    { id: "standard-x", provider: "t", displayName: "Standard X", aliases: ["sx"], tier: "standard", pricing: { input: 2, output: 10, asOf: "2026-09-17" }, coAuthor: { name: "Standard X", email: "standard@example.test" } },
+    { id: "economy-x", provider: "t", displayName: "Economy X", aliases: ["ex"], tier: "economy", pricing: { input: 1, output: 5, asOf: "2026-09-17" }, coAuthor: { name: "Economy X", email: "economy@example.test" } },
+  ],
+  routing: { "feature-build": "standard", translation: "economy", "brief-intake": "frontier" },
+};
+const promptEntry = "---\nid: 0001\ntimestamp: 2026-08-12T00:00:00Z\nphase: 1\nmodel: frontier-x\n---\n\n## Prompt\n\nx\n";
+const promptFiles = (over = {}) => ({ ".proto-forge/models.json": MODELS, ...over });
 
 expect("adr: an anchored, accepted, prompt-linked ADR passes", "adr-lint.mjs", {
   "docs/adr/010-a-decision.md": adr("010", "accepted", "- Prompt-log: .prompts/0001-x.md\n"),
@@ -795,47 +832,99 @@ expect("adr: the same number on two files fails", "adr-lint.mjs", {
 }, { pass: false, matching: /used twice/ });
 
 // --- prompt:lint -------------------------------------------------------------
-expect("prompt: well-formed, strictly increasing entries pass", "prompt-log-lint.mjs", {
+expect("prompt: well-formed, strictly increasing entries pass", "prompt-log-lint.mjs", promptFiles({
   ".prompts/0001-scaffold.md": promptEntry,
   ".prompts/0002-brief.md": promptEntry.replace("id: 0001", "id: 0002"),
-}, { pass: true });
+}), { pass: true });
 
 // BR-13: the log is English — a foreign-language prompt is recorded as its
 // English rendering; product strings that must stay foreign are quoted as code.
-expect("prompt: a non-English prompt body fails", "prompt-log-lint.mjs", {
+expect("prompt: a non-English prompt body fails", "prompt-log-lint.mjs", promptFiles({
   ".prompts/0001-scaffold.md": promptEntry.replace("\nx\n", "\nPosuň výstup na produkční úroveň.\n"),
-}, { pass: false, matching: /non-English prompt text/ });
+}), { pass: false, matching: /non-English prompt text/ });
 
-expect("prompt: backtick-quoted foreign strings pass", "prompt-log-lint.mjs", {
+expect("prompt: backtick-quoted foreign strings pass", "prompt-log-lint.mjs", promptFiles({
   ".prompts/0001-scaffold.md": promptEntry.replace(
     "\nx\n",
     "\nRename the save action to the `Uložit` label the brief demands — «redacted:pii» signed it off.\n",
   ),
-}, { pass: true });
+}), { pass: true });
 
-expect("prompt: an empty log fails", "prompt-log-lint.mjs", {
+expect("prompt: an empty log fails", "prompt-log-lint.mjs", promptFiles({
   "src/a.ts": "export const a = 1;\n",
-}, { pass: false, matching: /no prompt-log entries/ });
+}), { pass: false, matching: /no prompt-log entries/ });
 
-expect("prompt: a filename that is not NNNN-slug.md fails", "prompt-log-lint.mjs", {
+expect("prompt: a filename that is not NNNN-slug.md fails", "prompt-log-lint.mjs", promptFiles({
   ".prompts/1-scaffold.md": promptEntry,
-}, { pass: false, matching: /NNNN-slug/ });
+}), { pass: false, matching: /NNNN-slug/ });
 
-expect("prompt: an id that disagrees with the filename fails", "prompt-log-lint.mjs", {
+expect("prompt: an id that disagrees with the filename fails", "prompt-log-lint.mjs", promptFiles({
   ".prompts/0001-scaffold.md": promptEntry.replace("id: 0001", "id: 0002"),
-}, { pass: false, matching: /!=/ });
+}), { pass: false, matching: /!=/ });
 
-expect("prompt: an entry with no ## Prompt section fails", "prompt-log-lint.mjs", {
-  ".prompts/0001-scaffold.md": "---\nid: 0001\ntimestamp: 2026-08-12T00:00:00Z\nphase: 1\n---\n\n## Outcome\n\nx\n",
-}, { pass: false, matching: /## Prompt/ });
+expect("prompt: an entry with no ## Prompt section fails", "prompt-log-lint.mjs", promptFiles({
+  ".prompts/0001-scaffold.md": "---\nid: 0001\ntimestamp: 2026-08-12T00:00:00Z\nphase: 1\nmodel: frontier-x\n---\n\n## Outcome\n\nx\n",
+}), { pass: false, matching: /## Prompt/ });
 
 // Two entries sharing a number is the only way to reach the ordering check:
 // ids are validated against the filename, and filenames sort ascending, so a
 // duplicated prefix is what a botched "append" actually looks like.
-expect("prompt: ids that do not strictly increase fail", "prompt-log-lint.mjs", {
+expect("prompt: ids that do not strictly increase fail", "prompt-log-lint.mjs", promptFiles({
   ".prompts/0001-a.md": promptEntry,
   ".prompts/0001-b.md": promptEntry,
-}, { pass: false, matching: /strictly increasing/ });
+}), { pass: false, matching: /strictly increasing/ });
+
+// BR-50: every entry names its model; a delegated entry sits on the routed tier,
+// and a frontier orchestrator only ever delegates DOWN — no override for that.
+const delegated = (id, model, activity, extra = "") =>
+  `---\nid: ${id}\ntimestamp: 2026-08-12T00:00:00Z\nphase: 4\nmodel: ${model}\ndelegated-by: 0001\nactivity: ${activity}\n${extra}---\n\n## Prompt\n\nx\n`;
+
+expect("prompt: an entry naming no model fails", "prompt-log-lint.mjs", promptFiles({
+  ".prompts/0001-scaffold.md": promptEntry.replace("model: frontier-x\n", ""),
+}), { pass: false, matching: /missing model/ });
+
+expect("prompt: an unregistered model fails", "prompt-log-lint.mjs", promptFiles({
+  ".prompts/0001-scaffold.md": promptEntry.replace("model: frontier-x", "model: mystery-9"),
+}), { pass: false, matching: /not in the registry/ });
+
+expect("prompt: a model named by its alias passes", "prompt-log-lint.mjs", promptFiles({
+  ".prompts/0001-scaffold.md": promptEntry.replace("model: frontier-x", "model: fx"),
+}), { pass: true });
+
+expect("prompt: a delegated entry on the routed tier passes", "prompt-log-lint.mjs", promptFiles({
+  ".prompts/0001-scaffold.md": promptEntry,
+  ".prompts/0002-feature.md": delegated("0002", "standard-x", "feature-build"),
+}), { pass: true, matching: /1 delegated/ });
+
+expect("prompt: a delegated entry at the frontier orchestrator's own tier fails", "prompt-log-lint.mjs", promptFiles({
+  ".prompts/0001-scaffold.md": promptEntry,
+  ".prompts/0002-intake.md": delegated("0002", "frontier-x", "brief-intake", "routing-override: the operator insisted\n"),
+}), { pass: false, matching: /strictly cheaper tier, no override/ });
+
+expect("prompt: a delegated entry off the routed tier without an override fails", "prompt-log-lint.mjs", promptFiles({
+  ".prompts/0001-scaffold.md": promptEntry,
+  ".prompts/0002-translate.md": delegated("0002", "standard-x", "translation"),
+}), { pass: false, matching: /routed to economy/ });
+
+expect("prompt: a delegated entry off the routed tier with a recorded override passes", "prompt-log-lint.mjs", promptFiles({
+  ".prompts/0001-scaffold.md": promptEntry,
+  ".prompts/0002-translate.md": delegated("0002", "standard-x", "translation", "routing-override: plural rules in this locale defeated the economy model twice\n"),
+}), { pass: true });
+
+expect("prompt: a delegated entry naming an unrouted activity fails", "prompt-log-lint.mjs", promptFiles({
+  ".prompts/0001-scaffold.md": promptEntry,
+  ".prompts/0002-x.md": delegated("0002", "standard-x", "vibes"),
+}), { pass: false, matching: /not a routed activity/ });
+
+expect("prompt: a delegated entry naming a later entry as its orchestrator fails", "prompt-log-lint.mjs", promptFiles({
+  ".prompts/0001-scaffold.md": promptEntry,
+  ".prompts/0002-x.md": delegated("0002", "standard-x", "feature-build").replace("delegated-by: 0001", "delegated-by: 0003"),
+  ".prompts/0003-y.md": promptEntry.replace("id: 0001", "id: 0003"),
+}), { pass: false, matching: /not an earlier entry/ });
+
+expect("prompt: a missing model registry fails", "prompt-log-lint.mjs", {
+  ".prompts/0001-scaffold.md": promptEntry,
+}, { pass: false, matching: /models.json is missing/ });
 
 // --- commit-lint ---------------------------------------------------------------
 // The message half is testable anywhere; the diff half (BR-06: one accepted ADR = one
@@ -899,6 +988,44 @@ expect("commit: the model authoring its own commit fails", "commit-lint.mjs", {
     git("config", "user.email", "noreply@anthropic.com");
   },
 });
+
+// BR-46 (amended): the trailer is DERIVED by the prepare-commit-msg half from
+// the model the cited prompt-log entry records, and VERIFIED by the commit-msg
+// half against the same entry — a trailer naming another model fails.
+const MSG_UNSIGNED = "feat: accept the note domain decision\n\nADR: 010\nPrompt-Log: .prompts/0001-x.md\n";
+const entryOn = (model) => promptEntry.replace("model: frontier-x", `model: ${model}`);
+const stageWithRegistry = (dir) => stageAll(dir);
+
+expect("commit: the co-author trailer is derived from the cited entry's model", "commit-coauthor.mjs", promptFiles({
+  "msg.txt": MSG_UNSIGNED,
+  ".prompts/0001-x.md": entryOn("standard-x"),
+}), { pass: true, matching: /Co-Authored-By: Standard X <standard@example.test>/, args: ["msg.txt", "message"] });
+
+expect("commit: a message already signed is left alone by the derive step", "commit-coauthor.mjs", promptFiles({
+  "msg.txt": MSG_OK,
+  ".prompts/0001-x.md": entryOn("standard-x"),
+}), { pass: true, args: ["msg.txt", "message"] });
+
+expect("commit: the derive step falls back to the session record", "commit-coauthor.mjs", promptFiles({
+  "msg.txt": "feat: accept the note domain decision\n\nADR: 010\n",
+  ".proto-forge/session.json": { model: "ex", recordedAt: "2026-09-17T00:00:00Z", event: "SessionStart" },
+}), { pass: true, matching: /Economy X <economy@example.test>/, args: ["msg.txt", "message"] });
+
+expect("commit: an unresolvable model aborts the derive step", "commit-coauthor.mjs", promptFiles({
+  "msg.txt": "feat: accept the note domain decision\n\nADR: 010\n",
+}), { pass: false, matching: /cannot tell which model/, args: ["msg.txt", "message"], env: { PROTO_FORGE_MODEL: "" } });
+
+expect("commit: a co-author that is not the cited entry's model fails", "commit-lint.mjs", promptFiles({
+  "msg.txt": MSG_OK,
+  ".prompts/0001-x.md": entryOn("standard-x"),
+  "docs/adr/010-a-decision.md": adr("010", "accepted"),
+}), { pass: false, matching: /no co-author trailer signs as it/, args: ["msg.txt"], prepare: stageWithRegistry });
+
+expect("commit: a co-author matching the cited entry's model passes", "commit-lint.mjs", promptFiles({
+  "msg.txt": `${MSG_UNSIGNED}Co-Authored-By: Standard X <standard@example.test>\n`,
+  ".prompts/0001-x.md": entryOn("standard-x"),
+  "docs/adr/010-a-decision.md": adr("010", "accepted"),
+}), { pass: true, args: ["msg.txt"], prepare: stageWithRegistry });
 
 // BR-49: a fix carries its regression test in the same commit — the defect
 // that had no failing test is the defect that returns.

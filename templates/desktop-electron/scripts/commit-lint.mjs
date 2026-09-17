@@ -1,13 +1,16 @@
 import { execSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { fail, ok } from "./lib.mjs";
+import { coAuthorTrailer, frontmatter, loadModels, resolveModel } from "./models.mjs";
 
 // BR-06: one accepted ADR = one commit. BR-46: the operator authors, the model
 // co-authors. Two halves, both checked:
 //   message — Conventional Commits subject, exactly one `ADR: NNN` trailer, a
 //             resolving `Prompt-Log:` trailer, and at least one well-formed
 //             `Co-Authored-By: <model> <email>` trailer naming the model that
-//             prepared the commit
+//             prepared the commit — the registered identity of the model the
+//             cited prompt-log entry records (commit-coauthor derives it; this
+//             half verifies it)
 //   diff    — the STAGED changes flip exactly the ADR the trailer names to
 //             `accepted`, and no other. A message can promise anything; the diff is
 //             what the commit actually does, and the two must agree.
@@ -27,9 +30,9 @@ if (!/^Prompt-Log:\s*\S+/m.test(msg)) errors.push('missing "Prompt-Log:" trailer
 // --- authorship (BR-46) --------------------------------------------------------
 // The git author is the operator who ran the prompt; the model that prepared the
 // commit signs as co-author. The gate proves the trailer's presence and shape,
-// and that the author is not hiding behind a co-author line — WHICH model
-// prepared the commit is provenance the prompt log carries, not something a
-// regex can know.
+// that the author is not hiding behind a co-author line, and — since the prompt
+// log records the model that executed each entry (BR-50) — that the trailer
+// names the SAME model the cited entry records, by its registered identity.
 const coAuthorLines = msg.match(/^Co-Authored-By:.*$/gim) ?? [];
 const coAuthors = coAuthorLines
   .map((l) => /^Co-Authored-By:\s*(\S.*?)\s*<([^<>\s]+@[^<>\s]+)>\s*$/i.exec(l))
@@ -38,6 +41,32 @@ if (coAuthorLines.length === 0) {
   errors.push('missing "Co-Authored-By:" trailer — the model that prepared the commit signs as co-author (BR-46)');
 } else if (coAuthors.length !== coAuthorLines.length) {
   errors.push('a "Co-Authored-By:" trailer is malformed — the shape is "Co-Authored-By: Name <email>" (BR-46)');
+}
+const promptRef = /^Prompt-Log:\s*(\S+)/m.exec(msg)?.[1];
+if (promptRef !== undefined && existsSync(promptRef)) {
+  const declared = frontmatter(readFileSync(promptRef, "utf8"))?.model;
+  if (declared !== undefined) {
+    const { registry, errors: registryErrors } = loadModels();
+    if (registry === null) {
+      errors.push(...registryErrors);
+    } else {
+      const model = resolveModel(registry, declared);
+      if (model === undefined) {
+        errors.push(`${promptRef} names model "${declared}", which .proto-forge/models.json does not list (BR-50)`);
+      } else {
+        const expected = coAuthorTrailer(model);
+        const signed = coAuthors.some(
+          (m) => m[1].toLowerCase() === model.coAuthor.name.toLowerCase() && m[2].toLowerCase() === model.coAuthor.email.toLowerCase(),
+        );
+        if (!signed) {
+          errors.push(
+            `${promptRef} records ${model.id}, but no co-author trailer signs as it — expected "${expected}" ` +
+              "(the prepare-commit-msg hook derives it; a hand-typed trailer must name the same model, BR-46)",
+          );
+        }
+      }
+    }
+  }
 }
 try {
   const ident = execSync("git var GIT_AUTHOR_IDENT", { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
