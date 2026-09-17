@@ -1,0 +1,7 @@
+# The shell compiler, pinned exactly (NFR-11). rustup reads this file whenever
+# cargo runs inside src-tauri/, CI installs exactly this channel, and shell:verify
+# fails a missing file or a channel that is not X.Y.Z. Moving it is a decision
+# (an ADR), never a drive-by — the same rule as every other version in the tree.
+[toolchain]
+channel = "1.97.1"
+profile = "minimal"

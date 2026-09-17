@@ -24,7 +24,7 @@ on a hand-maintained list:
 - JDK 21 for `java` and `kotlin` stacks;
 - `uv` with Python 3.12 for the `python` stack;
 - .NET from the template's `global.json` for the `dotnet` stack;
-- Rust 1.97.1 and GTK libraries when `src-tauri/Cargo.toml` exists;
+- the Rust channel named in `src-tauri/rust-toolchain.toml` (read, not repeated) and GTK libraries when `src-tauri/Cargo.toml` exists;
 - the deploy toolchain (`kubeconform`, `hadolint`) when `scripts/deploy-verify.mjs`
   exists;
 - `gitleaks` on every leg, and `osv-scanner` when the template's `sec-scan.mjs`

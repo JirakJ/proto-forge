@@ -2,3 +2,9 @@
 *.log
 node_modules/
 .scratch/
+# Per-session and per-operator tooling state: written by the orchestration hooks on
+# every session, never part of the plugin.
+.claude-flow/
+.claude/proven-config.json
+.claude/.proven-config-version
+.claude/session-anchor.md

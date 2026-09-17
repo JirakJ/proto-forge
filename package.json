@@ -1,6 +1,6 @@
 {
   "name": "proto-forge",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "private": true,
   "type": "module",
   "description": "The proto-forge skills and their app templates. This package holds the plugin-level gates only; every generated app has its own package.json under its template's dir in references/templates.json.",
@@ -11,7 +11,7 @@
   "packageManager": "pnpm@10.11.0",
   "scripts": {
     "test": "pnpm run selftest && pnpm run verify",
-    "verify": "pnpm run citations && pnpm run skill:lint && pnpm run manifest:lint && pnpm run models:lint && pnpm run security:catalogue && pnpm run template:integrity && pnpm run deploy:sync && pnpm run discovery:lint && pnpm run survey:lint && pnpm run elicit:lint",
+    "verify": "pnpm run citations && pnpm run skill:lint && pnpm run skill:gates && pnpm run manifest:lint && pnpm run models:lint && pnpm run security:catalogue && pnpm run template:integrity && pnpm run deploy:sync && pnpm run discovery:lint && pnpm run survey:lint && pnpm run elicit:lint",
     "deploy:sync": "node scripts/deploy-sync.mjs",
     "citations": "node scripts/citations.mjs",
     "skill:lint": "node scripts/skill-lint.mjs",
@@ -23,6 +23,7 @@
     "survey:lint": "node skills/survey/template/.survey/lint.mjs skills/survey/template",
     "elicit:lint": "node skills/elicit/template/.elicit/lint.mjs skills/elicit/template",
     "security:catalogue": "node scripts/security-catalogue.mjs",
-    "models:lint": "node scripts/models-lint.mjs"
+    "models:lint": "node scripts/models-lint.mjs",
+    "skill:gates": "node scripts/skill-gates-lint.mjs"
   }
 }

@@ -23,6 +23,7 @@ const CONF = "src-tauri/tauri.conf.json";
 const CAPS_DIR = "src-tauri/capabilities";
 const CARGO_TOML = "src-tauri/Cargo.toml";
 const CARGO_LOCK = "src-tauri/Cargo.lock";
+const TOOLCHAIN = "src-tauri/rust-toolchain.toml";
 
 // The strict web CSP (docs/SECURITY.md; the preview server sets the same set).
 // The shell must ship the SAME policy — a WebView is not a reason to relax.
@@ -119,6 +120,20 @@ if (!existsSync(CAPS_DIR)) {
 }
 
 // --- toolchain pins (NFR-11) ---------------------------------------------------
+// The compiler is pinned the way the crates are: an exact channel in
+// rust-toolchain.toml, which rustup honours locally and CI installs verbatim.
+// "stable" is not a version — it is whatever today resolves to.
+if (!existsSync(TOOLCHAIN)) {
+  errors.push(`${TOOLCHAIN} does not exist — the Rust compiler is pinned exactly, in the tree, like every other version (NFR-11)`);
+} else {
+  const channel = /^channel\s*=\s*"([^"]*)"/m.exec(read(TOOLCHAIN))?.[1];
+  if (channel === undefined) {
+    errors.push(`${TOOLCHAIN}: no [toolchain] channel`);
+  } else if (!/^\d+\.\d+\.\d+$/.test(channel)) {
+    errors.push(`${TOOLCHAIN}: channel ${JSON.stringify(channel)} is not an exact X.Y.Z version — "stable" and "nightly" float (NFR-11)`);
+  }
+}
+
 if (!existsSync(CARGO_LOCK)) {
   errors.push(`${CARGO_LOCK} does not exist — the committed lockfile is the reproducibility contract (NFR-11)`);
 }
@@ -225,7 +240,7 @@ if (cli === undefined) {
 if (errors.length === 0) {
   const cargoPresent = spawnSync("cargo", ["--version"], { encoding: "utf8" }).status === 0;
   if (!cargoPresent) {
-    note("shell: cargo not installed — skipping the compile check locally (CI enforces the rust toolchain; `brew install rustup && rustup default stable` to enforce here)");
+    note("shell: cargo not installed — skipping the compile check locally (CI enforces the rust toolchain; `brew install rustup` to enforce here — rustup reads the channel from src-tauri/rust-toolchain.toml)");
   } else {
     const r = spawnSync("cargo", ["check", "--locked", "--quiet"], { cwd: "src-tauri", encoding: "utf8" });
     if (r.status !== 0) {

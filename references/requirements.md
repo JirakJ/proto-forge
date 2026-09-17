@@ -939,8 +939,11 @@ the preload exposes exclusively through `contextBridge`, and the packager's
 publish feed is off unless a decision turned it on. **Tauri**: the capability
 allowlist is minimal and explicit — every permission beyond the core defaults is
 a gate edit plus an ADR — the CSP is present, the updater is disabled or its
-endpoints and public key are pinned, and the Rust lockfile is committed with the
-shell dependency exact-pinned. Both: an unmaintained-crate advisory the toolchain
+endpoints and public key are pinned, the Rust lockfile is committed with the
+shell dependency exact-pinned, and the compiler itself is pinned to an exact
+`X.Y.Z` channel in `src-tauri/rust-toolchain.toml` — the file rustup honours
+locally and CI installs verbatim, so local and CI never compile with different
+toolchains while the documentation calls the toolchain pinned. Both: an unmaintained-crate advisory the toolchain
 forces on us lives in a dated ignore ledger under the `.trivyignore` discipline
 (a reason and an expiry, or the gate fails), never in silence.
 
@@ -964,8 +967,10 @@ forces on us lives in a dated ignore ledger under the `.trivyignore` discipline
   window assignment in the preload fails" (desktop-electron), "shell: an enabled
   publish feed fails" (desktop-electron), "shell: an advisory on no ledger entry
   fails" (desktop-tauri), "shell: a ledger entry accepts the advisory's alias
-  too" (desktop-tauri)
-- **Decided in:** ADR 203 (prototype namespace)
+  too" (desktop-tauri), "shell: a missing rust-toolchain.toml fails"
+  (desktop-tauri), "shell: a floating rust channel fails" (desktop-tauri)
+- **Decided in:** ADR 203 (prototype namespace); the compiler pin in ADR 023
+  (plugin namespace)
 
 ### BR-27 — An environment exists only by declaration
 
@@ -1858,6 +1863,30 @@ edited during generation — a hook blocks it. A legitimate upgrade is an ADR pl
   vendored seed that differs from seed.lock fails", "hook: editing the byte-pinned seed
   is blocked", "hook: an ordinary feature edit is allowed"
 - **Decided in:** ADR 020, §8
+
+### §17.3 The skill describes the gates the seed enforces
+
+**MUST.** Where `SKILL.md` states the mandatory gates (the list a waiver can
+relax) and the full `verify` chain (what the release checkpoint runs), it
+states exactly what the web seed's `scripts/config.mjs` and `package.json`
+enforce, in order. The plugin gate parses both and fails on any disagreement:
+a count, a missing gate, a command the script does not run, or the same
+commands in a different order.
+
+- **Why:** An agent reading the skill as the normative pipeline underestimates
+  which gates need a waiver and which commands the full lane runs — and does so
+  silently, because prose that nothing compares against code stays wrong until
+  a reader notices. The 0.9.x skill listed thirteen mandatory gates while the
+  seed enforced seventeen.
+- **Enforced by:** `skill:gates`
+- **Proven by:** `pnpm selftest` → "skill-gates-lint: prose that matches the
+  seed passes", "skill-gates-lint: a stale mandatory-gate count fails",
+  "skill-gates-lint: a mandatory gate the prose omits fails",
+  "skill-gates-lint: a verify command the prose omits fails",
+  "skill-gates-lint: a verify command the script does not run fails",
+  "skill-gates-lint: the right commands in the wrong order fail",
+  "skill-gates-lint: a skill with no gate sentences fails"
+- **Decided in:** ADR 023 (plugin namespace)
 
 ## §18 Multi-template invariants
 
