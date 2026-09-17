@@ -135,8 +135,10 @@ control, a waiver, or a lowered floor is prohibited.
 - One accepted ADR is one commit containing the ADR transition, code, tests,
   documentation, and the regenerated snapshot.
 - The Git author is the operator who ran the prompt. The model that prepared the
-  commit is named in a `Co-Authored-By` trailer. A commit whose author is the
-  model fails `commit-lint`.
+  commit is named in a `Co-Authored-By` trailer that the `prepare-commit-msg`
+  hook derives from the `model:` field of the cited prompt-log entry, resolved
+  in `.proto-forge/models.json`; `commit-lint` fails a commit whose author is
+  the model, and one whose trailer names a model other than the entry records.
 - The message carries exactly one `ADR:` trailer and one resolving `Prompt-Log:`
   trailer.
 - The ADR stays `proposed` and nothing is committed while the fast lane is red.
@@ -144,8 +146,11 @@ control, a waiver, or a lowered floor is prohibited.
 ## Prompt log contract
 
 - One Markdown file per prompt under `.prompts/`, zero-padded and monotonic, with
-  `id`, `timestamp`, `phase`, `adr`, and `author` frontmatter plus `## Prompt` and
-  `## Outcome`.
+  `id`, `timestamp`, `phase`, `adr`, `author`, and `model` frontmatter plus
+  `## Prompt` and `## Outcome`. An entry written for a dispatched subagent adds
+  `delegated-by` and `activity`; `prompt:lint` holds the dispatched model to the
+  registry's routing table, and to a strictly cheaper tier than a frontier-tier
+  orchestrator (BR-50).
 - Entries are English. A prompt received in another language is recorded as its
   faithful English rendering without a translation note.
 - Existing entries are immutable. Corrections are new entries referencing the

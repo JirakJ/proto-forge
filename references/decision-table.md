@@ -27,11 +27,12 @@ Map normalized brief facets to fixed actions. Exhaustive for the supported surfa
 | T21 | backend: authModel ≠ none   | AuthN skeleton per model (apiKey header / jwt resource-server / oidc) + authz on every route + authz tests. | ADR 040-049 |
 | T22 | Brief names an off-table value (2nd persistence engine, unnamed or 2nd stack, a style contradicting T15-T17…) | Escalation rule, unchanged — never a silent override. | — |
 | T23 | ≥2 parts in the workspace | Generate the e2e part from `templates/e2e/`: flow cases derived from the flows facets into `src/flows/cases.ts` (each case object opens with its `id` field — `registry:verify` parses on that), implementations keyed by quoted case id; contract cases per operation of the consumed contract. The against-the-pair run belongs to the workspace CI (BR-35). | — |
+| T25 | Any phase dispatches a subagent | Read `.proto-forge/models.json` (NFR-31); take the tier the routing table gives the activity and pass a model of that tier to the dispatch; when the orchestrating model is `frontier`, the dispatched model is on a strictly lower tier regardless of the row — no override (BR-50). Write the delegated prompt-log entry (`model`, `delegated-by`, `activity`) BEFORE the dispatch; a deviation from the routed tier records `routing-override: <reason>`. | — |
 | T24 | Brief asks for a desktop/standalone application | Target = `desktop-<shell>` per `references/templates.json`. The brief names the shell or it escalates with the conservative default **Tauri** (deny-by-default capabilities, small binaries) recorded in the ADR. The UI half is the web template's, unchanged; delivery is packaging-as-CI-stage, never a promotion chain (§24). | ADR 203 (pre-written) |
 
 ## Escalation rule (guard against improvisation, BRS §11.1)
 
-If a facet is **not** covered by T1-T24:
+If a facet is **not** covered by T1-T25:
 
 1. Write the ambiguity to `.prompts/` as an open question.
 2. Emit a `proposed` ADR describing the options.

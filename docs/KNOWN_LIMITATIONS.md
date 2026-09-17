@@ -1,6 +1,6 @@
 # Known limitations and findings
 
-This register describes version 0.9.1. It is a review aid, not a substitute for
+This register describes version 0.10.0. It is a review aid, not a substitute for
 GitHub issues or the security control catalogue.
 
 ## High priority
@@ -53,6 +53,21 @@ gates need a waiver and which commands the full lane runs. No plugin gate compar
 the skill's prose against the template's `MANDATORY_GATES` or `verify` script, so
 the drift is silent. Either regenerate that paragraph from the template
 configuration or add a citation-style check that fails on disagreement.
+
+### The model a prompt-log entry names is a self-declaration
+
+BR-50 requires every entry to name the model that executed it, and BR-46 derives
+the commit's co-author trailer from that field. The field is written by the model
+itself. Claude Code reports the running model to hooks only on `SessionStart` and
+the model-switch events, so `.proto-forge/session.json` records what the harness
+last reported, but no gate compares an entry's `model:` against that record — a
+session that switched models between two entries would make such a comparison
+wrong more often than right.
+
+Impact: the trailer is mechanically consistent with the prompt log, and the prompt
+log is consistent with the registry, but the chain starts at a statement the model
+makes about itself. Review is what closes it. A harness that reports the model per
+tool call would let `prompt:lint` cross-check the field; none does today.
 
 ## Medium priority
 

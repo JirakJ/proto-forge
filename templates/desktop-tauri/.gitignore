@@ -17,3 +17,5 @@ reports/
 src-tauri/target/
 src-tauri/gen/
 src-tauri/icon-source.png
+# Per-checkout model record written by the SessionStart / PostModelSwitch hooks (BR-46, BR-50)
+.proto-forge/session.json

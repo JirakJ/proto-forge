@@ -18,10 +18,17 @@ Run `pnpm config:show` to see which gates are in force and whether any is curren
 
 The app is Python (uv, `uv sync --frozen`, pytest/mypy/ruff/mutmut/import-linter/alembic); the gates are Node (`pnpm`, the `.mjs` corpus every proto-forge template shares — BRS §18). Both lockfiles are committed and both are the reproducibility contract. Python has no in-process Postgres engine, so `tests/integration` (the real-database tier) runs against Testcontainers Postgres: skipped with a loud note where Docker is absent, MANDATORY in CI (ADR 003 records this §15/§19 escape).
 
+## Who did the work
+
+Every commit's git author is the operator; the model that prepared it signs as co-author, and the trailer is **derived, not typed**. The `prepare-commit-msg` hook reads the `model:` field of the prompt-log entry your `Prompt-Log:` trailer names, looks it up in `.proto-forge/models.json` and appends `Co-Authored-By: <registered name> <email>`; `commit-lint` then refuses a trailer naming any other model. So: every `.prompts/` entry carries `model: <registered id or alias>` — read yours from `.proto-forge/session.json` (written by the `SessionStart` / `PostModelSwitch` hooks) or `PROTO_FORGE_MODEL`, never guess it.
+
+When you dispatch a subagent, the entry you write for it *before* the dispatch also carries `delegated-by: <your entry id>` and `activity: <a key from the registry's routing table>`, and the subagent runs on the tier the table routes that activity to. A frontier-tier orchestrator (Claude Fable, Claude Opus, GPT-6 Astra, their peers) delegates only to a strictly cheaper tier — no override. A deliberate deviation from the routed tier records `routing-override: <reason>`. `prompt:lint` enforces all of it; the registry copy is a protected path, edited only in the plugin.
+
 ## What the hooks will stop
 
 - editing anything under `src/app/platform/` — the kernel is byte-pinned (with `scripts/`) by sha256
 - rewriting an existing `.prompts/` entry — the log is append-only; corrections are new entries
+- editing `.proto-forge/models.json` — the model registry is the plugin's single source (NFR-31)
 - hand-editing `.proto-forge/seed.lock` or `snapshot.json` — they are generated
 - lowering `fail_under`, the mutation `break` floor, the mutation scope, or a gate mode (all in `pyproject.toml` / `.proto-forge/config.json`)
 - `--no-verify`, `git push --force` without a lease, `pnpm seed:lock`

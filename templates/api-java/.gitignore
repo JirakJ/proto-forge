@@ -6,3 +6,5 @@ bin/
 .proto-forge/outbox/
 # raw machine output — quality:report distils it into .proto-forge/quality.json
 .proto-forge/e2e-results.json
+# Per-checkout model record written by the SessionStart / PostModelSwitch hooks (BR-46, BR-50)
+.proto-forge/session.json

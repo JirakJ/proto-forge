@@ -66,7 +66,7 @@ and the e2e-against-the-pair run belongs to the workspace CI (T23, BR-35).
 5. Write facets to `.proto-forge/facets.json`; its hash is the **brief identity** (BR-14). Two briefs with the same facets are "the same brief."
 6. Leave the shipped `.proto-forge/snapshot.json` in place; it is regenerated at the end of Phase 1 (after demo cleanup) and re-staged with every ADR commit.
 
-**Escalation rule (T-escalation).** If a facet is not covered by T1-T24: (a) write the ambiguity to `.prompts/` as an open question, (b) emit a `proposed` ADR listing the options, (c) pick the **most conservative, most standard** option and record why. Never improvise silently.
+**Escalation rule (T-escalation).** If a facet is not covered by T1-T25: (a) write the ambiguity to `.prompts/` as an open question, (b) emit a `proposed` ADR listing the options, (c) pick the **most conservative, most standard** option and record why. Never improvise silently.
 
 ### Phase 1 — Scaffold cleanup + shell regen (always)
 
@@ -189,14 +189,23 @@ The moment a defect becomes **known** — a red gate that resists the remediatio
 
   ADR: NNN
   Prompt-Log: .prompts/NNNN-slug.md
-  Co-Authored-By: <model name> <model-noreply-email>
   ```
-  `commit-lint` verifies exactly one `ADR:` trailer, one status transition to `accepted` in the diff, a resolving `Prompt-Log:` trailer, and ≥1 well-formed `Co-Authored-By:` trailer whose identity is not the git author's.
+  **Do not type the `Co-Authored-By:` trailer.** The `prepare-commit-msg` hook derives it (`scripts/commit-coauthor.mjs`): it reads the `model:` field of the prompt-log entry the `Prompt-Log:` trailer names, resolves it in `.proto-forge/models.json`, and appends that model's registered identity — falling back to `PROTO_FORGE_MODEL` and then to `.proto-forge/session.json` (written by the `SessionStart` / `PostModelSwitch` hooks) when the message names no entry yet. `commit-lint` then verifies exactly one `ADR:` trailer, one status transition to `accepted` in the diff, a resolving `Prompt-Log:` trailer, ≥1 well-formed `Co-Authored-By:` trailer whose identity is not the git author's, and that the trailer signs as the model the cited entry records. A commit whose model cannot be resolved does not happen — record the model in the entry first.
 - **Commit atomicity:** stage with ADR still `proposed` → regenerate + stage `.proto-forge/snapshot.json` (`pnpm snapshot`) so `snapshot:diff` compares against the snapshot committed in this same commit → run the **fast lane** (`pnpm verify:fast`) → only if green, flip to `accepted` and finalize. Red ⇒ ADR stays `proposed`, no commit, gate-failure protocol takes over. An `accepted` ADR in history always corresponds to a commit whose fast-lane gates passed — and the full `pnpm verify` holds the line at its three checkpoints: end of Phase 6, release, and CI on every push (BR-45).
+
+## Model routing (BR-50)
+
+The pipeline runs on whatever model the operator opened the session with — Anthropic's or OpenAI's, any tier. Which model runs a **delegated** activity is not a per-dispatch choice: it is read from the routing table in `.proto-forge/models.json` (the byte-identical copy of `references/models.json`, NFR-31; `references/model-routing.md` is the same table with its reasons).
+
+- **Know your own model first.** Read `.proto-forge/session.json` (the `SessionStart` / `PostModelSwitch` hooks write it) or `PROTO_FORGE_MODEL`; that registered id is the `model:` of every prompt-log entry you write. Never guess it.
+- **Route every dispatch (T25).** Before spawning a subagent, take the tier the routing table gives the activity (`brief-intake`, `decision-record`, `scaffold-cleanup`, `codebase-search`, `domain-model`, `adapter-build`, `feature-build`, `translation`, `a11y-pass`, `test-build`, `security-harden`, `documentation`, `gate-remediation`, `code-review`, `release`) and pass a model of that tier to the dispatch (the `Agent` tool's `model` parameter; a registered alias such as `sonnet` or `haiku` resolves).
+- **The frontier rule — no override.** When the orchestrating model is `frontier` tier (GPT-6 Astra, Claude Fable, Claude Opus and their peers), every subagent runs on a strictly lower tier. An activity routed to `frontier` (`brief-intake`, `decision-record`) is one a frontier orchestrator performs itself; that is the point of the row.
+- **Record before dispatch.** The delegated prompt-log entry is written *before* the agent starts, with `model: <the dispatched model>`, `delegated-by: <your entry's id>` and `activity: <the routed key>`. A deliberate deviation from the routed tier records `routing-override: <reason>` — provenance, not a bypass; the frontier rule still applies above it.
+- `prompt:lint` fails an entry with no model, an unregistered model, a delegated entry off its routed tier without an override, and a frontier orchestrator delegating at its own tier. Never widen the registry inside a prototype to make a dispatch pass: the copy is a protected path, and tier membership is a priced decision made in the plugin.
 
 ## Prompt log (append-only, English)
 
-- One Markdown file per prompt in `.prompts/`, named `NNNN-slug.md` (zero-padded, monotonic), with frontmatter `id/timestamp/phase/adr/author` + `## Prompt` + `## Outcome` (1-3 lines).
+- One Markdown file per prompt in `.prompts/`, named `NNNN-slug.md` (zero-padded, monotonic), with frontmatter `id/timestamp/phase/adr/author/model` (+ `delegated-by/activity` on a delegated entry, BR-50) + `## Prompt` + `## Outcome` (1-3 lines).
 - **English only (BR-13):** entries are written in English. A prompt that arrived in another language is recorded as its faithful English rendering, written as if authored in English — never add a translation note, never keep the original text. Non-English product strings the brief demands stay as backtick-quoted literals. `prompt:lint` enforces this.
 - **Append-only:** existing files immutable (CI diff check + a local hook). Corrections = new entries referencing the prior `id`.
 - **Precedence:** prompt written **before** the resulting code/ADR is committed.
@@ -224,7 +233,8 @@ Banned: hardcoded literals ignoring arguments; inline `return [{id:1,...}]` in a
 ## Reference files
 
 - `references/facets.schema.ts` — the canonical brief schema (Phase 0 target).
-- `references/decision-table.md` — T1-T24 when→then + escalation + ADR ranges.
+- `references/decision-table.md` — T1-T25 when→then + escalation + ADR ranges.
+- `references/models.json` — the model registry (NFR-31): every model the pipeline may run on, its tier and list price, the identity its `Co-Authored-By` trailer carries, and the routing table (BR-50). Every template ships a byte-identical copy at `.proto-forge/models.json`; `references/model-routing.md` explains each routed activity.
 - `references/adr-template.md` — the MADR ADR skeleton.
 - `references/templates.json` — the template registry: every target the pipeline may copy (`web`, `api-node`, `api-python`, `api-java`, `api-kotlin`, `api-dotnet`, `desktop-tauri`, `desktop-electron`, `workspace`, `e2e`), with its dir, kind and stack. Read the chosen template's own `README.md` for its layout and its `AGENTS.md` for the rules every change must satisfy.
 - `references/security-controls.json` — the security control catalogue (BRS §25, BR-38): every control a generated application carries, bound to the OWASP ASVS 5.0 requirement that asks for it, with SLSA Build L3 and NIST SSDF alongside. Requirement numbers are references into the vendored, sha-pinned `references/standards/asvs-5.0.0.flat.json`, never transcriptions, and `security:catalogue` resolves each one. A control marked `planned` is an admitted gap naming its stage — read the catalogue for what the bar *is*, not for what already holds.

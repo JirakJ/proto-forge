@@ -1124,27 +1124,51 @@ and a fast gate the full chain does not also run.
   gate fails", "config: a fast gate missing from the full verify chain fails"
 - **Decided in:** ADR 015 (plugin namespace)
 
-### BR-46 — The operator authors, the model co-authors
+### BR-46 — The operator authors, the model co-authors — and the trailer is derived, then verified
 
 **MUST.** Every commit's git author is the operator who ran the prompt; the model
-that prepared the commit is named in a `Co-Authored-By: <name> <email>` trailer.
-The gate requires at least one well-formed co-author trailer and — inside a git
-repository — fails a commit whose git author matches a co-author identity: the
-model may not author.
+that prepared the commit is named in a `Co-Authored-By: <name> <email>` trailer
+carrying that model's **registered identity** (the `coAuthor` of its entry in
+`.proto-forge/models.json`, NFR-31). The trailer is **derived, not typed**: the
+`prepare-commit-msg` hook (`scripts/commit-coauthor.mjs`) appends it when the
+message has none, resolving the model from — in order — the `model:` field of
+the prompt-log entry the message's `Prompt-Log:` trailer names, the
+`PROTO_FORGE_MODEL` environment variable, and `.proto-forge/session.json` (the
+record the `SessionStart` / `PostModelSwitch` hooks write); with no resolvable
+model the hook aborts the commit and names the fix. The `commit-msg` gate then
+requires at least one well-formed co-author trailer, fails — inside a git
+repository — a commit whose git author matches a co-author identity (the model
+may not author), and fails a commit whose cited prompt-log entry records a model
+that no co-author trailer signs as.
 
 - **Why:** Provenance again (NFR-10's argument at the commit layer): a history
   where the model appears as the author says a person did work they did not do,
   and a history with no model trailer hides that a model did work it did do.
-  Both halves of the attribution must survive `git log`.
+  Both halves of the attribution must survive `git log` — and a trailer the
+  model types by hand is a trailer the model can mistype, omit, or attribute to
+  a model it is not. Deriving it from the entry that produced the commit and
+  verifying it against the same entry closes the limit the original rule
+  stated.
 - **Scope:** frontend, backend, desktop
-- **Enforced by:** `commit-lint` via the `commit-msg` hook
-- **Limit, stated:** the gate proves the trailer's presence and shape and that
-  the author is not the co-author; *which* model prepared the commit is
-  provenance the prompt log carries, held in review.
+- **Enforced by:** `commit-lint` via the `commit-msg` hook (verify);
+  `scripts/commit-coauthor.mjs` via the `prepare-commit-msg` hook (derive);
+  `scripts/hooks/record-model.mjs` on `SessionStart` / `PostModelSwitch` (the
+  session record)
+- **Limit, stated:** the entry's `model:` field is written by the model that
+  ran the entry, and a registry cannot prove a self-declaration; the session
+  record narrows the gap when the harness reports the model, and review closes
+  it.
 - **Proven by:** `gates:selftest` → "commit: a missing model co-author trailer
   fails", "commit: a malformed co-author trailer fails", "commit: the model
-  authoring its own commit fails"
-- **Decided in:** ADR 017 (plugin namespace)
+  authoring its own commit fails", "commit: the co-author trailer is derived
+  from the cited entry's model", "commit: a message already signed is left
+  alone by the derive step", "commit: the derive step falls back to the session
+  record", "commit: an unresolvable model aborts the derive step", "commit: a
+  co-author that is not the cited entry's model fails", "commit: a co-author
+  matching the cited entry's model passes", "hook: a session start reporting a
+  model records it", "hook: a model switch replaces the session record"
+- **Decided in:** ADR 017 (plugin namespace), amended by ADR 022 (plugin
+  namespace)
 
 ### BR-47 — The contract is served, with its examples, by the running service
 
@@ -1221,6 +1245,46 @@ touches no test file.
   fails", "commit: a fix with its regression test passes"
 - **Decided in:** ADR 021 (plugin namespace)
 
+### BR-50 — Delegation is routed by activity, and a frontier orchestrator delegates downward
+
+**MUST.** Every prompt-log entry names the model that executed it: `model:` in
+the frontmatter, a registered id or alias from `.proto-forge/models.json`
+(NFR-31). An entry written for a dispatched subagent is a **delegated** entry:
+it carries `delegated-by: <id>` (the orchestrating entry, written earlier) and
+`activity: <key>` (a row of the registry's routing table). Two rules bind a
+delegated entry. **The frontier rule:** when the orchestrating entry's model is
+on the highest tier (`frontier` — GPT-6 Astra, Claude Fable, Claude Opus and
+their peers), the delegated model's tier is strictly lower; no override exists.
+**The routing rule:** the delegated model's tier is the tier the table routes
+the activity to, unless the entry records `routing-override: <reason>` — a
+recorded deviation, never a bypass of the frontier rule. The pipeline reads the
+registry before its first dispatch and passes the routed model to the agent it
+spawns.
+
+- **Why:** The pipeline may run on any model, and the orchestrating session is
+  where judgement is cheapest to keep — a frontier model that dispatches
+  frontier subagents pays frontier prices twice for work a standard or economy
+  model does as well, and a habit is not a routing decision. Writing the model
+  into every entry is what makes the policy checkable after the fact; writing
+  the activity is what makes "the best model for the money" a table someone can
+  argue with instead of a feeling.
+- **Scope:** all
+- **Enforced by:** `prompt:lint`
+- **Limit, stated:** a routed tier is a recorded judgement about quality per
+  price, revisited by editing the registry (NFR-31), never by an override
+  written to make one dispatch pass; whether the model an entry names is the
+  model that actually ran is the same self-declaration limit BR-46 states.
+- **Proven by:** `gates:selftest` → "prompt: an entry naming no model fails",
+  "prompt: an unregistered model fails", "prompt: a model named by its alias
+  passes", "prompt: a delegated entry on the routed tier passes", "prompt: a
+  delegated entry at the frontier orchestrator's own tier fails", "prompt: a
+  delegated entry off the routed tier without an override fails", "prompt: a
+  delegated entry off the routed tier with a recorded override passes",
+  "prompt: a delegated entry naming an unrouted activity fails", "prompt: a
+  delegated entry naming a later entry as its orchestrator fails", "prompt: a
+  missing model registry fails"
+- **Decided in:** ADR 022 (plugin namespace)
+
 ### NFR-29 — Collections are paginated
 
 **MUST.** A GET operation whose 200 response is a top-level array is an unbounded
@@ -1267,6 +1331,36 @@ config line; `deploy:verify` fails a workflow that lost the stage or its budgets
   stage passes", "deploy: a package.yml without the perf-smoke stage fails",
   "deploy: a perf-smoke stage without its budgets fails"
 - **Decided in:** ADR 019 (plugin namespace)
+
+### NFR-31 — The model registry is a single source, copied byte for byte
+
+**MUST.** `references/models.json` is the only place a model's identity, tier,
+list price and co-author identity — and the routing table (BR-50) — are
+defined. Every template ships a byte-identical copy at
+`.proto-forge/models.json`, because the gates that read it (`prompt:lint`,
+`commit-lint`, `scripts/commit-coauthor.mjs`) run inside a generated repository
+that must not reach back into the plugin; the copy is a protected path there
+(`guardrails.protectedPaths`), so an agent cannot edit it. A price is recorded
+with the date it was read; a stale price is an edit to the master, never a
+lookup inside a gate (NFR-16). `references/model-routing.md` explains every
+routed activity, and the gate fails when the prose and the table disagree.
+
+- **Why:** Two registries that disagree about a model's tier make BR-50 mean
+  different things in two prototypes generated the same afternoon, and a
+  registry edited inside one prototype is a cost policy nobody else reviewed.
+- **Scope:** plugin
+- **Enforced by:** `models:lint`
+- **Proven by:** `pnpm selftest` → "models-lint: a well-formed registry with
+  identical copies passes", "models-lint: a model on an unknown tier fails",
+  "models-lint: an alias two models claim fails", "models-lint: a tier with no
+  model fails", "models-lint: a co-author without an address fails",
+  "models-lint: a price without a read date fails", "models-lint: an activity
+  routed to no tier fails", "models-lint: a routed activity with no documented
+  row fails", "models-lint: a documented row the table does not route fails",
+  "models-lint: a documented tier that disagrees with the table fails",
+  "models-lint: a template copy that drifted from the master fails",
+  "models-lint: a template with no registry copy fails"
+- **Decided in:** ADR 022 (plugin namespace)
 
 ### NFR-02 — No heavy runtime UI dependency
 

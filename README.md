@@ -334,7 +334,9 @@ skills/survey/               the third skill: existing-system inventory + its mi
 skills/elicit/               the fourth skill: stakeholder evidence instruments
 references/
   templates.json             the template registry every plugin gate loops over
-  decision-table.md          T1-T24 when→then rules + ADR ranges
+  decision-table.md          T1-T25 when→then rules + ADR ranges
+  models.json                the model registry: tiers, list prices, co-author identities, routing table
+  model-routing.md           the routing table with its reasons (BR-50)
   facets.schema.ts           canonical brief schema (Phase 0 target)
   requirements.md            the normative register (BR/NFR rules, BRS sections)
   adr-template.md            MADR ADR skeleton

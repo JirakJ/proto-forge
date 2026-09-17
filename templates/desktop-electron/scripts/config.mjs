@@ -155,6 +155,8 @@ export const DEFAULTS = {
       ".proto-forge/seed.lock",
       ".proto-forge/snapshot.json",
       ".prompts/**",
+      // The model registry is a byte-identical copy of the plugin's (NFR-31): edited there, never here.
+      ".proto-forge/models.json",
     ],
     // Threshold-lowering edits a hook refuses regardless of who asks.
     freezeThresholds: true,

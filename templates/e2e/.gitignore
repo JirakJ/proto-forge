@@ -3,3 +3,5 @@ test-results/
 playwright-report/
 .env
 .proto-forge/outbox/
+# Per-checkout model record written by the SessionStart / PostModelSwitch hooks (BR-46, BR-50)
+.proto-forge/session.json

@@ -11,3 +11,5 @@ node_modules/
 /api/
 /web/
 /e2e/
+# Per-checkout model record written by the SessionStart / PostModelSwitch hooks (BR-46, BR-50)
+.proto-forge/session.json

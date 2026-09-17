@@ -1,0 +1,1 @@
+node scripts/commit-coauthor.mjs "$1" "$2"

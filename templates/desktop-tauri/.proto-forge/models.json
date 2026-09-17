@@ -1,0 +1,171 @@
+{
+  "$comment": "The model registry (single source, NFR-31): every model the pipeline may name, its tier, its list price, and the identity its Co-Authored-By trailer carries. Every template ships a byte-identical copy at .proto-forge/models.json (models:lint proves it) because commit-coauthor and prompt:lint read it at commit time inside a generated repository. Tiers are ranked; the frontier rule (BR-50) compares ranks. Prices are list prices per million tokens in USD, recorded with the date they were read — a stale price is an edit here, never a lookup inside a gate. The routing table maps a delegated activity to the tier that does it best for the money; references/model-routing.md explains each row and models:lint keeps the two in step.",
+  "tiers": {
+    "frontier": { "rank": 3, "band": "input >= 5, output >= 25 USD per million tokens" },
+    "standard": { "rank": 2, "band": "input 1.5-5, output 8-25 USD per million tokens" },
+    "economy": { "rank": 1, "band": "input < 1.5, output < 8 USD per million tokens" }
+  },
+  "models": [
+    {
+      "id": "claude-fable-5-1",
+      "provider": "anthropic",
+      "displayName": "Claude Fable 5.1",
+      "aliases": ["fable", "fable-5.1"],
+      "tier": "frontier",
+      "pricing": { "input": 10, "output": 50, "asOf": "2026-09-17" },
+      "coAuthor": { "name": "Claude Fable 5.1", "email": "noreply@anthropic.com" }
+    },
+    {
+      "id": "claude-mythos-5-1",
+      "provider": "anthropic",
+      "displayName": "Claude Mythos 5.1",
+      "aliases": ["mythos", "mythos-5.1"],
+      "tier": "frontier",
+      "pricing": { "input": 10, "output": 50, "asOf": "2026-09-17" },
+      "coAuthor": { "name": "Claude Mythos 5.1", "email": "noreply@anthropic.com" }
+    },
+    {
+      "id": "claude-fable-5",
+      "provider": "anthropic",
+      "displayName": "Claude Fable 5",
+      "aliases": ["fable-5"],
+      "tier": "frontier",
+      "pricing": { "input": 10, "output": 50, "asOf": "2026-09-17" },
+      "coAuthor": { "name": "Claude Fable 5", "email": "noreply@anthropic.com" }
+    },
+    {
+      "id": "claude-opus-5",
+      "provider": "anthropic",
+      "displayName": "Claude Opus 5",
+      "aliases": ["opus", "opus-5"],
+      "tier": "frontier",
+      "pricing": { "input": 5, "output": 25, "asOf": "2026-09-17" },
+      "coAuthor": { "name": "Claude Opus 5", "email": "noreply@anthropic.com" }
+    },
+    {
+      "id": "claude-opus-4-8",
+      "provider": "anthropic",
+      "displayName": "Claude Opus 4.8",
+      "aliases": ["opus-4.8"],
+      "tier": "frontier",
+      "pricing": { "input": 5, "output": 25, "asOf": "2026-09-17" },
+      "coAuthor": { "name": "Claude Opus 4.8", "email": "noreply@anthropic.com" }
+    },
+    {
+      "id": "claude-sonnet-5",
+      "provider": "anthropic",
+      "displayName": "Claude Sonnet 5",
+      "aliases": ["sonnet", "sonnet-5"],
+      "tier": "standard",
+      "pricing": { "input": 2, "output": 10, "asOf": "2026-09-17" },
+      "coAuthor": { "name": "Claude Sonnet 5", "email": "noreply@anthropic.com" }
+    },
+    {
+      "id": "claude-sonnet-4-6",
+      "provider": "anthropic",
+      "displayName": "Claude Sonnet 4.6",
+      "aliases": ["sonnet-4.6"],
+      "tier": "standard",
+      "pricing": { "input": 3, "output": 15, "asOf": "2026-09-17" },
+      "coAuthor": { "name": "Claude Sonnet 4.6", "email": "noreply@anthropic.com" }
+    },
+    {
+      "id": "claude-haiku-4-5",
+      "provider": "anthropic",
+      "displayName": "Claude Haiku 4.5",
+      "aliases": ["haiku", "haiku-4.5", "claude-haiku-4-5-20251001"],
+      "tier": "economy",
+      "pricing": { "input": 1, "output": 5, "asOf": "2026-09-17" },
+      "coAuthor": { "name": "Claude Haiku 4.5", "email": "noreply@anthropic.com" }
+    },
+    {
+      "id": "gpt-6-astra",
+      "provider": "openai",
+      "displayName": "GPT-6 Astra",
+      "aliases": ["astra", "gpt-6"],
+      "tier": "frontier",
+      "pricing": { "input": 10, "output": 50, "asOf": "2026-09-17" },
+      "coAuthor": { "name": "GPT-6 Astra", "email": "noreply@openai.com" }
+    },
+    {
+      "id": "gpt-5.5",
+      "provider": "openai",
+      "displayName": "GPT-5.5",
+      "aliases": [],
+      "tier": "frontier",
+      "pricing": { "input": 5, "output": 30, "asOf": "2026-09-17" },
+      "coAuthor": { "name": "GPT-5.5", "email": "noreply@openai.com" }
+    },
+    {
+      "id": "gpt-5.6-sol",
+      "provider": "openai",
+      "displayName": "GPT-5.6 Sol",
+      "aliases": ["sol"],
+      "tier": "standard",
+      "pricing": { "input": 4, "output": 20, "asOf": "2026-09-17" },
+      "coAuthor": { "name": "GPT-5.6 Sol", "email": "noreply@openai.com" }
+    },
+    {
+      "id": "gpt-5.6-terra",
+      "provider": "openai",
+      "displayName": "GPT-5.6 Terra",
+      "aliases": ["terra"],
+      "tier": "standard",
+      "pricing": { "input": 2, "output": 12, "asOf": "2026-09-17" },
+      "coAuthor": { "name": "GPT-5.6 Terra", "email": "noreply@openai.com" }
+    },
+    {
+      "id": "gpt-5.4",
+      "provider": "openai",
+      "displayName": "GPT-5.4",
+      "aliases": [],
+      "tier": "standard",
+      "pricing": { "input": 2.5, "output": 15, "asOf": "2026-09-17" },
+      "coAuthor": { "name": "GPT-5.4", "email": "noreply@openai.com" }
+    },
+    {
+      "id": "gpt-5.6-luna",
+      "provider": "openai",
+      "displayName": "GPT-5.6 Luna",
+      "aliases": ["luna"],
+      "tier": "economy",
+      "pricing": { "input": 0.2, "output": 1.2, "asOf": "2026-09-17" },
+      "coAuthor": { "name": "GPT-5.6 Luna", "email": "noreply@openai.com" }
+    },
+    {
+      "id": "gpt-5.4-mini",
+      "provider": "openai",
+      "displayName": "GPT-5.4 mini",
+      "aliases": [],
+      "tier": "economy",
+      "pricing": { "input": 0.75, "output": 4.5, "asOf": "2026-09-17" },
+      "coAuthor": { "name": "GPT-5.4 mini", "email": "noreply@openai.com" }
+    },
+    {
+      "id": "gpt-5.4-nano",
+      "provider": "openai",
+      "displayName": "GPT-5.4 nano",
+      "aliases": [],
+      "tier": "economy",
+      "pricing": { "input": 0.2, "output": 1.25, "asOf": "2026-09-17" },
+      "coAuthor": { "name": "GPT-5.4 nano", "email": "noreply@openai.com" }
+    }
+  ],
+  "routing": {
+    "brief-intake": "frontier",
+    "decision-record": "frontier",
+    "scaffold-cleanup": "economy",
+    "codebase-search": "economy",
+    "domain-model": "standard",
+    "adapter-build": "standard",
+    "feature-build": "standard",
+    "translation": "economy",
+    "a11y-pass": "standard",
+    "test-build": "standard",
+    "security-harden": "standard",
+    "documentation": "economy",
+    "gate-remediation": "standard",
+    "code-review": "standard",
+    "release": "standard"
+  }
+}
