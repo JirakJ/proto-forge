@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- `api-kotlin`: the `org.bouncycastle` floor moves from 1.84 to 1.85 — CRITICAL
+  GHSA-9pwp-9qqc-pr26 (name-constraints bypass via a trailing dot in rfc822Name
+  and URI) and HIGH GHSA-qp49-qgx5-5m26 (lazy ASN.1 sequence forcing resets the
+  nesting-depth guard), both on the Kotlin plugin's artifact-signature-verification
+  classpath. `gradle.lockfile` re-resolved in locked mode; `sec:scan` clean.
+
 ## 0.12.0 — 2026-09-17
 
 Routing that holds before the fact, and a disclosure policy in every generated

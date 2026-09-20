@@ -64,9 +64,11 @@ val securityPins = mapOf(
     "ch.qos.logback" to "1.5.34",
     // MODERATE GHSA-rcgg-9c38-7xpx, on the Kotlin plugin's swift-export classpath.
     "io.opentelemetry" to "1.62.0",
-    // MODERATE GHSA-cj8j-37rh-8475 and siblings, on the Kotlin plugin's
-    // artifact-signature-verification classpath.
-    "org.bouncycastle" to "1.84",
+    // MODERATE GHSA-cj8j-37rh-8475 and siblings, then CRITICAL GHSA-9pwp-9qqc-pr26
+    // (name-constraints bypass via a trailing dot) and HIGH GHSA-qp49-qgx5-5m26
+    // (lazy ASN.1 parsing resets the nesting-depth guard) — fixed in 1.85 — on
+    // the Kotlin plugin's artifact-signature-verification classpath.
+    "org.bouncycastle" to "1.85",
 )
 // Groups whose artifacts do NOT move as one set are pinned by exact coordinate:
 // jackson-annotations tracks a slower version line than core/databind, so a
