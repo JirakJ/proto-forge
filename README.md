@@ -322,6 +322,28 @@ credentials read from the environment variables the config *names* — never fro
 config itself. Generating a prototype must not, as a side effect, file tickets in a
 project other people work in.
 
+## Not integrated: Laya / Jev
+
+[Laya](https://github.com/NandhaKishorM/laya) — a non-autoregressive typed-decision
+engine (ModernBERT/mmBERT classifiers speaking the Jev decision protocol) — was
+evaluated and is deliberately **not** part of proto-forge:
+
+- **Nothing to classify.** Phase 0 normalizes a brief into facets — extraction of
+  entities and relations against `references/facets.schema.ts`, not a choice among
+  labels. Model routing (BR-50) is a static, reviewed table.
+- **It would break determinism.** The normalized brief *is* the brief identity, and
+  gates must be exact. A probabilistic classifier (~0.77 reported accuracy) in
+  either path turns a structural guarantee into a statistical one.
+- **Disproportionate footprint.** Python, PyTorch, transformers and multi-hundred-MB
+  checkpoints (ideally a GPU) would enter a plugin whose own gates exist to keep
+  the supply chain small and `pnpm verify` reproducible.
+- **Pre-1.0.** The 0.3.x API is still moving.
+
+If a real brief needs text triage, routing or moderation inside the *generated*
+application, that is a template capability decided by its own ADR (a `laya-serve`
+sidecar or the ONNX `laya-ts` port behind a typed client) — not a dependency of the
+generator.
+
 ---
 
 ## Repository layout
