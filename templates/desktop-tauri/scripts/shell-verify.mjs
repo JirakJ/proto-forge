@@ -14,7 +14,7 @@ import { gateResult, today } from "./config.mjs";
 // the updater is disabled or fully pinned, and the shell toolchain is pinned
 // exactly (NFR-11: Cargo.lock committed, versions exact).
 //
-// Two halves, the deploy:verify/gitleaks precedent:
+// Two halves, the deploy:verify precedent:
 //   native — pure file checks, always on, no tool and no socket (NFR-16)
 //   tool   — `cargo check --locked` when cargo is installed; a loud note when
 //            it is not (CI installs the pinned rust toolchain, so CI enforces)
@@ -234,7 +234,7 @@ if (cli === undefined) {
 }
 
 // --- tool half: cargo check, enforced when the toolchain is present ------------
-// The gitleaks pattern: enforced when installed (always, in CI — verify.yml
+// The tool-gating pattern: enforced when installed (always, in CI — verify.yml
 // installs the pinned toolchain), one loud note otherwise. `cargo check` builds
 // nothing and packages nothing — packaging stays a CI stage (NFR-16).
 if (errors.length === 0) {

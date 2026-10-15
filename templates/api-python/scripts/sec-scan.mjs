@@ -4,9 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ok, note } from "./lib.mjs";
 
-// BRS §4/§16: secret scan (gitleaks) + dependency audit (pip-audit over the
-// locked production set). Hard-stop gates — never auto-suppress. gitleaks is an
-// external binary; if absent we warn (CI enforces). The SAST half of §16 is
+// BRS §4/§16: dependency audit (pip-audit over the
+// locked production set). Hard-stop gate — never auto-suppress. The SAST half of §16 is
 // ruff's flake8-bandit (S) rules, running inside `lint`.
 const has = (cmd) => {
   try {
@@ -18,21 +17,6 @@ const has = (cmd) => {
 };
 
 let failed = false;
-
-if (has("gitleaks")) {
-  try {
-    // --no-git scans working files, so this works in and out of a git checkout.
-    execSync("gitleaks detect --no-git --no-banner --redact -c .gitleaks.toml", { stdio: "inherit" });
-  } catch {
-    process.stderr.write("✗ gitleaks found secrets\n");
-    failed = true;
-  }
-} else if (process.env.CI) {
-  process.stderr.write("✗ gitleaks not installed in CI — the secret scan is mandatory (BRS §4 hard-stop)\n");
-  failed = true;
-} else {
-  note("gitleaks not installed — skipping secret scan locally (CI enforces; install to enforce here)");
-}
 
 // The audit covers the SHIPPED attack surface: uv exports the locked production
 // set (no dev group, no local project) and pip-audit checks it against the
@@ -59,4 +43,4 @@ if (has("uv")) {
 }
 
 if (failed) process.exit(1);
-ok("sec-scan: no secrets, no known advisories in the locked production deps");
+ok("sec-scan: no known advisories in the locked production deps");

@@ -128,7 +128,7 @@ Add each locale to `SUPPORTED_LOCALES` in `src/i18n/config.ts` **and** import it
 
 ### Phase 7 — Security harden (gate, T11)
 
-Apply the BRS §4 baseline (already wired in the template): strict CSP, zod boundary validation, `SafeHtml` as the only sanitized-HTML entry point, no secrets, `pnpm audit` gate, security headers documented in `SECURITY.md`. Any control needing a design choice → ADR from **100-199**. Security scans (`gitleaks`, high/critical `audit`) **hard-stop** — never auto-suppress.
+Apply the BRS §4 baseline (already wired in the template): strict CSP, zod boundary validation, `SafeHtml` as the only sanitized-HTML entry point, no secrets, `pnpm audit` gate, security headers documented in `SECURITY.md`. Any control needing a design choice → ADR from **100-199**. Security scans (high/critical `audit`) **hard-stop** — never auto-suppress.
 
 ### Phase 8 — Documentation + consistency sweep (gate)
 

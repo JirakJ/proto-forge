@@ -1437,7 +1437,7 @@ lockfile is committed; CI installs with `--frozen-lockfile`.
 - **Scope:** frontend, backend, desktop
 - **Enforced by:** `sec:scan` (audit against the committed lockfile), CI's
   `--frozen-lockfile` install, `template:integrity` at the plugin level
-- **Proven by:** `gates:selftest` → "security: the secret scan cannot be skipped in CI"
+- **Proven by:** `gates:selftest` → "security: the dependency audit cannot be skipped in CI"
 - **Decided in:** ADR 001
 
 ### NFR-09 — Provenance adds no runtime dependency
@@ -1856,8 +1856,8 @@ recorded per stack in §19.
 The BRS §4 posture, restated for services: security headers from the `platform/`
 kernel; schema validation on every route boundary (the route registry type requires
 it); an authN/Z skeleton per the `authModel` facet with authorization asserted per
-route in tests (T21); structured, PII-redacting logging only (NFR-12); secret scan
-(gitleaks), dependency audit and SBOM per ecosystem — `pnpm audit` / OSV-Scanner over
+route in tests (T21); structured, PII-redacting logging only (NFR-12); dependency
+audit and SBOM per ecosystem — `pnpm audit` / OSV-Scanner over
 the CycloneDX SBOM / `pip-audit` — with high/critical findings a hard stop, never
 auto-suppressed; SAST per stack (eslint-security / SpotBugs+findsecbugs / bandit).
 
@@ -1980,7 +1980,7 @@ committed workflow plus a protected GitHub environment for every env whose
 **Verify is offline; the world is a named CI stage.** No verify gate opens a
 socket or needs a cluster: manifest validation runs against vendored schemas,
 container linting is static, and the tool-gated checks (compose config, helm
-lint/template + kubeconform, hadolint) follow the gitleaks pattern — enforce when
+lint/template + kubeconform, hadolint) follow the tool-gating pattern — enforce when
 the binary is present, note locally when absent, hard-fail in CI. Everything that
 builds, scans, signs, pushes or deploys an image lives in the delivery pipeline
 under a named stage with a stated failure policy.

@@ -1813,11 +1813,11 @@ expect(
 );
 
 // --- sec:scan ----------------------------------------------------------------
-// Only the deterministic half is self-testable: that the secret scan cannot be
-// silently skipped in CI. `pnpm audit` needs a registry, so its behaviour is
+// Only the deterministic half is self-testable: that the dependency audit
+// cannot be silently skipped. `pnpm audit` needs a registry, so its findings are
 // asserted by CI running the real gate, not here — recorded in
 // references/requirements.md §19 rather than papered over.
-expect("security: the secret scan cannot be skipped in CI", "sec-scan.mjs", {}, {
+expect("security: the dependency audit cannot be skipped in CI", "sec-scan.mjs", {}, {
   pass: false,
   matching: /mandatory/,
   env: { CI: "1", PATH: "" },
@@ -1959,7 +1959,7 @@ expect(
   "heal: a hard-stop gate is never healed",
   "heal.mjs",
   healBase({
-    "fixture-gate.mjs": 'process.stdout.write("✗ sec FAILED\\n    gitleaks found secrets\\n");\nprocess.exit(1);\n',
+    "fixture-gate.mjs": 'process.stdout.write("✗ sec FAILED\\n    secret scan found secrets\\n");\nprocess.exit(1);\n',
     // A registry entry EXISTS for the hard-stop gate — the refusal must come first.
     "fixture-registry.json": { sec: { check: "sec:scan", regen: ["node fixture-regen.mjs"], reason: "an entry the tool must refuse to use" } },
   }),

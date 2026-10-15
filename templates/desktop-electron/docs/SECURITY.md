@@ -7,7 +7,7 @@ The prototype is treated as internet-facing from commit one. Controls are enforc
 - **Output encoding** — raw HTML only via `src/shared/SafeHtml.tsx` (DOMPurify). `react/no-danger` + `no-unsanitized/*` ban it everywhere else.
 - **Input validation** — all external input (env, form data, storage, API responses) validated with zod at the boundary.
 - **CSP** — `default-src 'self'`; the **preview** server (built bundle) ships the strict `script-src 'self'`. The **dev** server deliberately relaxes script-src (`'unsafe-inline' 'unsafe-eval'`) for HMR/react-refresh and is not the security model (see `vite.config.ts`).
-- **Secrets** — none in the repo. Config via `.env` (git-ignored) + `src/config/env.ts`. `gitleaks` gate over the whole tree including `.prompts/`.
+- **Secrets** — none in the repo. Config via `.env` (git-ignored) + `src/config/env.ts`.
 - **Dependencies** — `pnpm audit --audit-level=high` fails the build on high/critical advisories.
 - **Client storage** — sensitive data never in `localStorage`; only non-sensitive UI state.
 
@@ -45,7 +45,6 @@ On `style-src 'unsafe-inline'`, honestly: React writes `style=""` **attributes**
 ## Stated limits (ADR 203)
 
 - **The shell binary is a bundled Chromium.** Electron's own release cadence is the patch channel for renderer CVEs: the exact-pinned `electron` version is the reviewed dial, and bumping it promptly IS the security process — there is no system-WebView auto-patching underneath. The pin makes the review visible; staleness makes it red at review time, not silently at runtime.
-- **gitleaks runs over the working tree** (`--no-git`), so build outputs (`dist/`, `dist-electron/`, `release/`) and `node_modules/` are on the `.gitleaks.toml` allowlist: packaged installers and the installed tree are high-entropy by construction and none of these paths is ever committed. The committed tree — including `.prompts/` — stays fully scanned.
 
 ## Reporting a vulnerability
 

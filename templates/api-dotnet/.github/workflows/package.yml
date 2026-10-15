@@ -10,7 +10,7 @@ name: package
 #     interpolated into a script is the classic Actions shell-injection vector.
 #   - Third-party actions are pinned to full commit SHAs (version in a comment);
 #     first-party actions/* follow verify.yml's tag pinning.
-#   - Tools install pinned, the gitleaks pattern from verify.yml.
+#   - Tools install pinned, the same pattern as verify.yml.
 on:
   workflow_run:
     workflows: [verify]

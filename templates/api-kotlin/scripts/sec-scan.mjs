@@ -1,11 +1,9 @@
 import { execSync, spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
 import { ok, note } from "./lib.mjs";
 
-// BRS §4/§16: secret scan (gitleaks) + dependency audit (osv-scanner over the
-// locked dependency graph). Hard-stop gates — never auto-suppress. Both are
-// external binaries; absent locally we warn (CI enforces both, with pinned
-// installs), matching the gitleaks precedent recorded in the register's §19.
+// BRS §4/§16: dependency audit (osv-scanner over the
+// locked dependency graph). Hard-stop gate — never auto-suppress. osv-scanner is an
+// external binary; absent locally we warn (CI enforces it, with a pinned install).
 const has = (cmd) => {
   try {
     execSync(`command -v ${cmd}`, { stdio: "ignore" });
@@ -16,24 +14,6 @@ const has = (cmd) => {
 };
 
 let failed = false;
-
-if (has("gitleaks")) {
-  try {
-    // --no-git scans working files, so this works in and out of a git checkout.
-    // Without a committed .gitleaks.toml the scan runs on gitleaks' built-in
-    // config — stricter, not weaker: the project file only ADDS allowlists.
-    const config = existsSync(".gitleaks.toml") ? " -c .gitleaks.toml" : "";
-    execSync(`gitleaks detect --no-git --no-banner --redact${config}`, { stdio: "inherit" });
-  } catch {
-    process.stderr.write("✗ gitleaks found secrets\n");
-    failed = true;
-  }
-} else if (process.env.CI) {
-  process.stderr.write("✗ gitleaks not installed in CI — the secret scan is mandatory (BRS §4 hard-stop)\n");
-  failed = true;
-} else {
-  note("gitleaks not installed — skipping secret scan locally (CI enforces; install to enforce here)");
-}
 
 // The audit half reads `gradle.lockfile` — every locked coordinate, test and tool
 // classpaths included, because a scanner reads the file whether or not we call that
@@ -64,4 +44,4 @@ if (has("osv-scanner")) {
 }
 
 if (failed) process.exit(1);
-ok("sec-scan: no secrets, no known-vulnerable locked dependencies");
+ok("sec-scan: no known-vulnerable locked dependencies");

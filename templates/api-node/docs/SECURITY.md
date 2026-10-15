@@ -8,7 +8,7 @@ The service is treated as internet-facing from commit one. Controls are enforced
 - **Error responses leak nothing** — every client-visible failure is a registered RFC 9457 problem type (`src/platform/problems.ts`); an unexpected throw is mapped to the generic `internal` problem, and the stack trace goes to the structured log, never the response.
 - **Security headers** — the kernel sets them on every reply (`src/platform/headers.ts`): `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `X-Frame-Options: DENY`, a restrictive `Content-Security-Policy` for the JSON API. TLS termination and HSTS belong to the deployment edge — no local server speaks TLS.
 - **Structured, redacting logging only** (NFR-12) — production code logs through the kernel's pino logger; `log:scan` fails a bare `console.*`, a direct stdout write outside the kernel, a `pino` import outside `src/platform`, and any log-call field named like PII (`password`, `token`, `authorization`, …).
-- **Secrets** — none in the repo. Config via environment + `src/config/env.ts`; `gitleaks` scans the whole tree including `.prompts/`.
+- **Secrets** — none in the repo. Config via environment + `src/config/env.ts`.
 - **SQL** — all persistence goes through drizzle's parameterised query builder in `src/adapters/out/persistence/`; no string-built SQL outside `db/migrations/`.
 
 ## Supply chain (BRS §4.2)

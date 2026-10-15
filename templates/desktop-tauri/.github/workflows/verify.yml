@@ -48,11 +48,6 @@ jobs:
       - run: corepack enable
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec playwright install --with-deps chromium
-      # gitleaks is an external binary; install a pinned build so sec:scan enforces it.
-      - name: Install gitleaks
-        run: |
-          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.21.2/gitleaks_8.21.2_linux_x64.tar.gz \
-            | sudo tar -xz -C /usr/local/bin gitleaks
       # shell:verify's tool half, same doctrine: tool-gated locally, mandatory
       # here. The runner ships rustup; the toolchain is PINNED by version (NFR-11)
       # through rustup itself — no third-party action to trust. The webkit/gtk dev

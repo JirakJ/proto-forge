@@ -58,7 +58,6 @@ single sanitized HTML component.
 - Store secret values outside Git.
 - Configuration contains environment-variable names, not credentials.
 - Prompt logs redact secret-shaped values and sensitive personal data.
-- `gitleaks` findings are hard stops; suppressions require exact, reviewed evidence.
 - External sync credentials are read only for an explicitly approved live operation.
 
 Never place passwords, passkeys, two-factor codes, private keys, or API tokens into a

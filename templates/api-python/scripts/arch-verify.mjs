@@ -100,7 +100,7 @@ for (const style of ["layered", "modular", "hexagonal"]) {
   }
 }
 
-// The native run, tool-gated the gitleaks way: uv drives import-linter over the
+// The native run, tool-gated the sec-scan way: uv drives import-linter over the
 // ACTIVE profile when the locked environment exists; a throwaway fixture (or a
 // machine without uv) falls back to the standalone scan below, and CI hard-fails
 // if the native half cannot run (gates-selftest-native proves the tool fires).

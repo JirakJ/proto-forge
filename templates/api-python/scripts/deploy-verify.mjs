@@ -9,7 +9,7 @@ import { REMOTE_ENVS, gateResult, loadConfig, today } from "./config.mjs";
 // (Dockerfile pins, compose healthchecks, the values securityContext contract,
 // exposure ⇔ cluster type, .trivyignore discipline), and the tool half renders
 // and validates them with docker/hadolint/helm/kubeconform WHEN PRESENT — noted
-// locally, mandatory in CI (the gitleaks pattern from sec-scan). Vendored
+// locally, mandatory in CI (the sec-scan tool-gating pattern). Vendored
 // schemas in deploy/schemas keep kubeconform offline too. A deploy problem
 // found by this gate costs a diff; found by the cluster it costs an outage.
 

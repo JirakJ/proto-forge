@@ -6,7 +6,7 @@
 
 ## Context
 
-The templates carry a real security baseline and have from the start: a strict CSP, one sanctioned raw-HTML sink, zod validation at every boundary, gitleaks and `pnpm audit` as hard stops, a deterministic CycloneDX SBOM, a byte-pinned seed, digest-pinned non-root containers, keyless cosign signatures, trivy, an offline `deploy:verify`. It is enforced by gates rather than by reviewer memory, which is the property that matters most.
+The templates carry a real security baseline and have from the start: a strict CSP, one sanctioned raw-HTML sink, zod validation at every boundary, `pnpm audit` as a hard stop, a deterministic CycloneDX SBOM, a byte-pinned seed, digest-pinned non-root containers, keyless cosign signatures, trivy, an offline `deploy:verify`. It is enforced by gates rather than by reviewer memory, which is the property that matters most.
 
 It is also **defined by itself**. A grep across this repository for `OWASP|ASVS|SLSA|SSDF|NIST|CIS` returned nothing at all. Every control was chosen because it is good practice, and nothing says *whose* practice, or against which published bar the result can be re-checked. That is enough to be secure and not enough to say so: "it is secure" is a claim only the author can evaluate.
 

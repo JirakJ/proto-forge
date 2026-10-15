@@ -1174,11 +1174,11 @@ expect("snapshot: a gate removed from verify after the baseline fails", "snapsho
 });
 
 // --- sec:scan ----------------------------------------------------------------
-// Only the deterministic half is self-testable: that the secret scan cannot be
-// silently skipped in CI. pip-audit needs an advisory database, so its behaviour
-// is asserted by CI running the real gate, not here — recorded in
+// Only the deterministic half is self-testable: that the dependency audit cannot
+// be silently skipped in CI (uv is mandatory there). pip-audit's findings need an
+// advisory database, so CI running the real gate asserts those, not here — recorded in
 // references/requirements.md §19 rather than papered over.
-expect("security: the secret scan cannot be skipped in CI", "sec-scan.mjs", {}, {
+expect("security: the dependency audit cannot be skipped in CI", "sec-scan.mjs", {}, {
   pass: false,
   matching: /mandatory/,
   env: { CI: "1", PATH: "" },
@@ -2134,7 +2134,7 @@ expect(
   "heal: a hard-stop gate is never healed",
   "heal.mjs",
   healBase({
-    "fixture-gate.mjs": 'process.stdout.write("✗ sec FAILED\\n    gitleaks found secrets\\n");\nprocess.exit(1);\n',
+    "fixture-gate.mjs": 'process.stdout.write("✗ sec FAILED\\n    secret scan found secrets\\n");\nprocess.exit(1);\n',
     // A registry entry EXISTS for the hard-stop gate — the refusal must come first.
     "fixture-registry.json": { sec: { check: "sec:scan", regen: ["node fixture-regen.mjs"], reason: "an entry the tool must refuse to use" } },
   }),
