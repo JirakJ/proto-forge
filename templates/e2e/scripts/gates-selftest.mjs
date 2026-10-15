@@ -796,7 +796,7 @@ expect(
   "heal: a hard-stop gate is never healed",
   "heal.mjs",
   healBase({
-    "fixture-gate.mjs": 'process.stdout.write("✗ sec FAILED\\n    gitleaks found secrets\\n");\nprocess.exit(1);\n',
+    "fixture-gate.mjs": 'process.stdout.write("✗ sec FAILED\\n    secret scan found secrets\\n");\nprocess.exit(1);\n',
     // A registry entry EXISTS for the hard-stop gate — the refusal must come first.
     "fixture-registry.json": { sec: { check: "sec:scan", regen: ["node fixture-regen.mjs"], reason: "an entry the tool must refuse to use" } },
   }),

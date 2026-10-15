@@ -52,7 +52,7 @@ Do not edit the lock or snapshot first.
 
 ## Missing scanner
 
-Local gates may report that `gitleaks`, `osv-scanner`, Docker, Cargo, or a native
+Local gates may report that `osv-scanner`, Docker, Cargo, or a native
 toolchain is absent. Install the named tool and rerun. CI is the authoritative proof
 for checks that are explicitly tool-gated locally; a skipped local check is not a
 successful scan.

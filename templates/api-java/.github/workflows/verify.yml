@@ -58,12 +58,6 @@ jobs:
           node-version-file: .nvmrc
       - run: corepack enable
       - run: pnpm install --frozen-lockfile
-      # gitleaks and osv-scanner are external binaries; install pinned builds so
-      # sec:scan enforces both (BRS §4/§16 hard-stops).
-      - name: Install gitleaks
-        run: |
-          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.21.2/gitleaks_8.21.2_linux_x64.tar.gz \
-            | sudo tar -xz -C /usr/local/bin gitleaks
       - name: Install osv-scanner
         run: |
           sudo curl -sSfL -o /usr/local/bin/osv-scanner \

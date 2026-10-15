@@ -27,8 +27,7 @@ on a hand-maintained list:
 - the Rust channel named in `src-tauri/rust-toolchain.toml` (read, not repeated) and GTK libraries when `src-tauri/Cargo.toml` exists;
 - the deploy toolchain (`kubeconform`, `hadolint`) when `scripts/deploy-verify.mjs`
   exists;
-- `gitleaks` on every leg, and `osv-scanner` when the template's `sec-scan.mjs`
-  mentions it.
+- `osv-scanner` when the template's `sec-scan.mjs` mentions it.
 
 The runner label comes from the repository variable `RUNNER_LABEL` and falls back
 to `ubuntu-latest`. Self-hosted runners need passwordless `sudo` for the binary

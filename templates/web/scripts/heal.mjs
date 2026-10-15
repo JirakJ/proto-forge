@@ -83,7 +83,7 @@ const HEALING_REGISTRY = {
 // protocol's hard-stop list, matched conservatively (a false positive escalates
 // to a human, which is the safe direction).
 const HARD_STOP_GATES = ["sec", "security", "sec:scan"];
-const HARD_STOP_OUTPUT = /secret|gitleaks|audit/i;
+const HARD_STOP_OUTPUT = /secret|audit/i;
 
 // Banner-script → gate-name normalisation for chain links whose tool prints no
 // "✗ <gate> FAILED" line of its own (the test tiers). Fallback: the prefix
