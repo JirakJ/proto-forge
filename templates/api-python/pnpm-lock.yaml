@@ -4,6 +4,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  braces: file:vendor/braces-3.0.4-security.1.tgz
+
 importers:
 
   .:
@@ -97,8 +100,9 @@ packages:
     resolution: {integrity: sha512-GbBStl/EVlSWkiJQBZps3H1iARBrC7vt++Jb/TTmCNu/jZ04VW7tSN1nScbFXBUy1AN+jzeL7Zep9sbQxLhXKA==}
     engines: {node: '>=8.9'}
 
-  braces@3.0.3:
-    resolution: {integrity: sha512-yQbXgO/OSZVD2IsiLlro+7Hf6Q18EJrKSEsdoMzKePKXct3gvD8oLcOQdIzGupr5Fj+EDe8gO/lxc1BzfMpxvA==}
+  braces@file:vendor/braces-3.0.4-security.1.tgz:
+    resolution: {integrity: sha512-4oWwPh4rmtNLPGgzQE9PPcGndADX27mvi0/1EyA0mO1Pj+yWUsetbnxT/k38stYm8T6xmvTPPR1tJ3zYGaot4A==, tarball: file:vendor/braces-3.0.4-security.1.tgz}
+    version: 3.0.4-security.1
     engines: {node: '>=8'}
 
   bytes@3.1.2:
@@ -542,7 +546,7 @@ snapshots:
       execa: 4.1.0
       which: 2.0.2
 
-  braces@3.0.3:
+  braces@file:vendor/braces-3.0.4-security.1.tgz:
     dependencies:
       fill-range: 7.1.1
 
@@ -762,7 +766,7 @@ snapshots:
 
   micromatch@4.0.8:
     dependencies:
-      braces: 3.0.3
+      braces: file:vendor/braces-3.0.4-security.1.tgz
       picomatch: 2.3.2
 
   mimic-fn@2.1.0: {}

@@ -166,7 +166,9 @@ const ledger = [];
 if (existsSync(AUDIT_TOML)) {
   const now = today();
   for (const line of read(AUDIT_TOML).split("\n")) {
-    const id = /^\s*"(RUSTSEC-[0-9]{4}-[0-9]+)"/.exec(line)?.[1];
+    // GHSA too: an advisory osv.dev knows before RustSec assigns it an id is
+    // still a suppression, and must still carry a reason and an end date.
+    const id = /^\s*"(RUSTSEC-[0-9]{4}-[0-9]+|GHSA-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4})"/.exec(line)?.[1];
     if (id === undefined) continue;
     const m = /# reason: (.+?) until: (\d{4}-\d{2}-\d{2})\s*$/.exec(line);
     if (m === null) {

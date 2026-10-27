@@ -2,6 +2,7 @@ import { read } from "./lib.mjs";
 import { gateResult } from "./config.mjs";
 
 // @adr 007 - the dependency budget is a ceiling with a name on it (NFR-13)
+// @adr 203 - Boot 4 Flyway starter replaces core without growing the declared surface
 //
 // The service analogue of the web bundle budget: latency budgets are environment
 // noise, but dependency count is deterministic and measures the same thing
@@ -27,7 +28,7 @@ const ALLOWLIST = [
   "org.springframework.boot:spring-boot-starter-web",
   "org.springframework.boot:spring-boot-starter-data-jpa",
   "org.springframework.boot:spring-boot-starter-validation",
-  "org.flywaydb:flyway-core",
+  "org.springframework.boot:spring-boot-starter-flyway",
   "org.flywaydb:flyway-database-postgresql",
   "org.postgresql:postgresql",
 ];

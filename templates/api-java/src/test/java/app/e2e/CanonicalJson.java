@@ -1,6 +1,6 @@
 package app.e2e;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -21,7 +21,7 @@ public final class CanonicalJson {
   private static void render(JsonNode node, int depth, StringBuilder out) {
     if (node.isObject()) {
       List<String> names = new ArrayList<>();
-      node.fieldNames().forEachRemaining(names::add);
+      node.propertyNames().forEach(names::add);
       names.sort(String::compareTo);
       if (names.isEmpty()) {
         out.append("{}");

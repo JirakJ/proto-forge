@@ -1,0 +1,3 @@
+
+overrides:
+  braces: file:vendor/braces-3.0.4-security.1.tgz
