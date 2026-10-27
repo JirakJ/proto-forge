@@ -73,8 +73,8 @@
     {
       "type": "library",
       "name": "mako",
-      "version": "1.4.1",
-      "purl": "pkg:pypi/mako@1.4.1"
+      "version": "1.4.3",
+      "purl": "pkg:pypi/mako@1.4.3"
     },
     {
       "type": "library",

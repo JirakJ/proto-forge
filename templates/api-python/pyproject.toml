@@ -45,6 +45,7 @@ packages = ["src/app"]
 # `uv run python -m app.main`, alembic's env.py and the test suite all import
 # the same package the wheel would ship.
 package = true
+constraint-dependencies = ["filelock>=4.2.1", "urllib3>=2.8.0", "mako>=1.4.2"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -103,7 +104,7 @@ src = ["src", "tests"]
 
 [tool.ruff.lint]
 # E/W/F core, I import order, B bugbear, UP modernity, S = flake8-bandit (the
-# SAST half of BRS §16 — sec:scan's gitleaks + pip-audit cover the other half),
+# SAST half of BRS §16 — sec:scan's pip-audit covers the other half),
 # N naming, C90 complexity (SRP with numbers, NFR-20).
 select = ["E", "W", "F", "I", "B", "UP", "S", "N", "C90", "T20"]
 # T20 bans print() — log through the platform kernel only (NFR-12); log:scan

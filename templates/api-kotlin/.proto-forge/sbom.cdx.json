@@ -35,22 +35,22 @@
       "type": "library",
       "group": "com.fasterxml.jackson.core",
       "name": "jackson-core",
-      "version": "2.21.5",
-      "purl": "pkg:maven/com.fasterxml.jackson.core/jackson-core@2.21.5"
+      "version": "2.21.7",
+      "purl": "pkg:maven/com.fasterxml.jackson.core/jackson-core@2.21.7"
     },
     {
       "type": "library",
       "group": "com.fasterxml.jackson.core",
       "name": "jackson-databind",
-      "version": "2.21.5",
-      "purl": "pkg:maven/com.fasterxml.jackson.core/jackson-databind@2.21.5"
+      "version": "2.21.7",
+      "purl": "pkg:maven/com.fasterxml.jackson.core/jackson-databind@2.21.7"
     },
     {
       "type": "library",
       "group": "com.fasterxml.jackson",
       "name": "jackson-bom",
-      "version": "2.21.5",
-      "purl": "pkg:maven/com.fasterxml.jackson/jackson-bom@2.21.5"
+      "version": "2.21.7",
+      "purl": "pkg:maven/com.fasterxml.jackson/jackson-bom@2.21.7"
     },
     {
       "type": "library",

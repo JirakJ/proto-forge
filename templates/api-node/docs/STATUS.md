@@ -22,7 +22,7 @@ shows it.
 | coverage: branches | 100% | 100% |
 | coverage: functions | 100% | 100% |
 | coverage: lines | 100% | 100% |
-| mutation score | 100% | break under 90 |
+| mutation score | 97.78% | break under 90 |
 | conformance scenarios | 11/11 passed | all green |
 | contract operations | 4 | — |
 | problem types | 4 | — |

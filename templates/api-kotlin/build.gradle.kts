@@ -79,8 +79,8 @@ val coordinatePins = mapOf(
     // MODERATE GHSA-j288-q9x7-2f5v: uncontrolled recursion in commons-lang3, via the PIT tool classpath.
     "org.apache.commons:commons-lang3" to "3.18.0",
     // Jackson deep-nesting DoS batch; arrives through flyway-core and Testcontainers.
-    "com.fasterxml.jackson.core:jackson-core" to "2.21.5",
-    "com.fasterxml.jackson.core:jackson-databind" to "2.21.5",
+    "com.fasterxml.jackson.core:jackson-core" to "2.21.7",
+    "com.fasterxml.jackson.core:jackson-databind" to "2.21.7",
 )
 
 configurations.configureEach {
