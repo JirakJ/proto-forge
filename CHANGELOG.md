@@ -1,7 +1,18 @@
 # Changelog
 
-## Unreleased
+## 0.12.1 — 2026-10-27
 
+Security maintenance across every template (PR #22).
+
+- `api-java`: Spring Boot 4.0.8 / Spring 7.0.9 migration closes the remaining
+  Spring MVC findings, with patched Jackson and Tomcat floors (template ADR 203).
+- All templates: dompurify 3.4.17, zod 4, vite/vitest patch bumps and refreshed
+  `pnpm-workspace.yaml` overrides (brace-expansion, undici, fast-uri, handlebars
+  4.7.10, …); a vendored `braces 3.0.4-security.1` backport for CVE-2026-93687
+  with a reproducible build recipe, provenance and license.
+- `desktop-tauri`: block-buffer GHSA-qwgh-2vcv-g2f7 triaged in `audit.toml`
+  (fix needs digest 0.11, which tauri 2 does not accept); `shell:verify` now
+  validates and exports GHSA ids as well as RUSTSEC ones.
 - `api-kotlin`: the `org.bouncycastle` floor moves from 1.84 to 1.85 — CRITICAL
   GHSA-9pwp-9qqc-pr26 (name-constraints bypass via a trailing dot in rfc822Name
   and URI) and HIGH GHSA-qp49-qgx5-5m26 (lazy ASN.1 sequence forcing resets the
