@@ -45,7 +45,7 @@ network access, explicit commit/approval flags, and environment-provided credent
 | Normative layer | Define requirements, facet normalization, decisions, templates, and security controls. | `references/` |
 | Template layer | Provide complete, independently verifiable application seeds. | `templates/*/` |
 | Plugin gate layer | Check manifests, citations, copied standards, template pins, and shared files. | `scripts/` and root `package.json` |
-| Distribution layer | Expose one installable plugin containing four skills. | `.claude-plugin/` and `plugin/.claude-plugin/` |
+| Distribution layer | Expose one installable plugin containing four skills. | `.claude-plugin/` |
 | Decision history | Explain why the plugin and seed changed. | `docs/adr/`, `docs/specs/`, `docs/plans/` |
 
 The root scripts deliberately do not import template scripts. Root gates reason

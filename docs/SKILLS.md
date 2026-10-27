@@ -1,6 +1,6 @@
 # Skill reference
 
-The plugin registers four skills through `plugin/.claude-plugin/plugin.json`. Each
+The plugin registers four skills through `.claude-plugin/plugin.json`. Each
 skill has a `SKILL.md` procedure, a `skill.json` manifest carrying the plugin
 version, a `references/` folder with its own decision table, and, for the three
 analysis skills, a `template/` mini-template that the skill copies byte-for-byte

@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { basename, join } from "node:path";
+import { basename, join, relative } from "node:path";
 import { walk, read, readJson, isMarkdown, fail, ok } from "./lib.mjs";
 
 // The plugin has to be installable and readable on its own. Three failure modes,
@@ -16,7 +16,7 @@ import { walk, read, readJson, isMarkdown, fail, ok } from "./lib.mjs";
 // machine and is correct. What is banned is a pointer to a file this repository
 // is expected to contain and does not.
 //
-// plugin/.claude-plugin/plugin.json `skills[]` is the single register (ADR 008):
+// .claude-plugin/plugin.json `skills[]` is the single register (ADR 008):
 // every entry must resolve to a complete skill, and there is no silent
 // root-skill-only mode — a repo without the register fails here, loudly.
 
@@ -32,7 +32,7 @@ const KEBAB = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const HISTORICAL = /<!--\s*historical-pointers:\s*(.{15,}?)\s*-->/;
 const mayQuoteHistory = (file, body) => file.startsWith("docs/adr/") && HISTORICAL.test(body);
 
-const PLUGIN = "plugin/.claude-plugin/plugin.json";
+const PLUGIN = ".claude-plugin/plugin.json";
 
 const errors = [];
 
@@ -50,8 +50,9 @@ const rootVersion = existsSync("package.json") ? readJson("package.json").versio
 const claimedNames = new Map(); // name -> the entry that claimed it
 
 for (const entry of register) {
-  // Entries are relative to the plugin manifest's directory; "../.." is the root skill.
-  const dir = join("plugin", ".claude-plugin", entry);
+  // Entries are relative to the plugin root, which is the repository root
+  // (ADR 026); "./" is the root skill.
+  const dir = relative(".", entry) || ".";
   const isRoot = dir === ".";
   const skillMd = join(dir, "SKILL.md");
   const manifestPath = join(dir, "skill.json");

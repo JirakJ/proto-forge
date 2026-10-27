@@ -7,8 +7,8 @@
   "plugins": [
     {
       "name": "proto-forge",
-      "source": "./plugin",
-      "version": "0.12.1",
+      "source": "./",
+      "version": "0.12.2",
       "description": "Scaffold production-grade web apps, backend services (Node/Java/Kotlin/Python/C#), Tauri or Electron desktop shells and composed workspaces from a short brief \u2014 with a SPIN/DAPA discovery skill, a survey skill that inventories an existing system, and an elicit skill that replaces the requirements form with an instrument that works."
     }
   ]

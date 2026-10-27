@@ -8,14 +8,16 @@ This repository is the source of truth for proto-forge, and it installs directly
 ```
 
 `.claude-plugin/marketplace.json` at the repository root lists exactly one plugin,
-sourced from this directory. `plugin/.claude-plugin/plugin.json` is its manifest,
-and its `skills` entries point back into the repository — the skills (`SKILL.md` at
-the root, `skills/discovery/`, `skills/survey/`, `skills/elicit/`) with their
-`references/` and the ten `templates/` *are* the plugin, so nothing is duplicated
-here.
+sourced from the repository root (`"./"`). `.claude-plugin/plugin.json` beside it is
+the manifest, and its `skills` entries name the skills inside the repository — the
+root `SKILL.md` (`"./"`), `skills/discovery/`, `skills/survey/` and `skills/elicit/`
+— with their `references/` and the ten `templates/`; the repository *is* the plugin,
+so nothing is duplicated. Claude Code accepts only `./`-relative paths that stay
+inside the plugin root, so an entry like `"../.."` fails validation and the plugin
+never installs (ADR 026); `manifest:lint` rejects that shape.
 
 Four files carry the version and must agree: `package.json`, `skill.json`,
-`plugin/.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json`.
+`.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json`.
 `pnpm manifest:lint` fails when they drift, and `pnpm verify` runs it.
 
 ## Releasing

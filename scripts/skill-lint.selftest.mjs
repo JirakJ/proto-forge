@@ -18,12 +18,12 @@ const skillJson = { name: "proto-forge", version: "0.4.0", dependencies: {}, adr
 
 // Every fixture carries the register explicitly — there is no silent
 // root-skill-only mode, and these fixtures document that.
-const pluginJson = (skills = ["../.."]) => ({ name: "proto-forge", version: "0.4.0", skills });
+const pluginJson = (skills = ["./"]) => ({ name: "proto-forge", version: "0.4.0", skills });
 
 const rootOnly = (over = {}) => ({
   "SKILL.md": goodSkill,
   "skill.json": skillJson,
-  "plugin/.claude-plugin/plugin.json": pluginJson(),
+  ".claude-plugin/plugin.json": pluginJson(),
   ...over,
 });
 
@@ -107,7 +107,7 @@ const twoSkills = (over = {}) => ({
   "package.json": { name: "proto-forge", version: "0.4.0" },
   "SKILL.md": goodSkill,
   "skill.json": skillJson,
-  "plugin/.claude-plugin/plugin.json": pluginJson(["../..", "../../skills/discovery"]),
+  ".claude-plugin/plugin.json": pluginJson(["./", "./skills/discovery"]),
   "skills/discovery/SKILL.md": secondSkill(),
   "skills/discovery/skill.json": { name: "discovery", version: "0.4.0", dependencies: {}, adr: [] },
   ...over,
@@ -135,7 +135,7 @@ expect(
   omit(
     {
       ...twoSkills(),
-      "plugin/.claude-plugin/plugin.json": pluginJson(["../..", "../../skills/proto-forge"]),
+      ".claude-plugin/plugin.json": pluginJson(["./", "./skills/proto-forge"]),
       "skills/proto-forge/SKILL.md": secondSkill("proto-forge"),
       "skills/proto-forge/skill.json": { name: "proto-forge", version: "0.4.0", dependencies: {}, adr: [] },
     },
