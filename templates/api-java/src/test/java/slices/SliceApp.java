@@ -9,11 +9,11 @@ import app.platform.HealthController;
 import app.platform.ProblemHandler;
 import app.platform.SecurityHeadersFilter;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
-import org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration;
-import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
-import org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerAutoConfiguration;
-import org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration;
-import org.springframework.boot.autoconfigure.data.jpa.JpaRepositoriesAutoConfiguration;
+import org.springframework.boot.flyway.autoconfigure.FlywayAutoConfiguration;
+import org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration;
+import org.springframework.boot.jdbc.autoconfigure.DataSourceTransactionManagerAutoConfiguration;
+import org.springframework.boot.hibernate.autoconfigure.HibernateJpaAutoConfiguration;
+import org.springframework.boot.data.jpa.autoconfigure.DataJpaRepositoriesAutoConfiguration;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 
@@ -31,7 +31,7 @@ import org.springframework.context.annotation.Import;
     DataSourceAutoConfiguration.class,
     DataSourceTransactionManagerAutoConfiguration.class,
     HibernateJpaAutoConfiguration.class,
-    JpaRepositoriesAutoConfiguration.class,
+    DataJpaRepositoriesAutoConfiguration.class,
     FlywayAutoConfiguration.class})
 @Import({
     SecurityHeadersFilter.class,

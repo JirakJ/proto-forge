@@ -19,3 +19,7 @@ Two lockfiles are the reproducibility contract: `gradle.lockfile` for the servic
 ## Alternatives considered
 
 Maven (no first-class dependency locking; the wrapper checksum pin is weaker), Quarkus/Micronaut (smaller ecosystems for the register's gate set; Boot's BOM is the strongest managed baseline), Hibernate hbm2ddl for schema (implicit sync — the exact anti-pattern BR-24 bans), Gradle version catalogs without locking (ranges stay floating).
+
+## Subsequent stack amendment
+
+ADR 203 upgrades the Spring Boot, Spring Framework, Jackson and Tomcat versions and replaces the Flyway core declaration with the Boot Flyway starter. The original decision above is retained as history; ADR 203 records the current stack.

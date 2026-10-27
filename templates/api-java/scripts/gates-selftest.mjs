@@ -1562,13 +1562,13 @@ const gradleDeps = (deps) => `dependencies {\n${deps}\n}\n`;
 
 expect("deps: a runtime dependency set under the ceiling passes", "deps-budget.mjs", {
   "build.gradle.kts": gradleDeps(
-    '    implementation("org.springframework.boot:spring-boot-starter-web")\n    implementation("org.flywaydb:flyway-core")',
+    '    implementation("org.springframework.boot:spring-boot-starter-web")\n    implementation("org.springframework.boot:spring-boot-starter-flyway")',
   ),
 }, { pass: true });
 
 expect("deps: a dependency past the ceiling fails without an ADR", "deps-budget.mjs", {
   "build.gradle.kts": gradleDeps(
-    '    implementation("org.springframework.boot:spring-boot-starter-web")\n    implementation("org.flywaydb:flyway-core")\n    implementation("com.google.guava:guava:33.0.0-jre")',
+    '    implementation("org.springframework.boot:spring-boot-starter-web")\n    implementation("org.springframework.boot:spring-boot-starter-flyway")\n    implementation("com.google.guava:guava:33.0.0-jre")',
   ),
 }, { pass: false, matching: /a new runtime dependency is an ADR/ });
 

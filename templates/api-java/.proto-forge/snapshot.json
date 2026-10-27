@@ -16,6 +16,7 @@
     "docs/adr/200-multi-environment-delivery.md",
     "docs/adr/201-container-and-helm-baseline.md",
     "docs/adr/202-pipeline-security.md",
+    "docs/adr/203-spring7-security-migration.md",
     "scripts/adr-lint.mjs",
     "scripts/arch-verify.mjs",
     "scripts/commit-coauthor.mjs",
@@ -205,6 +206,11 @@
     {
       "id": 202,
       "title": "The pipeline scans, signs and verifies — and verify stays offline",
+      "status": "accepted"
+    },
+    {
+      "id": 203,
+      "title": "Move the Java service template to the patched Spring 7 stack",
       "status": "accepted"
     }
   ],

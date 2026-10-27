@@ -3,8 +3,8 @@ package app.e2e;
 import app.adapter.in.web.RouteDef;
 import app.adapter.in.web.RouteRegistry;
 import app.harness.HarnessCase;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import java.lang.reflect.RecordComponent;
 import java.util.ArrayList;
 import java.util.List;
@@ -29,7 +29,7 @@ public final class Conformance {
 
   private static List<String> checkProblemBody(HarnessCase harnessCase, String body) throws Exception {
     JsonNode parsed = MAPPER.readTree(body);
-    String code = parsed.path("code").asText(null);
+    String code = parsed.path("code").asString(null);
     if (!harnessCase.expectProblem().equals(code)) {
       return List.of(harnessCase.id() + ": expected problem code \"" + harnessCase.expectProblem()
           + "\", got " + code);

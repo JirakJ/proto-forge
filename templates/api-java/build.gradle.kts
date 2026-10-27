@@ -1,6 +1,6 @@
 import info.solidsoft.gradle.pitest.PitestTask
 
-// @adr 001 - the pinned stack: JDK 21, Spring Boot 3.5.x exact, locked dependencies
+// @adr 203 - security migration: JDK 21, Spring Boot 4.0.8, locked dependencies
 // @adr 003 - JaCoCo per-package floors and the PIT mutation floor live HERE, frozen
 //
 // Every version below is exact (NFR-11): the wrapper is checksum-pinned in
@@ -12,7 +12,7 @@ import info.solidsoft.gradle.pitest.PitestTask
 plugins {
     java
     jacoco
-    id("org.springframework.boot") version "3.5.16"
+    id("org.springframework.boot") version "4.0.8"
     id("io.spring.dependency-management") version "1.1.7"
     id("info.solidsoft.pitest") version "1.19.0"
 }
@@ -28,7 +28,9 @@ version = "0.1.0"
 // HIGH GHSA-j92g-9f8w-j867: channel-binding downgrade in the pgjdbc driver.
 extra["postgresql.version"] = "42.7.12"
 // Three MODERATE advisories against jackson-databind 2.21.4 (deep-nesting DoS batch).
-extra["jackson-bom.version"] = "2.22.1"
+// Keep both Jackson namespaces above the published parser/databind fixes.
+extra["jackson-bom.version"] = "3.1.7"
+extra["jackson-2-bom.version"] = "2.22.3"
 // MODERATE GHSA-j288-q9x7-2f5v: uncontrolled recursion in commons-lang3 — reached
 // through the test classpath AND the PIT tool configuration.
 extra["commons-lang3.version"] = "3.18.0"
@@ -39,7 +41,8 @@ extra["commons-lang3.version"] = "3.18.0"
 extra["log4j2.version"] = "2.25.5"
 // CRITICAL GHSA-9xv2-5v5q-p794, GHSA-gcx9-497g-6cp6 and
 // GHSA-h3x4-894j-xpx5: Tomcat authentication and request-processing flaws.
-extra["tomcat.version"] = "10.1.59"
+// Boot 4 needs the Servlet 6.1-compatible Tomcat 11 line.
+extra["tomcat.version"] = "11.0.25"
 
 java {
     toolchain {
@@ -60,21 +63,22 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-validation")
-    implementation("org.flywaydb:flyway-core")
+    implementation("org.springframework.boot:spring-boot-starter-flyway")
     implementation("org.flywaydb:flyway-database-postgresql")
     runtimeOnly("org.postgresql:postgresql")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
+    testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
     // springdoc is TEST-slice only (ADR 008): the contract is emitted by the
     // contractEmit test slice, never served by the running application.
-    testImplementation("org.springdoc:springdoc-openapi-starter-webmvc-api:2.8.17")
+    testImplementation("org.springdoc:springdoc-openapi-starter-webmvc-api:3.0.3")
     // archunit core, not archunit-junit5: the rules run as plain JUnit tests, and
     // the junit5 artifact would drag a junit-platform newer than Boot manages.
     testImplementation("com.tngtech.archunit:archunit:1.5.0")
     // The real-database tier (ADR 006, BRS §15): Testcontainers Postgres, tagged
     // "native" — tool-gated locally (Docker may be absent), mandatory in CI.
-    testImplementation("org.testcontainers:junit-jupiter")
-    testImplementation("org.testcontainers:postgresql")
+    testImplementation("org.testcontainers:testcontainers-junit-jupiter")
+    testImplementation("org.testcontainers:testcontainers-postgresql")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 
     // The non-BOM-managed half of the osv pins (the BOM-managed ones sit in the
