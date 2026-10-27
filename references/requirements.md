@@ -1869,7 +1869,7 @@ auto-suppressed; SAST per stack (eslint-security / SpotBugs+findsecbugs / bandit
 
 **MUST.** The plugin is installable from this repository alone. Its identity is stated in
 four manifests that must agree on name and version: `package.json`, `skill.json`,
-`plugin/.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json`. No manifest,
+`.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json`. No manifest,
 reference or instruction may point at a file the repository does not contain.
 
 - **Why:** A plugin whose metadata lives on the author's machine cannot be installed,

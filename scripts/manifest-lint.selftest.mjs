@@ -1,7 +1,7 @@
 import { expect, report } from "./selftest.mjs";
 
 // Four manifests carry the plugin's identity: skill.json (the engine),
-// plugin/.claude-plugin/plugin.json (the installable), .claude-plugin/
+// .claude-plugin/plugin.json (the installable), .claude-plugin/
 // marketplace.json (the listing) and package.json (the gates). A release bumps
 // all four; this gate proves they never drift apart in between.
 
@@ -24,15 +24,15 @@ const files = (over = {}) => ({
   "SKILL.md": "---\nname: proto-forge\ndescription: d\n---\n",
   "package.json": { name: "proto-forge", version: "0.4.0", private: true },
   "skill.json": { name: "proto-forge", version: "0.4.0", dependencies: {}, adr: [] },
-  "plugin/.claude-plugin/plugin.json": {
+  ".claude-plugin/plugin.json": {
     name: "proto-forge",
     version: "0.4.0",
     description: "d",
-    skills: ["../.."],
+    skills: ["./"],
   },
   ".claude-plugin/marketplace.json": {
     name: "proto-forge",
-    plugins: [{ name: "proto-forge", source: "./plugin", version: "0.4.0" }],
+    plugins: [{ name: "proto-forge", source: "./", version: "0.4.0" }],
   },
   "references/templates.json": {
     templates: [{ id: "web", dir: "templates/web", kind: "frontend", stack: "ts", notAGate: [] }],
@@ -61,11 +61,11 @@ expect(
   "manifest-lint: a name disagreement fails",
   "manifest-lint.mjs",
   files({
-    "plugin/.claude-plugin/plugin.json": {
+    ".claude-plugin/plugin.json": {
       name: "other-forge",
       version: "0.4.0",
       description: "d",
-      skills: ["../.."],
+      skills: ["./"],
     },
   }),
   { pass: false, matching: /name/ },
@@ -94,14 +94,28 @@ expect(
   "manifest-lint: a skills entry that resolves to no SKILL.md fails",
   "manifest-lint.mjs",
   files({
-    "plugin/.claude-plugin/plugin.json": {
+    ".claude-plugin/plugin.json": {
       name: "proto-forge",
       version: "0.4.0",
       description: "d",
-      skills: ["../../elsewhere"],
+      skills: ["./elsewhere"],
     },
   }),
   { pass: false, matching: /SKILL\.md/ },
+);
+
+expect(
+  "manifest-lint: a skills entry escaping the plugin root fails even when it resolves",
+  "manifest-lint.mjs",
+  files({
+    ".claude-plugin/plugin.json": {
+      name: "proto-forge",
+      version: "0.4.0",
+      description: "d",
+      skills: ["../.."],
+    },
+  }),
+  { pass: false, matching: /must start with "\.\/"/ },
 );
 
 expect(

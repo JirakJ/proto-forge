@@ -7,7 +7,7 @@ import { readJson, fail, ok } from "./lib.mjs";
 //
 //   package.json                        the plugin-level gates
 //   skill.json                          the engine
-//   plugin/.claude-plugin/plugin.json   the installable
+//   .claude-plugin/plugin.json          the installable
 //   .claude-plugin/marketplace.json     the listing
 //
 // Drift between them is silent and only surfaces at install time, on someone
@@ -16,7 +16,7 @@ import { readJson, fail, ok } from "./lib.mjs";
 const MANIFESTS = {
   pkg: "package.json",
   skill: "skill.json",
-  plugin: "plugin/.claude-plugin/plugin.json",
+  plugin: ".claude-plugin/plugin.json",
   marketplace: ".claude-plugin/marketplace.json",
 };
 
@@ -95,7 +95,13 @@ if (!Array.isArray(skills) || skills.length === 0) {
   errors.push(`${MANIFESTS.plugin}: skills[] must name the skill directory this plugin installs`);
 } else {
   for (const rel of skills) {
-    const resolved = join("plugin", ".claude-plugin", rel);
+    // Claude Code resolves entries against the plugin root (the marketplace
+    // source) and rejects anything not "./"-relative or escaping it (ADR 026).
+    if (typeof rel !== "string" || !rel.startsWith("./") || rel.split("/").includes("..")) {
+      errors.push(`${MANIFESTS.plugin}: skills entry "${rel}" must start with "./" and stay inside the plugin root`);
+      continue;
+    }
+    const resolved = join(entry === null ? "." : String(entry.source ?? "."), rel);
     if (!existsSync(join(resolved, "SKILL.md"))) {
       errors.push(`${MANIFESTS.plugin}: skills entry "${rel}" resolves to no SKILL.md`);
     }

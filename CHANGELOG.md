@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.12.2 — 2026-10-27
+
+The plugin installs from its own marketplace (ADR 026).
+
+- The marketplace entry is sourced from the repository root and the manifest
+  moves to `.claude-plugin/plugin.json`; skills are named `./`-relative. The old
+  `plugin/.claude-plugin/plugin.json` used `"../.."` paths, which Claude Code
+  rejects (`must start with "./"`), so `/plugin install proto-forge@proto-forge`
+  never worked.
+- `manifest:lint` resolves skills against the marketplace source and rejects
+  entries that are not `./`-relative or that escape the plugin root; a selftest
+  case pins the old shape as a failure. `plugin/README.md` is now `docs/PLUGIN.md`.
+
 ## 0.12.1 — 2026-10-27
 
 Security maintenance across every template (PR #22).

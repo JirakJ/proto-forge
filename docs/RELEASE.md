@@ -36,7 +36,7 @@ Update the same SemVer in:
 
 - `package.json`;
 - `skill.json`;
-- `plugin/.claude-plugin/plugin.json`;
+- `.claude-plugin/plugin.json`;
 - `.claude-plugin/marketplace.json`;
 - every `skills/*/skill.json`.
 
