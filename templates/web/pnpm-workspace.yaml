@@ -36,7 +36,9 @@ overrides:
   # 6.16.0 additionally closes GHSA-4mjr-xmp4-gh2g (MODERATE, DoS via an
   # attacker-controlled isBuffer) and GHSA-x5fp-wj9c-mxmx (MODERATE, array-limit
   # bypass via bracket-key comma parsing).
-  qs: ">=6.16.0"
+  # 6.16.1 closes GHSA-6pq8-jhm2-2vcw (MODERATE, uncaught TypeError in stringify
+  # with arrayFormat "comma").
+  qs: ">=6.16.1"
   braces: file:vendor/braces-3.0.4-security.1.tgz
 
   # Security fixes for existing transitives; local sprintf fork includes tests.

@@ -12,7 +12,9 @@ overrides:
   # 6.16.0 additionally closes GHSA-4mjr-xmp4-gh2g (MODERATE, DoS via an
   # attacker-controlled isBuffer) and GHSA-x5fp-wj9c-mxmx (MODERATE, array-limit
   # bypass via bracket-key comma parsing).
-  qs: ">=6.16.0"
+  # 6.16.1 closes GHSA-6pq8-jhm2-2vcw (MODERATE, uncaught TypeError in stringify
+  # with arrayFormat "comma").
+  qs: ">=6.16.1"
   # fast-uri <3.1.6 / <4.1.3 carries four HIGH advisories: host confusion via
   # percent-encoded scheme normalization (GHSA-jqff-g426-hqxp) and via skipped IDN
   # canonicalization on scheme-relative references (GHSA-5jgf-p345-68v8), plus SSRF

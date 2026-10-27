@@ -45,7 +45,7 @@ packages = ["src/app"]
 # `uv run python -m app.main`, alembic's env.py and the test suite all import
 # the same package the wheel would ship.
 package = true
-constraint-dependencies = ["filelock>=4.2.1", "urllib3>=2.8.0", "mako>=1.4.2"]
+constraint-dependencies = ["filelock>=4.2.1", "urllib3>=2.8.0", "mako>=1.4.2", "msgpack>=1.2.3"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

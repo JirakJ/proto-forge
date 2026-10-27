@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.12.3 — 2026-10-27
+
+Security maintenance for two dev-only transitive dependencies.
+
+- `web`, `api-node`, `desktop-electron`, `desktop-tauri`: the `qs` override
+  moves to `>=6.16.1` (resolves 6.17.0) for GHSA-6pq8-jhm2-2vcw (MODERATE,
+  `qs.stringify` with `arrayFormat: "comma"` throws an uncaught TypeError).
+  qs arrives via `@stryker-mutator/core` → `typed-rest-client`.
+- `api-python`: `msgpack>=1.2.3` joins `constraint-dependencies` (resolves
+  1.2.4) for GHSA-j586-36cw-2gc2 (unbounded memory leak in the C extension when
+  `strict_map_key` validation fails). msgpack arrives via `pip-audit` →
+  `cachecontrol`.
+
 ## 0.12.2 — 2026-10-27
 
 The plugin installs from its own marketplace (ADR 026).
