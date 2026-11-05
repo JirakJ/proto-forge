@@ -100,7 +100,7 @@ templates have smaller orchestration contracts documented in the
 
 ## Install
 
-Two ways — pick one.
+Three ways — pick one.
 
 ### A. Repository marketplace (recommended)
 
@@ -118,20 +118,28 @@ version should be verified separately.
 
 ### B. Skill directory (manual)
 
-This repository is **private**, so a direct clone needs access; the plugin store
-above is the distribution path. With access, drop the skill straight into your
-Claude Code skills directory:
+Drop the skill straight into your Claude Code skills directory, pinned to a
+release tag:
 
 ```bash
-git clone git@github.com:JirakJ/proto-forge.git
+git clone --depth 1 --branch v0.13.0 https://github.com/JirakJ/proto-forge.git
 cp -R proto-forge ~/.claude/skills/proto-forge
 ```
 
 Restart Claude Code (or start a new session). The skill self-registers from its
 `SKILL.md` frontmatter.
 
-> Use **A or B**, not both — installing the plugin *and* the standalone skill
-> registers `proto-forge` twice.
+### C. Agensi marketplace (any agent)
+
+proto-forge ships a free listing for [Agensi](https://www.agensi.io), which serves skills
+to Claude, Cursor, Codex, Gemini CLI and other agents through one connector. The
+listing is a bootstrap ([ADR 027](docs/adr/027-marketplace-listings-bootstrap-a-pinned-release.md)):
+on first use it clones this repository at the listed release tag into the user's
+cache directory, refuses the checkout unless it is exactly that tag's commit, and
+then runs the full skill from it. Each GitHub release carries the matching package
+as `proto-forge-agensi-vX.Y.Z.zip`.
+
+> Use **one** route — installing more than one registers `proto-forge` twice.
 
 **Requirements for repository development and generated prototypes:** Node 22.x and
 [pnpm](https://pnpm.io) 10.11.0, plus the native toolchain selected by the template.

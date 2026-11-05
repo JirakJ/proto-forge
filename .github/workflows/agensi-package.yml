@@ -1,0 +1,47 @@
+name: agensi-package
+
+# ADR 027: every published release carries its Agensi marketplace package as a
+# release asset, built from the tag it pins — never from a working tree.
+#
+# Triggered by publishing a release, not by pushing a tag: the asset needs a
+# release to attach to, and a tag pushed before its release exists would race it.
+# House rules (verify.yml, automerge.yml): GitHub context reaches `run:` only
+# through `env:`, never by ${{ }} interpolation inside the script.
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: agensi-package-${{ github.event.release.tag_name }}
+  cancel-in-progress: false
+
+jobs:
+  package:
+    name: build and attach the Agensi package
+    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - name: selftest the package gate
+        run: node scripts/agensi-package.selftest.mjs
+      - name: build the package for this tag
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: node scripts/agensi-package.mjs --ref "$TAG" --out dist/agensi
+      - name: attach it to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          gh release upload "$TAG" \
+            "dist/agensi/proto-forge-agensi-${TAG}.zip" \
+            "dist/agensi/proto-forge-agensi-${TAG}.zip.sha256" \
+            --repo "$REPO" --clobber

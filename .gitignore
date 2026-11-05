@@ -1,6 +1,7 @@
 .DS_Store
 *.log
 node_modules/
+dist/
 .scratch/
 # Per-session and per-operator tooling state: written by the orchestration hooks on
 # every session, never part of the plugin.

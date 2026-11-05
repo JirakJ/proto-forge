@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.13.0 — 2026-11-05
+
+Distribution through the Agensi skill marketplace (ADR 027).
+
+- `distribution/agensi/` holds a bootstrap listing: a `SKILL.md` that discloses the
+  one-time download and hands over to the real skill, and a dependency-free
+  `bootstrap.mjs` that clones this repository at the release tag into the user's
+  cache directory and accepts it only when `HEAD` is that tag's commit and no
+  tracked file is modified. Agensi serves at most 200 files per listing and
+  forbids saving them, so the ~2,300-file plugin cannot ship there directly.
+- `scripts/agensi-package.mjs` (`pnpm agensi:package`) stamps the tag and commit
+  from git, refuses untagged or mislabelled releases, enforces the marketplace's
+  published limits, syntax-checks the script and writes a byte-reproducible zip
+  plus SHA-256. Nine selftest cases cover the package and each refusal; the full
+  bootstrap was run against the live repository (fresh clone, cached reuse,
+  tampered checkout refused).
+- `agensi-package.yml` attaches the package to every published release.
+- README: the skill-directory install no longer claims the repository is private
+  (it is public) and pins a release tag; a third install route documents Agensi.
+- `api-kotlin`: the `io.opentelemetry` floor moves from 1.62.0 to 1.67.0 for
+  MODERATE GHSA-ccrj-gw8r-854m / CVE-2026-118259 (quadratic CPU consumption in W3C
+  `tracestate` parsing), on the Kotlin plugin's swift-export classpath. Published
+  after 0.12.3; `sec:scan` turned the template matrix red.
+
 ## 0.12.3 — 2026-10-27
 
 Security maintenance for two dev-only transitive dependencies.
