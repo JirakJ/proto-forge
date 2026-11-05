@@ -1,6 +1,6 @@
 {
   "name": "proto-forge",
-  "version": "0.12.3",
+  "version": "0.13.0",
   "private": true,
   "type": "module",
   "description": "The proto-forge skills and their app templates. This package holds the plugin-level gates only; every generated app has its own package.json under its template's dir in references/templates.json.",
@@ -24,6 +24,7 @@
     "elicit:lint": "node skills/elicit/template/.elicit/lint.mjs skills/elicit/template",
     "security:catalogue": "node scripts/security-catalogue.mjs",
     "models:lint": "node scripts/models-lint.mjs",
-    "skill:gates": "node scripts/skill-gates-lint.mjs"
+    "skill:gates": "node scripts/skill-gates-lint.mjs",
+    "agensi:package": "node scripts/agensi-package.mjs"
   }
 }
