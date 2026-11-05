@@ -19,6 +19,10 @@ Distribution through the Agensi skill marketplace (ADR 027).
 - `agensi-package.yml` attaches the package to every published release.
 - README: the skill-directory install no longer claims the repository is private
   (it is public) and pins a release tag; a third install route documents Agensi.
+- `api-kotlin`: the `io.opentelemetry` floor moves from 1.62.0 to 1.67.0 for
+  MODERATE GHSA-ccrj-gw8r-854m / CVE-2026-118259 (quadratic CPU consumption in W3C
+  `tracestate` parsing), on the Kotlin plugin's swift-export classpath. Published
+  after 0.12.3; `sec:scan` turned the template matrix red.
 
 ## 0.12.3 — 2026-10-27
 

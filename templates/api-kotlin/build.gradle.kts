@@ -62,8 +62,10 @@ val securityPins = mapOf(
     "io.netty" to "4.2.17.Final",
     // MODERATE logback-core advisories reached through logback-classic.
     "ch.qos.logback" to "1.5.34",
-    // MODERATE GHSA-rcgg-9c38-7xpx, on the Kotlin plugin's swift-export classpath.
-    "io.opentelemetry" to "1.62.0",
+    // MODERATE GHSA-rcgg-9c38-7xpx, then MODERATE GHSA-ccrj-gw8r-854m (quadratic
+    // CPU in W3C tracestate parsing) — fixed in 1.67.0 — on the Kotlin plugin's
+    // swift-export classpath.
+    "io.opentelemetry" to "1.67.0",
     // MODERATE GHSA-cj8j-37rh-8475 and siblings, then CRITICAL GHSA-9pwp-9qqc-pr26
     // (name-constraints bypass via a trailing dot) and HIGH GHSA-qp49-qgx5-5m26
     // (lazy ASN.1 parsing resets the nesting-depth guard) — fixed in 1.85 — on
