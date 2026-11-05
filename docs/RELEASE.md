@@ -64,6 +64,18 @@ git push origin vMAJOR.MINOR.PATCH
 The direct marketplace source is `JirakJ/proto-forge`. A downstream marketplace may
 mirror a tag, but it should pin that tag rather than copy mutable metadata.
 
+Publishing the GitHub release triggers `agensi-package.yml`, which builds the Agensi
+bootstrap package for that tag and attaches `proto-forge-agensi-vX.Y.Z.zip` and its
+`.sha256` to the release (ADR 027). To build or check it locally:
+
+```bash
+node scripts/agensi-package.mjs --ref vX.Y.Z           # writes dist/agensi/
+node scripts/agensi-package.mjs --ref vX.Y.Z --check   # validates only
+```
+
+Then upload that zip as a new version of the Agensi listing in the same release
+cycle, so the listing never pins an older tag than the plugin.
+
 ## Rollback
 
 Do not move an existing tag. If a release is defective:
